@@ -164,11 +164,8 @@ export default function HomeScreen() {
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        {/* Left spacer (equal width to right icons) */}
-        <View style={styles.headerSide} />
-
-        {/* Centered Logo */}
-        <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)} activeOpacity={0.8} style={styles.headerCenter}>
+        {/* Logo — far left */}
+        <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)} activeOpacity={0.8}>
           {appLogo ? (
             <Image source={{ uri: appLogo }} style={styles.headerLogo} resizeMode="contain" />
           ) : (
@@ -177,7 +174,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Right icons */}
-        <View style={[styles.headerSide, styles.headerRight]}>
+        <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(customer)/search' as any)}>
             <Ionicons name="time-outline" size={23} color={Colors.text} />
           </TouchableOpacity>
@@ -406,17 +403,15 @@ const styles = StyleSheet.create({
   container:        { flex: 1, backgroundColor: '#F5F5F5' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F5F5' },
 
-  /* Header — logo centered */
+  /* Header — logo far left */
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingVertical: 10,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
   },
-  headerSide:   { width: 88, flexDirection: 'row' },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerRight:  { justifyContent: 'flex-end', gap: 4 },
-  headerLogo:   { height: 40, width: 120 },
-  iconBtn:      { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  headerRight: { flexDirection: 'row', gap: 4 },
+  headerLogo:  { height: 40, width: 120 },
+  iconBtn:     { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
 
   /* Hero Banner */
   heroSection:        { backgroundColor: '#fff', paddingBottom: 12, marginBottom: 8 },
