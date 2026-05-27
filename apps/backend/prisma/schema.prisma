@@ -1,0 +1,2033 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ────────────────────────────────────────────────────────────
+
+model User {
+  id                String     @id @default(uuid())
+  email             String?    @unique
+  phone             String     @unique
+  passwordHash      String
+  fullName          String
+  avatar            String?
+  role              UserRole   @default(CUSTOMER)
+  status            UserStatus @default(PENDING_VERIFICATION)
+  isPhoneVerified   Boolean    @default(false)
+  isEmailVerified   Boolean    @default(false)
+  fcmToken          String?
+  lastLoginAt       DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  customer          Customer?
+  seller            Seller?
+  rider             Rider?
+  wallet            Wallet?
+  otpVerifications  OtpVerification[]
+  notifications     Notification[]
+  supportTickets    SupportTicket[]
+  adminLogs         AdminLog[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model OtpVerification {
+  id         String   @id @default(uuid())
+  userId     String
+  phone      String
+  otp        String
+  purpose    OtpPurpose
+  isUsed     Boolean  @default(false)
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([phone, purpose])
+  @@map("otp_verifications")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ─── Customer ────────────────────────────────────────────────────────────────
+
+model Customer {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  dateOfBirth     DateTime?
+  gender          String?
+  preferredLang   String    @default("en")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id])
+  addresses       Address[]
+  orders          Order[]
+  simOrders       SimOrder[]
+  topupOrders     TopupOrder[]
+  wishlistItems   WishlistItem[]
+  reviews         Review[]
+  cartItems       CartItem[]
+
+  @@map("customers")
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  customerId   String
+  label        String   @default("Home")
+  fullName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  district     String
+  postalCode   String?
+  lat          Float
+  lng          Float
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  customer     Customer @relation(fields: [customerId], references: [id])
+  orders       Order[]
+
+  @@map("addresses")
+}
+
+model Wallet {
+  id           String          @id @default(uuid())
+  userId       String          @unique
+  balance      Float           @default(0)
+  currency     String          @default("KRW")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id          String              @id @default(uuid())
+  walletId    String
+  type        WalletTxType
+  amount      Float
+  balance     Float
+  reference   String?
+  description String?
+  createdAt   DateTime            @default(now())
+
+  wallet      Wallet              @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@map("wallet_transactions")
+}
+
+// ─── Seller ──────────────────────────────────────────────────────────────────
+
+model Seller {
+  id                  String       @id @default(uuid())
+  userId              String       @unique
+  storeName           String
+  storeSlug           String       @unique
+  storeDescription    String?
+  storeLogo           String?
+  storeBanner         String?
+  businessRegNumber   String?
+  address             String?
+  detailAddress       String?
+  businessDocUrl      String?
+  idDocUrl            String?
+  bankName            String?
+  accountNumber       String?
+  accountHolderName   String?
+  commissionRate      Float        @default(10)
+  sellerStatus        SellerStatus @default(PENDING)
+  totalEarnings       Float        @default(0)
+  pendingPayout       Float        @default(0)
+  rating              Float        @default(0)
+  totalSales          Int          @default(0)
+  rejectionReason     String?
+  approvedAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  user                User         @relation(fields: [userId], references: [id])
+  products            Product[]
+  orderItems          OrderItem[]
+  payouts             SellerPayout[]
+  commissions         Commission[]
+
+  @@index([storeSlug])
+  @@map("sellers")
+}
+
+model SellerPayout {
+  id              String       @id @default(uuid())
+  sellerId        String
+  amount          Float
+  commission      Float
+  netAmount       Float
+  bankName        String
+  accountNumber   String
+  accountHolder   String
+  status          PayoutStatus @default(PENDING)
+  processedAt     DateTime?
+  notes           String?
+  createdAt       DateTime     @default(now())
+
+  seller          Seller       @relation(fields: [sellerId], references: [id])
+
+  @@map("seller_payouts")
+}
+
+// ─── Rider ───────────────────────────────────────────────────────────────────
+
+model Rider {
+  id                String      @id @default(uuid())
+  userId            String      @unique
+  vehicleType       String
+  vehicleNumber     String
+  licenseNumber     String
+  licenseDocUrl     String?
+  idDocUrl          String?
+  riderStatus       RiderStatus @default(OFFLINE)
+  currentLat        Float?
+  currentLng        Float?
+  totalDeliveries   Int         @default(0)
+  totalEarnings     Float       @default(0)
+  rating            Float       @default(0)
+  isOnline          Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  user              User        @relation(fields: [userId], references: [id])
+  deliveries        DeliveryAssignment[]
+  trackingPoints    DeliveryTracking[]
+
+  @@map("riders")
+}
+
+// ─── Categories ──────────────────────────────────────────────────────────────
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  nameKr      String?
+  slug        String     @unique
+  icon        String?
+  image       String?
+  parentId    String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+
+  parent      Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryChildren")
+  products    Product[]
+
+  @@index([slug])
+  @@map("categories")
+}
+
+// ─── Products ────────────────────────────────────────────────────────────────
+
+model Product {
+  id                   String        @id @default(uuid())
+  sellerId             String
+  categoryId           String
+  name                 String
+  nameKr               String?
+  description          String
+  price                Float
+  discountPrice        Float?
+  discountPercent      Float?
+  stock                Int           @default(0)
+  unit                 String        @default("pc")
+  sku                  String?       @unique
+  status               ProductStatus @default(ACTIVE)
+  rating               Float         @default(0)
+  reviewCount          Int           @default(0)
+  isDeliveryAvailable  Boolean       @default(true)
+  deliveryFee          Float         @default(0)
+  minOrderQty          Int           @default(1)
+  maxOrderQty          Int?
+  tags                 String[]
+  isFeatured           Boolean       @default(false)
+  viewCount            Int           @default(0)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  seller               Seller        @relation(fields: [sellerId], references: [id])
+  category             Category      @relation(fields: [categoryId], references: [id])
+  images               ProductImage[]
+  orderItems           OrderItem[]
+  wishlistItems        WishlistItem[]
+  reviews              Review[]
+  cartItems            CartItem[]
+
+  @@index([categoryId])
+  @@index([sellerId])
+  @@index([status])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model WishlistItem {
+  id         String   @id @default(uuid())
+  customerId String
+  productId  String
+  createdAt  DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@unique([customerId, productId])
+  @@map("wishlists")
+}
+
+model CartItem {
+  id         String   @id @default(uuid())
+  customerId String
+  productId  String
+  quantity   Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@unique([customerId, productId])
+  @@map("carts")
+}
+
+// ─── Orders ──────────────────────────────────────────────────────────────────
+
+model Order {
+  id              String        @id @default(uuid())
+  orderNumber     String        @unique
+  customerId      String
+  addressId       String?
+  couponId        String?
+  status          OrderStatus   @default(PENDING)
+  subtotal        Float
+  deliveryFee     Float         @default(0)
+  discount        Float         @default(0)
+  tax             Float         @default(0)
+  total           Float
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus @default(PENDING)
+  notes           String?
+  estimatedAt     DateTime?
+  deliveredAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  address         Address?      @relation(fields: [addressId], references: [id])
+  coupon          Coupon?       @relation(fields: [couponId], references: [id])
+  items           OrderItem[]
+  payments        Payment[]
+  refunds         Refund[]
+  delivery        DeliveryAssignment?
+  commissions     Commission[]
+  statusHistory   OrderStatusHistory[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([orderNumber])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String   @id @default(uuid())
+  orderId        String
+  productId      String
+  sellerId       String
+  productName    String
+  productImage   String?
+  quantity       Int
+  unitPrice      Float
+  totalPrice     Float
+  discountAmount Float    @default(0)
+  notes          String?
+
+  order          Order    @relation(fields: [orderId], references: [id])
+  product        Product  @relation(fields: [productId], references: [id])
+  seller         Seller   @relation(fields: [sellerId], references: [id])
+
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(uuid())
+  orderId   String
+  status    OrderStatus
+  notes     String?
+  createdBy String?
+  createdAt DateTime    @default(now())
+
+  order     Order       @relation(fields: [orderId], references: [id])
+
+  @@map("order_status_history")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  customerId String
+  productId  String
+  orderId    String?
+  rating     Int
+  comment    String?
+  images     String[]
+  isApproved Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@unique([customerId, productId, orderId])
+  @@map("reviews")
+}
+
+// ─── SIM Cards ───────────────────────────────────────────────────────────────
+
+model SimNumber {
+  id                    String     @id @default(uuid())
+  fullNumber            String     @unique
+  maskedNumber          String
+  lastFourDigits        String
+  carrier               SimCarrier
+  simType               SimType
+  price                 Float
+  status                SimStatus  @default(AVAILABLE)
+  activationRequired    Boolean    @default(true)
+  requiresIdVerification Boolean   @default(true)
+  notes                 String?
+  addedBy               String?
+  batchId               String?
+  reservedUntil         DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  simOrders             SimOrder[]
+
+  @@index([lastFourDigits])
+  @@index([status])
+  @@index([carrier])
+  @@map("sim_numbers")
+}
+
+model SimOrder {
+  id               String     @id @default(uuid())
+  orderNumber      String     @unique
+  customerId       String
+  simNumberId      String
+  status           SimStatus  @default(PENDING)
+  idDocumentUrl    String?
+  idDocumentType   String?
+  idVerified       Boolean    @default(false)
+  deliveryAddressId String?
+  riderId          String?
+  reservedAt       DateTime?
+  confirmedAt      DateTime?
+  processingAt     DateTime?
+  deliveredAt      DateTime?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  adminNotes       String?
+  price            Float
+  paymentStatus    PaymentStatus @default(PENDING)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  customer         Customer   @relation(fields: [customerId], references: [id])
+  simNumber        SimNumber  @relation(fields: [simNumberId], references: [id])
+  payment          Payment[]
+  statusHistory    SimOrderStatusHistory[]
+
+  @@index([customerId])
+  @@index([status])
+  @@map("sim_orders")
+}
+
+model SimOrderStatusHistory {
+  id         String    @id @default(uuid())
+  simOrderId String
+  status     SimStatus
+  notes      String?
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+
+  simOrder   SimOrder  @relation(fields: [simOrderId], references: [id])
+
+  @@map("sim_order_status_history")
+}
+
+// ─── Top-Up ──────────────────────────────────────────────────────────────────
+
+model TopupOrder {
+  id                String       @id @default(uuid())
+  orderNumber       String       @unique
+  customerId        String
+  providerId        String?
+  topupType         TopupType
+  countryCode       String
+  countryName       String
+  phoneNumber       String
+  operator          String?
+  amount            Float
+  currency          String       @default("KRW")
+  exchangeRate      Float?
+  serviceFee        Float        @default(0)
+  totalAmount       Float
+  status            TopupStatus  @default(PENDING)
+  providerReference String?
+  failureReason     String?
+  paymentMethod     PaymentMethod
+  paymentStatus     PaymentStatus @default(PENDING)
+  completedAt       DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  customer          Customer     @relation(fields: [customerId], references: [id])
+  provider          TopupProvider? @relation(fields: [providerId], references: [id])
+  payments          Payment[]
+
+  @@index([customerId])
+  @@index([status])
+  @@map("topup_orders")
+}
+
+model TopupProvider {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  countries   String[]
+  apiEndpoint String?
+  apiKey      String?
+  isActive    Boolean  @default(true)
+  minAmount   Float    @default(1000)
+  maxAmount   Float    @default(100000)
+  serviceFee  Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topupOrders TopupOrder[]
+
+  @@map("topup_providers")
+}
+
+// ─── Payments ────────────────────────────────────────────────────────────────
+
+model Payment {
+  id               String        @id @default(uuid())
+  orderId          String?
+  simOrderId       String?
+  topupOrderId     String?
+  customerId       String?
+  amount           Float
+  currency         String        @default("KRW")
+  method           PaymentMethod
+  status           PaymentStatus @default(PENDING)
+  transactionId    String?
+  gatewayPaymentId String?
+  gatewayResponse  Json?
+  failureReason    String?
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+
+  order            Order?        @relation(fields: [orderId], references: [id])
+  simOrder         SimOrder?     @relation(fields: [simOrderId], references: [id])
+  topupOrder       TopupOrder?   @relation(fields: [topupOrderId], references: [id])
+  refunds          Refund[]
+
+  @@index([orderId])
+  @@index([status])
+  @@map("payments")
+}
+
+model Refund {
+  id          String       @id @default(uuid())
+  orderId     String?
+  paymentId   String?
+  customerId  String?
+  amount      Float
+  reason      String
+  status      RefundStatus @default(PENDING)
+  adminNotes  String?
+  processedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  order       Order?       @relation(fields: [orderId], references: [id])
+  payment     Payment?     @relation(fields: [paymentId], references: [id])
+
+  @@map("refunds")
+}
+
+model Commission {
+  id          String   @id @default(uuid())
+  orderId     String
+  sellerId    String
+  orderAmount Float
+  rate        Float
+  amount      Float
+  isPaid      Boolean  @default(false)
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  order       Order    @relation(fields: [orderId], references: [id])
+  seller      Seller   @relation(fields: [sellerId], references: [id])
+
+  @@index([sellerId])
+  @@map("commissions")
+}
+
+// ─── Delivery ────────────────────────────────────────────────────────────────
+
+model DeliveryAssignment {
+  id                 String         @id @default(uuid())
+  orderId            String         @unique
+  riderId            String
+  status             DeliveryStatus @default(ASSIGNED)
+  pickupLat          Float?
+  pickupLng          Float?
+  pickupAddress      String?
+  dropoffLat         Float?
+  dropoffLng         Float?
+  dropoffAddress     String?
+  estimatedPickup    DateTime?
+  estimatedDelivery  DateTime?
+  actualDelivery     DateTime?
+  deliveryProofUrl   String?
+  deliveryOtp        String?
+  riderNotes         String?
+  distance           Float?
+  deliveryFee        Float          @default(0)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  order              Order          @relation(fields: [orderId], references: [id])
+  rider              Rider          @relation(fields: [riderId], references: [id])
+  trackingPoints     DeliveryTracking[]
+
+  @@index([riderId])
+  @@map("delivery_assignments")
+}
+
+model DeliveryTracking {
+  id           String   @id @default(uuid())
+  assignmentId String
+  riderId      String
+  lat          Float
+  lng          Float
+  speed        Float?
+  heading      Float?
+  accuracy     Float?
+  recordedAt   DateTime @default(now())
+
+  assignment   DeliveryAssignment @relation(fields: [assignmentId], references: [id])
+  rider        Rider              @relation(fields: [riderId], references: [id])
+
+  @@index([assignmentId])
+  @@index([riderId])
+  @@map("delivery_tracking")
+}
+
+// ─── Promotions ──────────────────────────────────────────────────────────────
+
+model Coupon {
+  id              String      @id @default(uuid())
+  code            String      @unique
+  title           String
+  description     String?
+  type            CouponType
+  value           Float
+  minOrderAmount  Float       @default(0)
+  maxDiscount     Float?
+  usageLimit      Int?
+  usedCount       Int         @default(0)
+  perUserLimit    Int         @default(1)
+  isActive        Boolean     @default(true)
+  startDate       DateTime
+  endDate         DateTime
+  createdAt       DateTime    @default(now())
+
+  orders          Order[]
+
+  @@index([code])
+  @@map("coupons")
+}
+
+model Banner {
+  id         String      @id @default(uuid())
+  title      String
+  subtitle   String?
+  imageUrl   String
+  linkType   BannerLink  @default(NONE)
+  linkValue  String?
+  isActive   Boolean     @default(true)
+  sortOrder  Int         @default(0)
+  startDate  DateTime?
+  endDate    DateTime?
+  createdAt  DateTime    @default(now())
+
+  @@map("banners")
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  type      NotificationType
+  data      Json?
+  isRead    Boolean          @default(false)
+  sentAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─── Support ─────────────────────────────────────────────────────────────────
+
+model SupportTicket {
+  id          String        @id @default(uuid())
+  userId      String
+  subject     String
+  message     String
+  category    TicketCategory
+  status      TicketStatus  @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  assignedTo  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id])
+  replies     TicketReply[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model TicketReply {
+  id        String   @id @default(uuid())
+  ticketId  String
+  userId    String
+  message   String
+  isAdmin   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id])
+
+  @@map("ticket_replies")
+}
+
+// ─── Admin ───────────────────────────────────────────────────────────────────
+
+model AdminLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  module     String
+  targetId   String?
+  targetType String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([module])
+  @@map("admin_logs")
+}
+
+model AppSettings {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+model DeliveryZone {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  polygon     Json
+  deliveryFee Float    @default(3000)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("delivery_zones")
+}
+
+// ─── Exchange Rates ──────────────────────────────────────────────────────────
+
+model ExchangeRateProvider {
+  id                     String         @id @default(uuid())
+  companyName            String
+  slug                   String         @unique
+  logoUrl                String?
+  country                String         @default("KR")
+  officialWebsite        String?
+  appDeepLink            String?
+  supportedSendCurrencies String[]      @default(["KRW"])
+  supportedRecvCurrencies String[]      @default([])
+  status                 ProviderStatus @default(ACTIVE)
+  fetchMethod            FetchMethod    @default(MANUAL)
+  scraperKey             String?
+  sourceUrl              String?
+  isVerified             Boolean        @default(false)
+  isFeatured             Boolean        @default(false)
+  priority               Int            @default(50)
+  transferTime           String?
+  minAmount              Float?
+  maxAmount              Float?
+  rateSpreadPercent      Float          @default(0)
+  notes                  String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  rates                  ExchangeRate[]
+  updateLogs             RateUpdateLog[]
+
+  @@index([slug])
+  @@index([status])
+  @@map("exchange_rate_providers")
+}
+
+model ExchangeRate {
+  id           String               @id @default(uuid())
+  providerId   String
+  sendCurrency String
+  recvCurrency String
+  rate         Float
+  transferFee  Float                @default(0)
+  isBestRate   Boolean              @default(false)
+  isStale      Boolean              @default(false)
+  rateSource   String               @default("manual")
+  lastUpdated  DateTime             @default(now())
+  createdAt    DateTime             @default(now())
+
+  provider     ExchangeRateProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, sendCurrency, recvCurrency])
+  @@index([sendCurrency, recvCurrency])
+  @@index([providerId])
+  @@map("exchange_rates")
+}
+
+model RateUpdateLog {
+  id           String               @id @default(uuid())
+  providerId   String
+  success      Boolean
+  fetchMethod  FetchMethod
+  ratesUpdated Int                  @default(0)
+  errorMessage String?
+  duration     Int?
+  createdAt    DateTime             @default(now())
+
+  provider     ExchangeRateProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([createdAt])
+  @@map("rate_update_logs")
+}
+
+// ─── SaaS Marketplace Configuration ─────────────────────────────────────────
+
+model PlatformSetting {
+  id          String   @id @default(uuid())
+  scope       String   @default("platform")
+  key         String
+  value       Json
+  valueType   SettingValueType @default(JSON)
+  group       String   @default("general")
+  description String?
+  isPublic    Boolean  @default(false)
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([scope, key])
+  @@index([group])
+  @@map("platform_settings")
+}
+
+model ThemeSetting {
+  id             String   @id @default(uuid())
+  name           String   @default("Default")
+  primaryColor   String   @default("#10B981")
+  secondaryColor String   @default("#183522")
+  accentColor    String   @default("#F59E0B")
+  backgroundColor String  @default("#FFFFFF")
+  textColor      String   @default("#111827")
+  buttonRadius   Int      @default(12)
+  cardRadius     Int      @default(16)
+  fontFamily     String?
+  logoUrl        String?
+  faviconUrl     String?
+  headerStyle    String?
+  footerStyle    String?
+  supportsDarkMode Boolean @default(false)
+  isActive       Boolean  @default(true)
+  updatedBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("theme_settings")
+}
+
+model Language {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  nativeName String?
+  isDefault Boolean  @default(false)
+  isEnabled Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("languages")
+}
+
+model Translation {
+  id          String   @id @default(uuid())
+  languageCode String
+  key         String
+  value       String
+  namespace   String   @default("common")
+  description String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([languageCode, key])
+  @@index([namespace])
+  @@map("translations")
+}
+
+model HomepageSection {
+  id          String   @id @default(uuid())
+  sectionKey  String
+  type        HomepageSectionType
+  title       String?
+  subtitle    String?
+  content     Json?
+  imageUrl    String?
+  buttonText  String?
+  buttonUrl   String?
+  languageCode String @default("en")
+  isVisible   Boolean @default(true)
+  sortOrder   Int     @default(0)
+  settings    Json?
+  createdBy   String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([sectionKey, languageCode])
+  @@index([type])
+  @@index([isVisible, sortOrder])
+  @@map("homepage_sections")
+}
+
+model MenuItem {
+  id          String   @id @default(uuid())
+  menuKey     String   @default("main")
+  label       String
+  url         String
+  languageCode String @default("en")
+  parentId    String?
+  isVisible   Boolean @default(true)
+  sortOrder   Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([menuKey, languageCode])
+  @@map("menu_items")
+}
+
+model CMSPage {
+  id            String   @id @default(uuid())
+  slug          String
+  pageType      CMSPageType
+  title         String
+  content       String
+  excerpt       String?
+  languageCode  String   @default("en")
+  version       Int      @default(1)
+  status        PublishStatus @default(DRAFT)
+  publishedAt   DateTime?
+  lastUpdatedBy String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([slug, languageCode, version])
+  @@index([pageType])
+  @@index([status])
+  @@map("cms_pages")
+}
+
+model AgreementTemplate {
+  id              String   @id @default(uuid())
+  key             String
+  title           String
+  body            String
+  languageCode    String   @default("en")
+  required        Boolean  @default(true)
+  enabled         Boolean  @default(true)
+  sellerScopes    String[]
+  version         Int      @default(1)
+  sortOrder       Int      @default(0)
+  updatedBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([key, languageCode, version])
+  @@index([enabled, sortOrder])
+  @@map("agreement_templates")
+}
+
+// ─── Seller Onboarding, Forms & Documents ───────────────────────────────────
+
+model SellerApplication {
+  id              String   @id @default(uuid())
+  userId          String
+  sellerId        String?
+  sellerScope     SellerScope
+  sellerAccountType SellerAccountType
+  status          SellerApplicationStatus @default(DRAFT)
+  preferredLanguage String?
+  countryOfResidence String?
+  nationality     String?
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  rejectionReason String?
+  requestMessage  String?
+  internalNotes   String?
+  payload         Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([sellerScope, sellerAccountType])
+  @@map("seller_applications")
+}
+
+model SellerFormField {
+  id              String   @id @default(uuid())
+  fieldKey        String
+  sectionKey      String
+  label           String
+  placeholder     String?
+  helpText        String?
+  fieldType       SellerFormFieldType
+  options         Json?
+  validationRules Json?
+  required        Boolean  @default(false)
+  enabled         Boolean  @default(true)
+  sellerScopes    String[]
+  sellerAccountTypes String[]
+  languageCode    String   @default("en")
+  sortOrder       Int      @default(0)
+  createdBy       String?
+  updatedBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([fieldKey, languageCode])
+  @@index([sectionKey, enabled, sortOrder])
+  @@map("seller_form_fields")
+}
+
+model SellerBusinessInformation {
+  id                         String   @id @default(uuid())
+  sellerId                   String?
+  applicationId              String?
+  sellerScope                SellerScope
+  businessRegistrationNumber String?
+  businessName               String?
+  businessType               String?
+  businessCategory           String?
+  representativeName         String?
+  businessAddress            String?
+  businessPhone              String?
+  businessEmail              String?
+  mailOrderSalesReportNumber String?
+  taxInvoiceEmail            String?
+  vatStatus                  String?
+  businessOpeningDate        DateTime?
+  globalBusinessLicenseNumber String?
+  countryOfIncorporation     String?
+  metadata                   Json?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@index([sellerId])
+  @@index([applicationId])
+  @@index([businessRegistrationNumber])
+  @@map("seller_business_information")
+}
+
+model SellerBankAccount {
+  id                 String   @id @default(uuid())
+  sellerId           String?
+  applicationId      String?
+  bankCountry        String
+  bankName           String
+  accountHolderName  String
+  accountNumber      String
+  swiftCode          String?
+  bankAddress        String?
+  settlementCurrency String   @default("KRW")
+  settlementCycle    SettlementCycle @default(MONTHLY)
+  isPrimary          Boolean  @default(true)
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  rejectionReason    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([sellerId])
+  @@index([applicationId])
+  @@index([verificationStatus])
+  @@map("seller_bank_accounts")
+}
+
+model SellerDocumentRequirement {
+  id                 String   @id @default(uuid())
+  documentType       SellerDocumentType
+  title              String
+  description        String?
+  required           Boolean  @default(true)
+  enabled            Boolean  @default(true)
+  sellerScopes       String[]
+  sellerAccountTypes String[]
+  acceptedFileTypes  String[] @default(["PDF", "JPG", "JPEG", "PNG"])
+  maxFileSizeMb      Int      @default(10)
+  expires            Boolean  @default(false)
+  languageCode       String   @default("en")
+  sortOrder          Int      @default(0)
+  createdBy          String?
+  updatedBy          String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([documentType])
+  @@index([enabled, sortOrder])
+  @@map("seller_document_requirements")
+}
+
+model SellerDocument {
+  id                String   @id @default(uuid())
+  sellerId          String?
+  applicationId     String?
+  requirementId     String?
+  documentType      SellerDocumentType
+  fileUrl           String
+  originalFileName  String
+  mimeType          String
+  fileSize          Int
+  status            DocumentReviewStatus @default(PENDING)
+  reviewerId        String?
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  expiresAt         DateTime?
+  uploadedBy        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([sellerId])
+  @@index([applicationId])
+  @@index([documentType])
+  @@index([status])
+  @@map("seller_documents")
+}
+
+model SellerApplicationReview {
+  id            String   @id @default(uuid())
+  applicationId String
+  reviewerId    String
+  action        SellerReviewAction
+  fromStatus    String?
+  toStatus      String?
+  note          String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([applicationId])
+  @@index([reviewerId])
+  @@map("seller_application_reviews")
+}
+
+// ─── Product Compliance & Marketplace Rules ─────────────────────────────────
+
+model ProductCompliance {
+  id                    String   @id @default(uuid())
+  productId             String
+  brand                 String?
+  manufacturer          String?
+  importer              String?
+  countryOfOrigin       String?
+  modelName             String?
+  barcode               String?
+  informationNotice     Json?
+  kcCertificationRequired Boolean @default(false)
+  kcCertificationNumber String?
+  expirationDate        DateTime?
+  storageCondition      String?
+  allergyInformation    String?
+  legalWarningLabels    String?
+  status                ProductApprovalStatus @default(DRAFT)
+  reviewedBy            String?
+  reviewedAt            DateTime?
+  rejectionReason       String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([productId])
+  @@index([status])
+  @@map("product_compliance")
+}
+
+model ProductDocument {
+  id               String   @id @default(uuid())
+  productId         String
+  documentType      ProductDocumentType
+  fileUrl           String
+  originalFileName  String
+  mimeType          String
+  fileSize          Int
+  status            DocumentReviewStatus @default(PENDING)
+  reviewerId        String?
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  expiresAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([productId])
+  @@index([documentType])
+  @@index([status])
+  @@map("product_documents")
+}
+
+model CategoryRequirement {
+  id                    String   @id @default(uuid())
+  categoryId            String?
+  categorySlug          String?
+  title                 String
+  description           String?
+  requiresApproval      Boolean  @default(false)
+  requiresKcCertification Boolean @default(false)
+  requiresFoodCertificate Boolean @default(false)
+  requiresCosmeticCompliance Boolean @default(false)
+  requiresAgeVerification Boolean @default(false)
+  requiredDocumentTypes String[]
+  isRestricted          Boolean  @default(false)
+  isProhibited          Boolean  @default(false)
+  enabled               Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([categorySlug])
+  @@map("category_requirements")
+}
+
+model ProhibitedItemRule {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  ruleType    ProhibitedRuleType
+  keywords    String[]
+  categoryId  String?
+  categorySlug String?
+  action      ComplianceAction @default(REQUIRE_REVIEW)
+  enabled     Boolean @default(true)
+  createdBy   String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ruleType])
+  @@index([enabled])
+  @@map("prohibited_item_rules")
+}
+
+model CommissionRule {
+  id              String   @id @default(uuid())
+  name            String
+  sellerId        String?
+  categoryId      String?
+  categorySlug    String?
+  sellerScope     SellerScope?
+  commissionRate  Float
+  paymentFeeRate  Float?
+  shippingFeeRule Json?
+  settlementDeductionRate Float?
+  refundDeductionRate Float?
+  promotionalFeeRate Float?
+  featuredListingFee Float?
+  priority        Int      @default(0)
+  enabled         Boolean  @default(true)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([enabled, priority])
+  @@map("commission_rules")
+}
+
+// ─── Payments, Shipping & Settlements ───────────────────────────────────────
+
+model PaymentProviderSetting {
+  id          String   @id @default(uuid())
+  provider    PaymentProvider
+  displayName String
+  enabled     Boolean  @default(false)
+  testMode    Boolean  @default(true)
+  publicConfig Json?
+  secretRef   String?
+  webhookUrl  String?
+  settlementFeeRate Float?
+  supportedCurrencies String[]
+  createdBy   String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([provider])
+  @@index([enabled])
+  @@map("payment_provider_settings")
+}
+
+model ShippingMethod {
+  id                    String   @id @default(uuid())
+  name                  String
+  type                  ShippingMethodType
+  courierCompany        String?
+  enabled               Boolean  @default(true)
+  baseFee               Float    @default(0)
+  freeShippingThreshold Float?
+  returnShippingFee     Float?
+  exchangeShippingFee   Float?
+  deliveryTimeEstimate  String?
+  settings              Json?
+  sortOrder             Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([enabled, sortOrder])
+  @@map("shipping_methods")
+}
+
+model Shipment {
+  id              String   @id @default(uuid())
+  orderId          String
+  sellerId         String?
+  shippingMethodId String?
+  courierCompany   String?
+  trackingNumber   String?
+  shippingFee      Float   @default(0)
+  shippingOrigin   String?
+  returnAddress    String?
+  status           ShipmentStatus @default(PREPARING)
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([sellerId])
+  @@index([status])
+  @@map("shipments")
+}
+
+model ReturnRequest {
+  id            String   @id @default(uuid())
+  orderId        String
+  orderItemId    String?
+  customerId     String?
+  sellerId       String?
+  reason         String
+  description    String?
+  status         ReturnRequestStatus @default(REQUESTED)
+  adminNotes     String?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([sellerId])
+  @@index([status])
+  @@map("return_requests")
+}
+
+model Settlement {
+  id              String   @id @default(uuid())
+  sellerId        String
+  periodStart     DateTime
+  periodEnd       DateTime
+  grossAmount     Float
+  commissionAmount Float @default(0)
+  paymentFeeAmount Float @default(0)
+  shippingFeeAmount Float @default(0)
+  refundDeductionAmount Float @default(0)
+  adjustmentAmount Float @default(0)
+  netAmount       Float
+  currency        String  @default("KRW")
+  status          SettlementStatus @default(PENDING)
+  scheduledPayDate DateTime?
+  paidAt          DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([sellerId])
+  @@index([status])
+  @@map("settlements")
+}
+
+model SettlementItem {
+  id            String   @id @default(uuid())
+  settlementId  String
+  orderId       String?
+  orderItemId   String?
+  type          SettlementItemType
+  description   String?
+  amount        Float
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([settlementId])
+  @@map("settlement_items")
+}
+
+// ─── Notifications, Roles & Audit ───────────────────────────────────────────
+
+model NotificationTemplate {
+  id            String   @id @default(uuid())
+  key           String
+  channel       NotificationChannel
+  subject       String?
+  body          String
+  languageCode  String   @default("en")
+  enabled       Boolean  @default(true)
+  updatedBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([key, channel, languageCode])
+  @@index([enabled])
+  @@map("notification_templates")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  module      String
+  action      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRoleAssignment {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  assignedBy String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@map("user_role_assignments")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String?
+  actorRole   String?
+  action      String
+  module      String
+  targetType  String?
+  targetId    String?
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([actorId])
+  @@index([module])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  sellerId    String?
+  action      String
+  description String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([sellerId])
+  @@map("activity_logs")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  CUSTOMER
+  SELLER
+  RIDER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum SellerStatus {
+  DRAFT
+  PENDING
+  SUBMITTED
+  UNDER_REVIEW
+  NEED_MORE_DOCUMENTS
+  APPROVED
+  REJECTED
+  SUSPENDED
+  BLOCKED
+  CLOSED
+}
+
+enum RiderStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+enum OtpPurpose {
+  PHONE_VERIFICATION
+  LOGIN
+  PASSWORD_RESET
+  PAYMENT
+  DELIVERY_CONFIRM
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  APPROVED
+  REJECTED
+  SUSPENDED
+  INACTIVE
+  OUT_OF_STOCK
+  DELETED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  PICKED_UP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  CARD
+  BANK_TRANSFER
+  WALLET
+  TOSS_PAYMENTS
+  KG_INICIS
+  NHN_KCP
+  KAKAO_PAY
+  NAVER_PAY
+  ESCROW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum SimStatus {
+  PENDING
+  AVAILABLE
+  RESERVED
+  CONFIRMED
+  PROCESSING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum SimCarrier {
+  SKT
+  KT
+  LG_UPLUS
+  MVNO
+}
+
+enum SimType {
+  PREPAID
+  DATA_ONLY
+  VOICE_DATA
+}
+
+enum TopupType {
+  LOCAL
+  INTERNATIONAL
+}
+
+enum TopupStatus {
+  PENDING
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  REFUNDED
+}
+
+enum DeliveryStatus {
+  ASSIGNED
+  ACCEPTED
+  HEADING_TO_PICKUP
+  PICKED_UP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum WalletTxType {
+  CREDIT
+  DEBIT
+  REFUND
+  TOPUP
+  WITHDRAWAL
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED
+  FREE_DELIVERY
+}
+
+enum BannerLink {
+  NONE
+  CATEGORY
+  PRODUCT
+  URL
+  SIM
+  TOPUP
+}
+
+enum NotificationType {
+  ORDER
+  SIM_ORDER
+  TOPUP
+  DELIVERY
+  PROMOTION
+  SYSTEM
+  SUPPORT
+}
+
+enum TicketCategory {
+  ORDER
+  SIM
+  TOPUP
+  PAYMENT
+  ACCOUNT
+  DOCUMENT
+  PRODUCT
+  SETTLEMENT
+  TECHNICAL
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ProviderStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum FetchMethod {
+  MANUAL
+  FOREX_API
+  WISE_API
+  HTML_SCRAPER
+  BROWSER_SCRAPER
+}
+
+enum SettingValueType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+  COLOR
+  IMAGE
+}
+
+enum HomepageSectionType {
+  HERO
+  STATISTICS
+  BENEFITS
+  WHY_SELL
+  WHY_KOREA
+  TESTIMONIALS
+  HOW_IT_WORKS
+  SUPPORT
+  CTA
+  FOOTER
+  CUSTOM
+}
+
+enum CMSPageType {
+  TERMS_OF_SERVICE
+  SELLER_TERMS
+  PRIVACY_POLICY
+  PERSONAL_INFORMATION_PROCESSING
+  REFUND_POLICY
+  RETURN_EXCHANGE_POLICY
+  SHIPPING_POLICY
+  PAYMENT_POLICY
+  SETTLEMENT_POLICY
+  PROHIBITED_ITEMS_POLICY
+  PRODUCT_SAFETY_POLICY
+  CONSUMER_DISPUTE_POLICY
+  MARKETING_CONSENT_POLICY
+  YOUTH_PROTECTION_POLICY
+  COOKIE_POLICY
+  CUSTOMER_SUPPORT_POLICY
+  SELLER_VERIFICATION_POLICY
+  CUSTOM
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SellerScope {
+  LOCAL
+  GLOBAL
+}
+
+enum SellerAccountType {
+  INDIVIDUAL
+  BUSINESS
+  COMPANY
+  GLOBAL
+}
+
+enum SellerApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEED_MORE_DOCUMENTS
+  APPROVED
+  REJECTED
+  SUSPENDED
+  BLOCKED
+}
+
+enum SellerFormFieldType {
+  TEXT
+  EMAIL
+  PHONE
+  NUMBER
+  PASSWORD
+  TEXTAREA
+  DROPDOWN
+  CHECKBOX
+  RADIO
+  DATE
+  FILE_UPLOAD
+  ADDRESS_SEARCH
+}
+
+enum SellerDocumentType {
+  GOVERNMENT_ID
+  PASSPORT
+  BUSINESS_REGISTRATION_CERTIFICATE
+  MAIL_ORDER_SALES_CERTIFICATE
+  PURCHASE_SAFETY_SERVICE_CONFIRMATION
+  BANK_STATEMENT
+  BANKBOOK_COPY
+  BUSINESS_LICENSE
+  PROOF_OF_BUSINESS_OWNERSHIP
+  KYC_DOCUMENT
+  CORPORATE_REGISTRY_CERTIFICATE
+  CORPORATE_SEAL_CERTIFICATE
+  PROOF_OF_CONTACT_INFORMATION
+  OTHER
+}
+
+enum DocumentReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  NEEDS_REUPLOAD
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  NEEDS_REVIEW
+}
+
+enum SettlementCycle {
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum SellerReviewAction {
+  SUBMIT
+  START_REVIEW
+  APPROVE
+  REJECT
+  REQUEST_DOCUMENTS
+  VERIFY_DOCUMENT
+  REJECT_DOCUMENT
+  VERIFY_BANK
+  REJECT_BANK
+  SUSPEND
+  REACTIVATE
+  INTERNAL_NOTE
+}
+
+enum ProductApprovalStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+  OUT_OF_STOCK
+}
+
+enum ProductDocumentType {
+  KC_CERTIFICATE
+  FOOD_CERTIFICATE
+  COSMETIC_COMPLIANCE
+  CHILDREN_PRODUCT_SAFETY
+  ELECTRONICS_SAFETY
+  IMPORT_CERTIFICATE
+  PRODUCT_INFORMATION_NOTICE
+  OTHER
+}
+
+enum ProhibitedRuleType {
+  ALLOWED
+  RESTRICTED
+  PROHIBITED
+  REQUIRES_APPROVAL
+}
+
+enum ComplianceAction {
+  ALLOW
+  WARN
+  REQUIRE_REVIEW
+  BLOCK
+}
+
+enum PaymentProvider {
+  TOSS_PAYMENTS
+  KG_INICIS
+  NHN_KCP
+  KAKAO_PAY
+  NAVER_PAY
+  BANK_TRANSFER
+  ESCROW
+  CASH_ON_DELIVERY
+  WALLET
+  STRIPE
+  CUSTOM
+}
+
+enum ShippingMethodType {
+  SELLER_DIRECT
+  COURIER
+  PICKUP
+  FREE_SHIPPING
+  PAID_SHIPPING
+  CONDITIONAL_FREE_SHIPPING
+  FULFILLMENT_PLACEHOLDER
+}
+
+enum ShipmentStatus {
+  PREPARING
+  SHIPPED
+  IN_TRANSIT
+  DELIVERED
+  RETURN_REQUESTED
+  RETURNED
+  CANCELLED
+}
+
+enum ReturnRequestStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  RECEIVED
+  REFUNDED
+  CLOSED
+}
+
+enum SettlementStatus {
+  PENDING
+  CALCULATED
+  APPROVED
+  SCHEDULED
+  PAID
+  FAILED
+  HELD
+}
+
+enum SettlementItemType {
+  ORDER
+  COMMISSION
+  PAYMENT_FEE
+  SHIPPING_FEE
+  REFUND
+  ADJUSTMENT
+  PROMOTION
+  FEATURED_LISTING
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}

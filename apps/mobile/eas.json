@@ -1,0 +1,77 @@
+{
+  "cli": {
+    "version": ">= 10.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "development",
+        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "buildConfiguration": "Debug"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "APP_ENV": "preview",
+        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "buildConfiguration": "Release",
+        "distribution": "internal"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "APP_ENV": "production",
+        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031",
+        "EXPO_PUBLIC_API_URL": "https://api.ammart.com/api/v1"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "buildConfiguration": "Release",
+        "distribution": "store"
+      }
+    },
+    "production-apk": {
+      "extends": "production",
+      "env": {
+        "APP_ENV": "production",
+        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031",
+        "EXPO_PUBLIC_API_URL": "http://192.168.0.38:3001/api/v1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal"
+      },
+      "ios": {
+        "appleId": "your@apple.id",
+        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+      }
+    }
+  }
+}

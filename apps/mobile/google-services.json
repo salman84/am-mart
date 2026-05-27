@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "574738296081",
+    "project_id": "am-mart-b4528",
+    "storage_bucket": "am-mart-b4528.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:574738296081:android:33a83f1177576621d6f0b0",
+        "android_client_info": {
+          "package_name": "com.ammart.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQPQ8ZUwsRNW1oRc6nfrGrVduE_OapCCU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

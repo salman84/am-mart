@@ -1,0 +1,151 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { clsx } from 'clsx';
+import {
+  LayoutDashboard, Users, ShoppingBag, Package, Truck, Zap,
+  CreditCard, TicketPercent, Image, MessageSquare, Settings,
+  LogOut, Store, ChevronDown, ChevronRight, Smartphone, BarChart3, Tag,
+  Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal,
+} from 'lucide-react';
+import { useState } from 'react';
+
+const navGroups = [
+  {
+    label: 'Overview',
+    items: [
+      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { href: '/reports', icon: BarChart3, label: 'Reports' },
+    ],
+  },
+  {
+    label: 'Users',
+    items: [
+      { href: '/users', icon: Users, label: 'Users & Roles' },
+      { href: '/customers', icon: Users, label: 'Customers' },
+      { href: '/sellers', icon: Store, label: 'Sellers' },
+      { href: '/riders', icon: Truck, label: 'Riders' },
+    ],
+  },
+  {
+    label: 'Products & Orders',
+    items: [
+      { href: '/products', icon: ShoppingBag, label: 'Products' },
+      { href: '/categories', icon: Tag, label: 'Categories' },
+      { href: '/orders', icon: Package, label: 'Orders' },
+      { href: '/reviews', icon: Star, label: 'Reviews' },
+    ],
+  },
+  {
+    label: 'Services',
+    items: [
+      { href: '/sim-numbers', icon: Smartphone, label: 'SIM Numbers & Orders' },
+      { href: '/topup-orders', icon: Zap, label: 'Top-Up Orders' },
+      { href: '/exchange-rates', icon: TrendingUp, label: 'Exchange Rates' },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { href: '/payments', icon: CreditCard, label: 'Payments & Refunds' },
+      { href: '/integrations', icon: Plug, label: 'API Integrations' },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { href: '/banners', icon: Image, label: 'Banners' },
+      { href: '/coupons', icon: TicketPercent, label: 'Coupons' },
+    ],
+  },
+  {
+    label: 'Support & Settings',
+    items: [
+      { href: '/support', icon: MessageSquare, label: 'Support Tickets' },
+      { href: '/delivery-zones', icon: MapPin, label: 'Delivery Zones' },
+      { href: '/settings', icon: Settings, label: 'App Settings' },
+      { href: '/marketplace-config', icon: SlidersHorizontal, label: 'Marketplace SaaS' },
+      { href: '/backup', icon: Database, label: 'Backup & Restore' },
+    ],
+  },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (label: string) => {
+    setCollapsed((c) => ({ ...c, [label]: !c[label] }));
+  };
+
+  const logout = () => {
+    localStorage.removeItem('adminToken');
+    window.location.href = '/login';
+  };
+
+  return (
+    <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-40">
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100">
+        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+          <span className="text-white font-bold text-sm">AM</span>
+        </div>
+        <div>
+          <div className="font-bold text-gray-900 text-sm">AM Mart</div>
+          <div className="text-xs text-gray-500">Admin Panel</div>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <div className="flex-1 overflow-y-auto py-4 px-3">
+        {navGroups.map((group) => (
+          <div key={group.label} className="mb-4">
+            <button
+              onClick={() => toggleGroup(group.label)}
+              className="flex items-center justify-between w-full px-2 py-1 mb-1"
+            >
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                {group.label}
+              </span>
+              {collapsed[group.label] ? (
+                <ChevronRight className="w-3 h-3 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-gray-400" />
+              )}
+            </button>
+            {!collapsed[group.label] && (
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href || (pathname?.startsWith(`${item.href}/`) ?? false);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={clsx(
+                        'sidebar-item',
+                        isActive ? 'bg-primary/10 text-primary font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                      )}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className="px-3 py-4 border-t border-gray-100">
+        <button onClick={logout} className="sidebar-item text-red-500 hover:bg-red-50 w-full">
+          <LogOut className="w-4 h-4" />
+          <span>Logout</span>
+        </button>
+      </div>
+    </div>
+  );
+}
