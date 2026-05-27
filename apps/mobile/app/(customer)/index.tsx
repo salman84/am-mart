@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, RefreshControl, ActivityIndicator, Dimensions, FlatList,
+  Image, RefreshControl, ActivityIndicator, Dimensions,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -14,8 +15,7 @@ import { useLanguage } from '../../src/i18n';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - Spacing.lg * 2 - 12) / 2;
-const BANNER_WIDTH = width - Spacing.lg * 2;
-const BANNER_INTERVAL = 4000; // 4 seconds auto-slide
+const BANNER_HEIGHT = 180;
 
 // Category icon mapping — driven by name from API
 const CAT_ICONS: Record<string, { icon: any; color: string; bg: string }> = {
@@ -44,6 +44,22 @@ function getCatStyle(name: string, index: number) {
 
 const BANNER_COLORS = ['#183522', '#1E3A5F', '#3B0764', '#7C2D12', '#164E63'];
 
+const DEFAULT_CATEGORIES = [
+  { id: '1', name: 'Fruits & Vegetables' },
+  { id: '2', name: 'Meat & Seafood' },
+  { id: '3', name: 'Dairy & Eggs' },
+  { id: '4', name: 'Bakery' },
+  { id: '5', name: 'Beverages' },
+  { id: '6', name: 'Snacks' },
+  { id: '7', name: 'Personal Care' },
+  { id: '8', name: 'Household' },
+];
+
+const DEFAULT_BANNERS = [
+  { id: '1', title: 'Quality Groceries', subtitle: 'Delivered to your door' },
+  { id: '2', title: 'International Topup', subtitle: 'Send credit worldwide' },
+];
+
 export default function HomeScreen() {
   const { user } = useSelector((state: RootState) => state.auth);
   const cartCount = useSelector((state: RootState) => state.cart.itemCount);
@@ -61,25 +77,27 @@ export default function HomeScreen() {
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Banner auto-slide
-  const [activeBanner, setActiveBanner] = useState(0);
-  const bannerRef = useRef<FlatList>(null);
-  const autoSlideRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ── Hero Slider (fade transition, no swipe) ──────────────────
+  const [heroIndex, setHeroIndex] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const heroTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heroIndexRef = useRef(0);
+  const heroBannersRef = useRef<any[]>([]);
 
-  const startAutoSlide = useCallback((total: number) => {
-    if (autoSlideRef.current) clearInterval(autoSlideRef.current);
+  const startHeroSlide = useCallback((total: number) => {
+    if (heroTimerRef.current) clearInterval(heroTimerRef.current);
     if (total <= 1) return;
-    autoSlideRef.current = setInterval(() => {
-      setActiveBanner((prev) => {
-        const next = (prev + 1) % total;
-        bannerRef.current?.scrollToIndex({ index: next, animated: true });
-        return next;
+    heroTimerRef.current = setInterval(() => {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 500, useNativeDriver: true }).start(() => {
+        heroIndexRef.current = (heroIndexRef.current + 1) % heroBannersRef.current.length;
+        setHeroIndex(heroIndexRef.current);
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
       });
-    }, BANNER_INTERVAL);
-  }, []);
+    }, 4000);
+  }, [fadeAnim]);
 
   useEffect(() => {
-    return () => { if (autoSlideRef.current) clearInterval(autoSlideRef.current); };
+    return () => { if (heroTimerRef.current) clearInterval(heroTimerRef.current); };
   }, []);
 
   const loadData = useCallback(async () => {
@@ -94,8 +112,13 @@ export default function HomeScreen() {
 
       let bannerList: any[] = [];
       if (bannersRes.status === 'fulfilled') bannerList = bannersRes.value.data?.banners ?? bannersRes.value.data ?? [];
+      if (bannerList.length === 0) bannerList = DEFAULT_BANNERS;
+      heroBannersRef.current = bannerList;
       setBanners(bannerList);
-      startAutoSlide(bannerList.length);
+      setHeroIndex(0);
+      heroIndexRef.current = 0;
+      fadeAnim.setValue(1);
+      startHeroSlide(bannerList.length);
 
       if (categoriesRes.status === 'fulfilled') {
         const cats = categoriesRes.value.data?.categories ?? categoriesRes.value.data ?? [];
@@ -119,7 +142,7 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [startAutoSlide]);
+  }, [startHeroSlide, fadeAnim]);
 
   useEffect(() => { loadData(); }, [loadData]);
   const onRefresh = () => { setRefreshing(true); loadData(); };
@@ -134,14 +157,18 @@ export default function HomeScreen() {
 
   const displayBanners    = banners.length > 0 ? banners : DEFAULT_BANNERS;
   const displayCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-  const displayPopular    = popular.length > 0 ? popular : [];
+  const currentBanner     = displayBanners[heroIndex] ?? displayBanners[0];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)} activeOpacity={0.8}>
+        {/* Left spacer (equal width to right icons) */}
+        <View style={styles.headerSide} />
+
+        {/* Centered Logo */}
+        <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)} activeOpacity={0.8} style={styles.headerCenter}>
           {appLogo ? (
             <Image source={{ uri: appLogo }} style={styles.headerLogo} resizeMode="contain" />
           ) : (
@@ -149,20 +176,12 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
 
-        <View style={styles.headerRight}>
-          {/* Watch History — replaces top cart */}
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.push('/(customer)/search' as any)}
-          >
+        {/* Right icons */}
+        <View style={[styles.headerSide, styles.headerRight]}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(customer)/search' as any)}>
             <Ionicons name="time-outline" size={23} color={Colors.text} />
           </TouchableOpacity>
-
-          {/* Notifications */}
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.push('/(customer)/notifications' as any)}
-          >
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(customer)/notifications' as any)}>
             <Ionicons name="notifications-outline" size={23} color={Colors.text} />
           </TouchableOpacity>
         </View>
@@ -173,83 +192,55 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
       >
 
-        {/* ── Banner Auto-Slider ── */}
-        <View style={styles.bannerSection}>
-          <FlatList
-            ref={bannerRef}
-            data={displayBanners}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={BANNER_WIDTH + 12}
-            decelerationRate="fast"
-            keyExtractor={(_, i) => `banner-${i}`}
-            contentContainerStyle={styles.bannerContent}
-            onMomentumScrollEnd={(e) => {
-              const idx = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + 12));
-              setActiveBanner(idx);
-            }}
-            onScrollBeginDrag={() => {
-              if (autoSlideRef.current) clearInterval(autoSlideRef.current);
-            }}
-            onScrollEndDrag={() => startAutoSlide(displayBanners.length)}
-            getItemLayout={(_, index) => ({ length: BANNER_WIDTH + 12, offset: (BANNER_WIDTH + 12) * index, index })}
-            renderItem={({ item: banner, index }) => (
-              <TouchableOpacity
-                style={styles.bannerItem}
-                activeOpacity={0.95}
-                onPress={() => {
-                  if (banner.linkType === 'CATEGORY' && banner.linkUrl) {
-                    router.push({ pathname: '/(customer)/products' as any, params: { categoryId: banner.linkUrl } });
-                  } else if (banner.linkType === 'PRODUCT' && banner.linkUrl) {
-                    router.push({ pathname: '/(customer)/product/[id]' as any, params: { id: banner.linkUrl } });
-                  }
-                }}
-              >
-                {banner.imageUrl ? (
-                  <Image source={{ uri: banner.imageUrl }} style={styles.bannerImage} resizeMode="cover" />
-                ) : (
-                  <View style={[styles.bannerPlaceholder, { backgroundColor: BANNER_COLORS[index % BANNER_COLORS.length] }]}>
-                    <View style={styles.bannerTextBox}>
-                      <Text style={styles.bannerLabel}>{appName.toUpperCase()}</Text>
-                      <Text style={styles.bannerTitle}>{banner.title}</Text>
-                      {banner.subtitle ? <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text> : null}
-                    </View>
-                    <Ionicons name="storefront-outline" size={64} color="rgba(255,255,255,0.18)" />
+        {/* ── Hero Banner (single fade-transition slider) ── */}
+        <View style={styles.heroSection}>
+          <Animated.View style={[styles.heroBanner, { opacity: fadeAnim }]}>
+            <TouchableOpacity
+              activeOpacity={0.95}
+              style={{ flex: 1 }}
+              onPress={() => {
+                if (currentBanner.linkType === 'CATEGORY' && currentBanner.linkUrl) {
+                  router.push({ pathname: '/(customer)/products' as any, params: { categoryId: currentBanner.linkUrl } });
+                } else if (currentBanner.linkType === 'PRODUCT' && currentBanner.linkUrl) {
+                  router.push({ pathname: '/(customer)/product/[id]' as any, params: { id: currentBanner.linkUrl } });
+                }
+              }}
+            >
+              {currentBanner.imageUrl ? (
+                <Image source={{ uri: currentBanner.imageUrl }} style={styles.heroBannerImage} resizeMode="cover" />
+              ) : (
+                <View style={[styles.heroBannerPlaceholder, { backgroundColor: BANNER_COLORS[heroIndex % BANNER_COLORS.length] }]}>
+                  <View style={styles.bannerTextBox}>
+                    <Text style={styles.bannerLabel}>{appName.toUpperCase()}</Text>
+                    <Text style={styles.bannerTitle}>{currentBanner.title}</Text>
+                    {currentBanner.subtitle ? <Text style={styles.bannerSubtitle}>{currentBanner.subtitle}</Text> : null}
                   </View>
-                )}
-              </TouchableOpacity>
-            )}
-          />
+                  <Ionicons name="storefront-outline" size={72} color="rgba(255,255,255,0.18)" />
+                </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
 
-          {/* Dots indicator */}
+          {/* Dots */}
           {displayBanners.length > 1 && (
             <View style={styles.dotsRow}>
               {displayBanners.map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.dot,
-                    i === activeBanner ? styles.dotActive : styles.dotInactive,
-                  ]}
-                />
+                <View key={i} style={[styles.dot, i === heroIndex ? styles.dotActive : styles.dotInactive]} />
               ))}
             </View>
           )}
         </View>
 
-        {/* ── Quick Services ── */}
+        {/* ── Quick Services (TopUp, SIM, Rate Inquiry only) ── */}
         <View style={styles.servicesSection}>
           {[
-            featureTopup && { icon: 'flash',          label: t('topUp'),      sub: t('localIntl'),       color: '#F97316', bg: '#FFF7ED', route: '/(customer)/topup'           },
-            featureSim   && { icon: 'phone-portrait', label: t('simCards'),   sub: t('browseNumbers'),   color: '#3B82F6', bg: '#EFF6FF', route: '/(customer)/sim'              },
-                             { icon: 'trending-up',    label: t('rateInquiry'), sub: t('bestRates'),      color: '#10B981', bg: '#ECFDF5', route: '/(customer)/exchange-rates'  },
-                             { icon: 'receipt',        label: t('myOrders'),   sub: t('trackDeliveries'), color: '#6366F1', bg: '#EEF2FF', route: '/(customer)/orders'           },
-                             { icon: 'storefront',     label: t('shop'),       sub: t('allProducts'),     color: '#8B5CF6', bg: '#F5F3FF', route: '/(customer)/products'         },
+            featureTopup && { icon: 'flash',          label: t('topUp'),       sub: t('localIntl'),     color: '#F97316', bg: '#FFF7ED', route: '/(customer)/topup' },
+            featureSim   && { icon: 'phone-portrait', label: t('simCards'),    sub: t('browseNumbers'), color: '#3B82F6', bg: '#EFF6FF', route: '/(customer)/sim' },
+                             { icon: 'trending-up',   label: t('rateInquiry'), sub: t('bestRates'),     color: '#10B981', bg: '#ECFDF5', route: '/(customer)/exchange-rates' },
           ].filter(Boolean).map((s: any) => (
             <TouchableOpacity key={s.label} style={styles.serviceCard} onPress={() => router.push(s.route as any)}>
               <View style={[styles.serviceIconBox, { backgroundColor: s.bg }]}>
-                <Ionicons name={s.icon as any} size={22} color={s.color} />
+                <Ionicons name={s.icon as any} size={24} color={s.color} />
               </View>
               <Text style={styles.serviceLabel}>{s.label}</Text>
               <Text style={styles.serviceDesc} numberOfLines={1}>{s.sub}</Text>
@@ -303,19 +294,29 @@ export default function HomeScreen() {
         )}
 
         {/* ── Popular Products ── */}
-        {displayPopular.length > 0 && (
-          <View style={styles.sectionBox}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t('popularItems')}</Text>
-              <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)}>
-                <Text style={styles.seeAll}>{t('seeAll')}</Text>
+        <View style={styles.sectionBox}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t('popularItems')}</Text>
+            <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)}>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
+            </TouchableOpacity>
+          </View>
+          {popular.length > 0 ? (
+            <View style={styles.productGrid}>
+              {popular.map((p: any) => <GridProductCard key={p.id} product={p} currency={currency} />)}
+            </View>
+          ) : (
+            <View style={styles.emptyProducts}>
+              <Ionicons name="storefront-outline" size={48} color={Colors.textLight} />
+              <Text style={styles.emptyProductsTitle}>Products Coming Soon</Text>
+              <Text style={styles.emptyProductsText}>Check back later for fresh arrivals</Text>
+              <TouchableOpacity style={styles.shopNowBtn} onPress={() => router.push('/(customer)/products' as any)}>
+                <Text style={styles.shopNowText}>Browse All Products</Text>
+                <Ionicons name="arrow-forward" size={14} color={Colors.primary} />
               </TouchableOpacity>
             </View>
-            <View style={styles.productGrid}>
-              {displayPopular.map((p: any) => <GridProductCard key={p.id} product={p} currency={currency} />)}
-            </View>
-          </View>
-        )}
+          )}
+        </View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -399,75 +400,53 @@ function GridProductCard({ product, currency }: { product: any; currency: string
   );
 }
 
-/* ─── Fallback data (used when API returns nothing) ──────────── */
-
-const DEFAULT_CATEGORIES = [
-  { id: '1', name: 'Fruits & Vegetables' },
-  { id: '2', name: 'Meat & Seafood' },
-  { id: '3', name: 'Dairy & Eggs' },
-  { id: '4', name: 'Bakery' },
-  { id: '5', name: 'Beverages' },
-  { id: '6', name: 'Snacks' },
-  { id: '7', name: 'Personal Care' },
-  { id: '8', name: 'Household' },
-];
-
-const DEFAULT_BANNERS = [
-  { id: '1', title: 'Quality Groceries', subtitle: 'Delivered to your door' },
-  { id: '2', title: 'International Topup', subtitle: 'Send credit worldwide' },
-];
-
 /* ─── Styles ─────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
   container:        { flex: 1, backgroundColor: '#F5F5F5' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F5F5' },
 
-  /* Header */
+  /* Header — logo centered */
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingVertical: 10,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
   },
-  headerLogo: { height: 40, width: 130 },
-  headerRight: { flexDirection: 'row', gap: 4 },
-  iconBtn: {
-    width: 40, height: 40, justifyContent: 'center', alignItems: 'center',
-  },
+  headerSide:   { width: 88, flexDirection: 'row' },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerRight:  { justifyContent: 'flex-end', gap: 4 },
+  headerLogo:   { height: 40, width: 120 },
+  iconBtn:      { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
 
-  /* Banner */
-  bannerSection:    { backgroundColor: '#fff', paddingBottom: 10, marginBottom: 8 },
-  bannerContent:    { paddingHorizontal: Spacing.lg, gap: 12, paddingTop: Spacing.base },
-  bannerItem: {
-    width: BANNER_WIDTH, height: 160,
-    borderRadius: BorderRadius.xl, overflow: 'hidden', ...Shadow.md,
-  },
-  bannerImage:      { width: '100%', height: '100%' },
-  bannerPlaceholder:{
+  /* Hero Banner */
+  heroSection:        { backgroundColor: '#fff', paddingBottom: 12, marginBottom: 8 },
+  heroBanner:         { marginHorizontal: Spacing.lg, marginTop: Spacing.base, height: BANNER_HEIGHT, borderRadius: 16, overflow: 'hidden', ...Shadow.md },
+  heroBannerImage:    { width: '100%', height: '100%' },
+  heroBannerPlaceholder: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', paddingHorizontal: Spacing.xl,
   },
-  bannerTextBox:    { flex: 1 },
-  bannerLabel:      { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, marginBottom: 4 },
-  bannerTitle:      { color: '#fff', fontSize: FontSize.xl, fontWeight: FontWeight.extrabold },
-  bannerSubtitle:   { color: 'rgba(255,255,255,0.75)', fontSize: FontSize.xs, marginTop: 4 },
+  bannerTextBox:  { flex: 1 },
+  bannerLabel:    { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, marginBottom: 4 },
+  bannerTitle:    { color: '#fff', fontSize: FontSize.xl, fontWeight: FontWeight.extrabold },
+  bannerSubtitle: { color: 'rgba(255,255,255,0.75)', fontSize: FontSize.xs, marginTop: 4 },
 
   /* Dots */
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, gap: 5 },
-  dot:     { height: 6, borderRadius: 3 },
+  dotsRow:     { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, gap: 5 },
+  dot:         { height: 6, borderRadius: 3 },
   dotActive:   { width: 20, backgroundColor: Colors.primary },
   dotInactive: { width: 6,  backgroundColor: '#D1D5DB' },
 
   /* Services */
   servicesSection: {
     flexDirection: 'row', backgroundColor: '#fff',
-    paddingVertical: Spacing.base, paddingHorizontal: Spacing.base,
-    marginBottom: 8, gap: 6,
+    paddingVertical: Spacing.base, paddingHorizontal: Spacing.lg,
+    marginBottom: 8, gap: 8,
   },
-  serviceCard:    { flex: 1, alignItems: 'center', gap: 4 },
-  serviceIconBox: { width: 50, height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  serviceLabel:   { fontSize: 11, fontWeight: FontWeight.bold, color: Colors.text, textAlign: 'center' },
-  serviceDesc:    { fontSize: 9, color: Colors.textSecondary, textAlign: 'center' },
+  serviceCard:    { flex: 1, alignItems: 'center', gap: 5 },
+  serviceIconBox: { width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  serviceLabel:   { fontSize: 12, fontWeight: FontWeight.bold, color: Colors.text, textAlign: 'center' },
+  serviceDesc:    { fontSize: 10, color: Colors.textSecondary, textAlign: 'center' },
 
   /* Sections */
   sectionBox: { backgroundColor: '#fff', marginBottom: 8, paddingBottom: Spacing.base },
@@ -511,6 +490,19 @@ const styles = StyleSheet.create({
   gridInfo:  { padding: Spacing.sm, gap: 2 },
   gridName:  { fontSize: 12, fontWeight: FontWeight.semibold, color: Colors.text, lineHeight: 16 },
   gridStore: { fontSize: 10, color: Colors.textSecondary },
+
+  /* Empty products placeholder */
+  emptyProducts: {
+    alignItems: 'center', paddingVertical: 36, paddingHorizontal: Spacing.lg,
+  },
+  emptyProductsTitle: { fontSize: 16, fontWeight: FontWeight.bold, color: Colors.text, marginTop: 12, marginBottom: 4 },
+  emptyProductsText:  { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', marginBottom: 16 },
+  shopNowBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderWidth: 1.5, borderColor: Colors.primary, borderRadius: 20,
+    paddingHorizontal: 20, paddingVertical: 9,
+  },
+  shopNowText: { fontSize: 13, fontWeight: FontWeight.semibold, color: Colors.primary },
 
   /* Shared */
   imgPlaceholder:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F5F5' },

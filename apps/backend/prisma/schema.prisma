@@ -438,6 +438,8 @@ model SimNumber {
   status                SimStatus  @default(AVAILABLE)
   activationRequired    Boolean    @default(true)
   requiresIdVerification Boolean   @default(true)
+  customerChoosesLastFour Boolean  @default(false)
+  numberPrefix          String?
   notes                 String?
   addedBy               String?
   batchId               String?
@@ -450,6 +452,7 @@ model SimNumber {
   @@index([lastFourDigits])
   @@index([status])
   @@index([carrier])
+  @@index([numberPrefix])
   @@map("sim_numbers")
 }
 

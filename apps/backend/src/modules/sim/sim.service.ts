@@ -22,27 +22,43 @@ export class SimService {
       throw new BadRequestException('Last four digits must be exactly 4 numbers');
     }
 
-    const where: any = {
-      lastFourDigits: lastFour,
-      status: 'AVAILABLE',
+    const select = {
+      id: true,
+      maskedNumber: true,
+      lastFourDigits: true,
+      carrier: true,
+      simType: true,
+      price: true,
+      activationRequired: true,
+      requiresIdVerification: true,
+      customerChoosesLastFour: true,
+      numberPrefix: true,
     };
-    if (carrier) where.carrier = carrier;
-    if (simType) where.simType = simType;
 
-    const numbers = await this.prisma.simNumber.findMany({
-      where,
-      select: {
-        id: true,
-        maskedNumber: true,
-        lastFourDigits: true,
-        carrier: true,
-        simType: true,
-        price: true,
-        activationRequired: true,
-        requiresIdVerification: true,
-      },
-    });
+    // 1. Full numbers with exact last 4 match
+    const exactWhere: any = { lastFourDigits: lastFour, status: 'AVAILABLE', customerChoosesLastFour: false };
+    if (carrier) exactWhere.carrier = carrier;
+    if (simType) exactWhere.simType = simType;
 
+    // 2. Prefix-mode numbers (admin left last 4 for customer choice)
+    const prefixWhere: any = { status: 'AVAILABLE', customerChoosesLastFour: true };
+    if (carrier) prefixWhere.carrier = carrier;
+    if (simType) prefixWhere.simType = simType;
+
+    const [exactNumbers, prefixNumbers] = await Promise.all([
+      this.prisma.simNumber.findMany({ where: exactWhere, select }),
+      this.prisma.simNumber.findMany({ where: prefixWhere, select }),
+    ]);
+
+    // For prefix-mode numbers, show them with the customer's chosen last 4 as preview
+    const prefixFormatted = prefixNumbers.map((n) => ({
+      ...n,
+      maskedNumber: `${n.numberPrefix}-${lastFour}`,
+      lastFourDigits: lastFour,
+      chosenLastFour: lastFour,
+    }));
+
+    const numbers = [...exactNumbers, ...prefixFormatted];
     return { count: numbers.length, numbers };
   }
 
@@ -169,6 +185,37 @@ export class SimService {
 
   // Admin methods
   async addSimNumber(data: AddSimNumberDto) {
+    // ── Prefix mode: admin enters prefix, customer picks last 4 ──
+    if (data.customerChoosesLastFour && data.numberPrefix) {
+      const prefix = data.numberPrefix.replace(/\D/g, '');
+      if (prefix.length < 7) throw new BadRequestException('Number prefix must be at least 7 digits');
+
+      // Store with placeholder last 4 (will be finalized when customer orders)
+      const placeholderFull = prefix + '0000';
+      const maskedNumber = this.maskPrefixNumber(prefix);
+
+      const existing = await this.prisma.simNumber.findFirst({ where: { numberPrefix: prefix, customerChoosesLastFour: true } });
+      if (existing) throw new ConflictException('A prefix SIM with this prefix already exists');
+
+      return this.prisma.simNumber.create({
+        data: {
+          fullNumber:              placeholderFull,
+          maskedNumber,
+          lastFourDigits:          '0000',
+          numberPrefix:            prefix,
+          customerChoosesLastFour: true,
+          carrier:                 data.carrier,
+          simType:                 data.simType,
+          price:                   data.price,
+          activationRequired:      data.activationRequired ?? true,
+          requiresIdVerification:  data.requiresIdVerification ?? true,
+          notes:                   data.notes,
+          addedBy:                 data.addedBy,
+        },
+      });
+    }
+
+    // ── Full number mode ──
     const fullNumber = data.fullNumber.replace(/\D/g, '');
     if (fullNumber.length < 10) throw new BadRequestException('Invalid phone number');
 
@@ -329,10 +376,19 @@ export class SimService {
     }
     return `${fullNumber.slice(0, -4)}****`;
   }
+
+  private maskPrefixNumber(prefix: string): string {
+    if (prefix.length >= 7) {
+      return `${prefix.slice(0, 3)}-${prefix.slice(3, 7)}-????`;
+    }
+    return `${prefix}-????`;
+  }
 }
 
 interface AddSimNumberDto {
-  fullNumber: string;
+  fullNumber?: string;
+  numberPrefix?: string;
+  customerChoosesLastFour?: boolean;
   carrier: any;
   simType: any;
   price: number;

@@ -213,11 +213,10 @@ export default function ExchangeRatesScreen() {
             {/* Send */}
             <TouchableOpacity style={styles.currencyBtn} onPress={() => { setShowSendPicker(true); setShowRecvPicker(false); }}>
               <Text style={styles.currencyFlag}>{sendInfo.flag}</Text>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.currencyCode}>{sendCurrency}</Text>
                 <Text style={styles.currencyName} numberOfLines={1}>{sendInfo.name}</Text>
               </View>
-              <Ionicons name="chevron-down" size={16} color={Colors.textLight} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
 
             {/* Swap */}
@@ -228,11 +227,10 @@ export default function ExchangeRatesScreen() {
             {/* Receive */}
             <TouchableOpacity style={styles.currencyBtn} onPress={() => { setShowRecvPicker(true); setShowSendPicker(false); }}>
               <Text style={styles.currencyFlag}>{recvInfo.flag}</Text>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.currencyCode}>{recvCurrency}</Text>
                 <Text style={styles.currencyName} numberOfLines={1}>{recvInfo.name}</Text>
               </View>
-              <Ionicons name="chevron-down" size={16} color={Colors.textLight} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           </View>
 

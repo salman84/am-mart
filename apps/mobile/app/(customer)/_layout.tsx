@@ -63,7 +63,8 @@ export default function CustomerLayout() {
     }).catch(() => { /* keep defaults */ });
   }, [dispatch]);
 
-  const tabBarHeight = 56 + (Platform.OS === 'ios' ? insets.bottom : 0);
+  const bottomInset = insets.bottom;
+  const tabBarHeight = 56 + bottomInset;
 
   return (
     <View style={{ flex: 1 }}>
@@ -71,7 +72,7 @@ export default function CustomerLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: [styles.tabBar, { height: tabBarHeight, paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8 }],
+        tabBarStyle: [styles.tabBar, { height: tabBarHeight, paddingBottom: bottomInset > 0 ? bottomInset : 8 }],
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarShowLabel: false,
