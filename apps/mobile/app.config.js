@@ -148,8 +148,6 @@ module.exports = {
       url: 'https://u.expo.dev/2e9ab6a3-77f8-4011-bd2c-1b6873d22031',
     },
 
-    runtimeVersion: {
-      policy: 'appVersion',
-    },
+    runtimeVersion: '1.0.0',
   },
 };
