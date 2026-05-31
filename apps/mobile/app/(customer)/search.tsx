@@ -27,6 +27,7 @@ export default function SearchScreen() {
   const [categories, setCategories] = useState<any[]>([]);
   const [currency, setCurrency]   = useState('₩');
   const [popular, setPopular]     = useState<string[]>(DEFAULT_POPULAR);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const inputRef = useRef<TextInput>(null);
 
   // Load categories + settings on mount
@@ -51,9 +52,22 @@ export default function SearchScreen() {
     });
   }, []);
 
+  // Live suggestions debounce
+  useEffect(() => {
+    if (query.trim().length < 2) { setSuggestions([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await productApi.getAll({ search: query.trim(), page: 1, limit: 6 });
+        setSuggestions(res.data?.products ?? res.data?.data ?? []);
+      } catch { setSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const doSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) { setResults([]); setSearched(false); return; }
+    setSuggestions([]);
     setIsLoading(true);
     setSearched(true);
     dispatch(addSearch(trimmed));
@@ -76,7 +90,13 @@ export default function SearchScreen() {
     setQuery('');
     setResults([]);
     setSearched(false);
+    setSuggestions([]);
     inputRef.current?.focus();
+  };
+
+  const handleSuggestionTap = (item: any) => {
+    setQuery(item.name);
+    doSearch(item.name);
   };
 
   return (
@@ -110,6 +130,33 @@ export default function SearchScreen() {
           <Text style={styles.searchBtnText}>{t('search')}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ── Live Suggestions Dropdown ── */}
+      {suggestions.length > 0 && !searched && (
+        <View style={styles.suggestionsContainer}>
+          {suggestions.map((item, index) => (
+            <React.Fragment key={item.id}>
+              <TouchableOpacity
+                style={styles.suggestionRow}
+                onPress={() => handleSuggestionTap(item)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="search-outline" size={16} color={Colors.textSecondary} style={styles.suggestionIcon} />
+                <View style={styles.suggestionInfo}>
+                  <Text style={styles.suggestionName} numberOfLines={1}>{item.name}</Text>
+                  {(item.category?.name || item.seller?.storeName) && (
+                    <Text style={styles.suggestionSub} numberOfLines={1}>
+                      {item.category?.name || item.seller?.storeName}
+                    </Text>
+                  )}
+                </View>
+                <Ionicons name="arrow-forward-outline" size={14} color={Colors.textLight} />
+              </TouchableOpacity>
+              {index < suggestions.length - 1 && <View style={styles.suggestionDivider} />}
+            </React.Fragment>
+          ))}
+        </View>
+      )}
 
       {/* ── Content ── */}
       {isLoading ? (
@@ -415,4 +462,23 @@ const styles = StyleSheet.create({
   resultPrice:          { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.primary },
   ratingRow:            { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
   ratingText:           { fontSize: 10, color: Colors.textSecondary },
+
+  /* Suggestions dropdown */
+  suggestionsContainer: {
+    backgroundColor: Colors.surface, borderRadius: 12,
+    marginHorizontal: Spacing.base, marginTop: 4,
+    borderWidth: 1, borderColor: Colors.borderLight,
+    overflow: 'hidden', zIndex: 10,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  suggestionRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 12,
+  },
+  suggestionIcon: { marginRight: 10 },
+  suggestionInfo: { flex: 1 },
+  suggestionName: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: Colors.text },
+  suggestionSub:  { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
+  suggestionDivider: { height: 1, backgroundColor: Colors.borderLight, marginLeft: 38 },
 });

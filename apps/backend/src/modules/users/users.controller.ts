@@ -17,6 +17,7 @@ export class UsersController {
   @Put('me') updateProfile(@Req() req: any, @Body() dto: any) { return this.usersService.updateProfile(req.user.id, dto); }
   @Put('me/fcm-token') updateFcm(@Req() req: any, @Body('fcmToken') t: string) { return this.usersService.updateFcmToken(req.user.id, t); }
 
+  @Get('me/addresses') getAddresses(@Req() req: any) { return this.usersService.getAddresses(req.user.id); }
   @Post('me/addresses') addAddress(@Req() req: any, @Body() dto: any) { return this.usersService.addAddress(req.user.id, dto); }
   @Put('me/addresses/:id') updateAddress(@Req() req: any, @Param('id') id: string, @Body() dto: any) { return this.usersService.updateAddress(req.user.id, id, dto); }
   @Delete('me/addresses/:id') deleteAddress(@Req() req: any, @Param('id') id: string) { return this.usersService.deleteAddress(req.user.id, id); }

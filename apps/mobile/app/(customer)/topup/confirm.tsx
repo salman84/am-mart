@@ -46,7 +46,7 @@ export default function TopupConfirmScreen() {
       });
       router.replace('/(customer)');
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || 'Top-up failed. Please try again.' });
+      Toast.show({ type: 'error', text1: e.response?.data?.message || t('somethingWrong') });
     } finally {
       setIsLoading(false);
     }

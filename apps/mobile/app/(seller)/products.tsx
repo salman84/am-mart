@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert,
+  ActivityIndicator, RefreshControl, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { sellerApi } from '../../src/services/api';
+import { useSelector } from 'react-redux';
+import { sellerApi, productApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
+import { useLanguage } from '../../src/i18n';
 
 export default function SellerProductsScreen() {
+  const currency = useSelector((state: any) => state.appSettings?.currencySymbol ?? '₩');
+  const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -28,26 +32,36 @@ export default function SellerProductsScreen() {
   useEffect(() => { loadProducts(); }, []);
 
   const toggleActive = async (product: any) => {
+    const currentlyActive = product.status === 'ACTIVE';
+    const newVisible = !currentlyActive;
     try {
-      await sellerApi.updateProduct(product.id, { isActive: !product.isActive });
-      setProducts((prev) => prev.map((p) => p.id === product.id ? { ...p, isActive: !p.isActive } : p));
+      await productApi.setVisibility(product.id, newVisible);
+      setProducts((prev) =>
+        prev.map((p) => p.id === product.id
+          ? { ...p, status: newVisible ? 'ACTIVE' : 'INACTIVE' }
+          : p)
+      );
+      Toast.show({
+        type: 'success',
+        text1: newVisible ? t('productVisible') : t('productHidden'),
+      });
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to update' });
+      Toast.show({ type: 'error', text1: t('failedUpdate') });
     }
   };
 
   const deleteProduct = (product: any) => {
-    Alert.alert('Delete Product', `Are you sure you want to delete "${product.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('deleteProductTitle'), t('deleteProductConfirm').replace('{name}', product.name), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive',
+        text: t('delete'), style: 'destructive',
         onPress: async () => {
           try {
             await sellerApi.deleteProduct(product.id);
             setProducts((prev) => prev.filter((p) => p.id !== product.id));
-            Toast.show({ type: 'success', text1: 'Product deleted' });
+            Toast.show({ type: 'success', text1: t('productDeleted') });
           } catch {
-            Toast.show({ type: 'error', text1: 'Failed to delete' });
+            Toast.show({ type: 'error', text1: t('failedDelete') });
           }
         },
       },
@@ -60,7 +74,7 @@ export default function SellerProductsScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Products ({products.length})</Text>
+        <Text style={styles.headerTitle}>{t('myProductsCount').replace('{count}', String(products.length))}</Text>
         <TouchableOpacity onPress={() => router.push('/(seller)/add-product')}>
           <Ionicons name="add-circle-outline" size={26} color={Colors.primary} />
         </TouchableOpacity>
@@ -71,10 +85,10 @@ export default function SellerProductsScreen() {
       ) : products.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="cube-outline" size={56} color={Colors.textLight} />
-          <Text style={styles.emptyTitle}>No products yet</Text>
+          <Text style={styles.emptyTitle}>{t('noProductsYet')}</Text>
           <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/(seller)/add-product')}>
             <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>Add First Product</Text>
+            <Text style={styles.addBtnText}>{t('addFirstProduct')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -86,23 +100,31 @@ export default function SellerProductsScreen() {
           renderItem={({ item }) => (
             <View style={styles.productCard}>
               <View style={styles.productImage}>
-                <Ionicons name="cube-outline" size={28} color={Colors.textSecondary} />
+                {item.images?.[0]?.url ? (
+                  <Image source={{ uri: item.images[0].url }} style={styles.productImageImg} resizeMode="cover" />
+                ) : (
+                  <Ionicons name="cube-outline" size={28} color={Colors.textSecondary} />
+                )}
               </View>
               <View style={styles.productInfo}>
                 <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.productCat}>{item.category?.name}</Text>
                 <View style={styles.productMeta}>
-                  <Text style={styles.productPrice}>₩{item.price?.toLocaleString()}</Text>
+                  <Text style={styles.productPrice}>{currency}{item.price?.toLocaleString()}</Text>
                   <Text style={[styles.stockText, item.stock < 5 && { color: Colors.danger }]}>
-                    {item.stock} in stock
+                    {t('inStockLabel').replace('{count}', String(item.stock))}
                   </Text>
                 </View>
               </View>
               <View style={styles.productActions}>
-                <TouchableOpacity
-                  style={[styles.statusDot, { backgroundColor: item.isActive ? Colors.primary : Colors.border }]}
-                  onPress={() => toggleActive(item)}
-                />
+                {/* Eye icon: tap to toggle hide/show */}
+                <TouchableOpacity onPress={() => toggleActive(item)}>
+                  <Ionicons
+                    name={item.status === 'ACTIVE' ? 'eye-outline' : 'eye-off-outline'}
+                    size={20}
+                    color={item.status === 'ACTIVE' ? Colors.primary : Colors.textLight}
+                  />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteProduct(item)}>
                   <Ionicons name="trash-outline" size={18} color={Colors.danger} />
                 </TouchableOpacity>
@@ -126,7 +148,8 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#fff', fontWeight: FontWeight.bold, fontSize: FontSize.sm },
   list: { padding: Spacing.base },
   productCard: { flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.sm, alignItems: 'center', ...Shadow.sm },
-  productImage: { width: 64, height: 64, borderRadius: BorderRadius.md, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.sm },
+  productImage: { width: 64, height: 64, borderRadius: BorderRadius.md, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.sm, overflow: 'hidden' },
+  productImageImg: { width: 64, height: 64 },
   productInfo: { flex: 1 },
   productName: { fontSize: FontSize.base, fontWeight: FontWeight.semibold, color: Colors.text },
   productCat: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },

@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../src/store';
 import { setSettings } from '../../src/store/slices/appSettingsSlice';
 import { appSettingsApi } from '../../src/services/api';
+// Note: appSettingsApi.getPublic() uses the response cache — second call is instant (no network)
 import { Colors } from '../../src/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AdminTestBanner } from '../../src/components/AdminTestBanner';
@@ -58,21 +59,24 @@ export default function CustomerLayout() {
         featureWallet:         s.FEATURE_WALLET !== 'false',
         featureReviews:        s.FEATURE_REVIEWS !== 'false',
         featureDeliveryTracking: s.FEATURE_DELIVERY_TRACKING !== 'false',
+        featureAddressSearch:  s.FEATURE_ADDRESS_SEARCH !== 'false',
+        kakaoApiKey:           s.KAKAO_REST_API_KEY   || '',
         appMinVersion:         s.APP_MIN_VERSION      || '1.0.0',
       }));
     }).catch(() => { /* keep defaults */ });
   }, [dispatch]);
 
+  // insets.bottom = system nav bar height (set by transparent windowTranslucentNavigation)
   const bottomInset = insets.bottom;
-  const tabBarHeight = 56 + bottomInset;
 
   return (
     <View style={{ flex: 1 }}>
       <AdminTestBanner />
     <Tabs
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
-        tabBarStyle: [styles.tabBar, { height: tabBarHeight, paddingBottom: bottomInset > 0 ? bottomInset : 8 }],
+        tabBarStyle: [styles.tabBar, { paddingBottom: bottomInset + 4 }],
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarShowLabel: false,
@@ -118,6 +122,8 @@ export default function CustomerLayout() {
       <Tabs.Screen name="notifications"  options={{ href: null }} />
       <Tabs.Screen name="products"       options={{ href: null }} />
       <Tabs.Screen name="exchange-rates" options={{ href: null }} />
+      <Tabs.Screen name="coupons"        options={{ href: null }} />
+      <Tabs.Screen name="addresses"      options={{ href: null }} />
 
       {/* Directories — always hidden from tab bar, accessed via home screen */}
       <Tabs.Screen name="product"        options={{ href: null }} />

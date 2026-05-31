@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Body, Param, Query, UseGuards, Req,
+  Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req,
   UseInterceptors, UploadedFile, ParseIntPipe, DefaultValuePipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
@@ -40,12 +40,16 @@ export class SimController {
   }
 
   @Post(':id/reserve')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('CUSTOMER')
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reserve a SIM number (15-min hold)' })
-  reserve(@Param('id') id: string, @Req() req: any) {
-    return this.simService.reserveSimNumber(id, req.user.id);
+  reserve(
+    @Param('id') id: string,
+    @Body('chosenLastFour') chosenLastFour: string,
+    @Req() req: any,
+  ) {
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user.role);
+    return this.simService.reserveSimNumber(id, req.user.id, isAdmin, chosenLastFour);
   }
 
   @Post('orders/:id/submit')
@@ -122,5 +126,48 @@ export class SimController {
     @Req() req: any,
   ) {
     return this.simService.adminUpdateSimOrderStatus(id, status, req.user.id, notes);
+  }
+
+  // ── SIM Numbers Inventory ──────────────────────────────────────────────────
+
+  @Get('admin/numbers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '[Admin] List all SIM numbers in inventory' })
+  listNumbers(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number,
+    @Query('type') type?: 'full' | 'prefix',
+    @Query('carrier') carrier?: string,
+  ) {
+    return this.simService.getAllSimNumbers(page, limit, type, carrier);
+  }
+
+  @Put('admin/numbers/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '[Admin] Edit a SIM number' })
+  editNumber(@Param('id') id: string, @Body() body: any) {
+    return this.simService.editSimNumber(id, body);
+  }
+
+  @Delete('admin/numbers/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '[Admin] Delete a SIM number' })
+  deleteNumber(@Param('id') id: string) {
+    return this.simService.deleteSimNumber(id);
+  }
+
+  @Patch('admin/numbers/:id/toggle')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '[Admin] Toggle SIM number hide/unhide' })
+  toggleNumber(@Param('id') id: string) {
+    return this.simService.toggleSimNumberVisibility(id);
   }
 }

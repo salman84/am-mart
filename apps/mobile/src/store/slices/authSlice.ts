@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import * as SecureStore from 'expo-secure-store';
-import { authApi, userApi } from '../../services/api';
+import { authApi, userApi, setCachedToken, clearApiCache } from '../../services/api';
 
 interface User {
   id: string;
@@ -32,6 +32,7 @@ export const login = createAsyncThunk('auth/login', async (credentials: { identi
     const { accessToken, refreshToken, user } = res.data;
     await SecureStore.setItemAsync('accessToken', accessToken);
     await SecureStore.setItemAsync('refreshToken', refreshToken);
+    setCachedToken(accessToken);   // populate memory cache immediately
     return user;
   } catch (e: any) {
     return rejectWithValue(e.response?.data?.message || 'Login failed');
@@ -44,6 +45,7 @@ export const loginWithOtp = createAsyncThunk('auth/loginWithOtp', async (data: {
     const { accessToken, refreshToken, user } = res.data;
     await SecureStore.setItemAsync('accessToken', accessToken);
     await SecureStore.setItemAsync('refreshToken', refreshToken);
+    setCachedToken(accessToken);   // populate memory cache immediately
     return user;
   } catch (e: any) {
     return rejectWithValue(e.response?.data?.message || 'OTP verification failed');
@@ -52,6 +54,8 @@ export const loginWithOtp = createAsyncThunk('auth/loginWithOtp', async (data: {
 
 export const logout = createAsyncThunk('auth/logout', async () => {
   await authApi.logout().catch(() => {});
+  setCachedToken(null);            // clear memory cache
+  clearApiCache();                 // clear all response cache on logout
   await SecureStore.deleteItemAsync('accessToken');
   await SecureStore.deleteItemAsync('refreshToken');
 });

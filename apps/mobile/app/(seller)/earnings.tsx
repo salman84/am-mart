@@ -5,8 +5,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useSelector } from 'react-redux';
 import { sellerApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
+import { useLanguage } from '../../src/i18n';
 
 const PAYOUT_STATUS_COLORS: Record<string, string> = {
   PENDING: Colors.warning,
@@ -15,6 +17,8 @@ const PAYOUT_STATUS_COLORS: Record<string, string> = {
 };
 
 export default function SellerEarningsScreen() {
+  const currency = useSelector((state: any) => state.appSettings?.currencySymbol ?? '₨');
+  const { t } = useLanguage();
   const [data, setData] = useState<any>(null);
   const [payouts, setPayouts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,16 +47,16 @@ export default function SellerEarningsScreen() {
   );
 
   const stats = [
-    { label: 'Today', value: `₩${(data?.todayEarnings || 0).toLocaleString()}`, icon: 'today-outline', color: Colors.primary },
-    { label: 'This Week', value: `₩${(data?.weekEarnings || 0).toLocaleString()}`, icon: 'calendar-outline', color: Colors.info },
-    { label: 'This Month', value: `₩${(data?.monthEarnings || 0).toLocaleString()}`, icon: 'bar-chart-outline', color: Colors.secondary },
-    { label: 'Pending Payout', value: `₩${(data?.pendingPayout || 0).toLocaleString()}`, icon: 'time-outline', color: Colors.warning },
+    { label: t('earningsToday'), value: `${currency}${(data?.todayEarnings || 0).toLocaleString()}`, icon: 'today-outline', color: Colors.primary },
+    { label: t('earningsThisWeek'), value: `${currency}${(data?.weekEarnings || 0).toLocaleString()}`, icon: 'calendar-outline', color: Colors.info },
+    { label: t('earningsThisMonth'), value: `${currency}${(data?.monthEarnings || 0).toLocaleString()}`, icon: 'bar-chart-outline', color: Colors.secondary },
+    { label: t('pendingPayoutLabel'), value: `${currency}${(data?.pendingPayout || 0).toLocaleString()}`, icon: 'time-outline', color: Colors.warning },
   ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Earnings</Text>
+        <Text style={styles.headerTitle}>{t('earningsTitle')}</Text>
       </View>
 
       <ScrollView
@@ -61,9 +65,9 @@ export default function SellerEarningsScreen() {
       >
         {/* Total Earnings Banner */}
         <View style={styles.totalBanner}>
-          <Text style={styles.totalLabel}>Total Earnings</Text>
-          <Text style={styles.totalValue}>₩{(data?.totalEarnings || 0).toLocaleString()}</Text>
-          <Text style={styles.totalSub}>Lifetime revenue after {data?.commissionRate || 0}% commission</Text>
+          <Text style={styles.totalLabel}>{t('sellerTotalEarnings')}</Text>
+          <Text style={styles.totalValue}>{currency}{(data?.totalEarnings || 0).toLocaleString()}</Text>
+          <Text style={styles.totalSub}>{t('sellerLifetimeCommission').replace('{rate}', String(data?.commissionRate || 0))}</Text>
         </View>
 
         {/* Stats Grid */}
@@ -83,9 +87,9 @@ export default function SellerEarningsScreen() {
         {data?.pendingPayout > 0 && (
           <View style={styles.payoutCard}>
             <View>
-              <Text style={styles.payoutLabel}>Pending Payout</Text>
-              <Text style={styles.payoutValue}>₩{(data?.pendingPayout || 0).toLocaleString()}</Text>
-              <Text style={styles.payoutSub}>Will be processed within 3-5 business days</Text>
+              <Text style={styles.payoutLabel}>{t('pendingPayoutLabel')}</Text>
+              <Text style={styles.payoutValue}>{currency}{(data?.pendingPayout || 0).toLocaleString()}</Text>
+              <Text style={styles.payoutSub}>{t('pendingPayoutSub')}</Text>
             </View>
             <Ionicons name="cash-outline" size={32} color={Colors.warning} />
           </View>
@@ -94,7 +98,7 @@ export default function SellerEarningsScreen() {
         {/* Recent Transactions */}
         {data?.recentTransactions?.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+            <Text style={styles.sectionTitle}>{t('recentTransactions')}</Text>
             {data.recentTransactions.map((tx: any) => (
               <View key={tx.id} style={styles.txRow}>
                 <View style={styles.txIcon}>
@@ -102,9 +106,9 @@ export default function SellerEarningsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.txDesc}>Order #{tx.order?.orderNumber}</Text>
-                  <Text style={styles.txDate}>{new Date(tx.createdAt).toLocaleDateString('ko-KR')}</Text>
+                  <Text style={styles.txDate}>{new Date(tx.createdAt).toLocaleDateString()}</Text>
                 </View>
-                <Text style={[styles.txAmount, { color: Colors.primary }]}>+₩{tx.sellerAmount?.toLocaleString()}</Text>
+                <Text style={[styles.txAmount, { color: Colors.primary }]}>+{currency}{tx.sellerAmount?.toLocaleString()}</Text>
               </View>
             ))}
           </View>
@@ -112,11 +116,11 @@ export default function SellerEarningsScreen() {
 
         {/* Payout History */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payout History</Text>
+          <Text style={styles.sectionTitle}>{t('payoutHistory')}</Text>
           {payouts.length === 0 ? (
             <View style={styles.emptyPayouts}>
               <Ionicons name="cash-outline" size={36} color={Colors.textLight} />
-              <Text style={styles.emptyPayoutsText}>No payouts yet</Text>
+              <Text style={styles.emptyPayoutsText}>{t('noPayoutsYet')}</Text>
             </View>
           ) : (
             payouts.map((payout: any) => {
@@ -128,14 +132,14 @@ export default function SellerEarningsScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.txDesc}>
-                      {new Date(payout.createdAt).toLocaleDateString('ko-KR')}
+                      {new Date(payout.createdAt).toLocaleDateString()}
                     </Text>
                     <View style={[styles.payoutBadge, { backgroundColor: `${color}20` }]}>
                       <Text style={[styles.payoutBadgeText, { color }]}>{payout.status}</Text>
                     </View>
                   </View>
                   <Text style={[styles.txAmount, { color }]}>
-                    ₩{(payout.amount || 0).toLocaleString()}
+                    {currency}{(payout.amount || 0).toLocaleString()}
                   </Text>
                 </View>
               );

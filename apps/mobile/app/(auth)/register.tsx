@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -6,22 +6,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { authApi, appSettingsApi } from '../../src/services/api';
+import { authApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
+import { useBranding } from '../../src/context/BrandingContext';
+import { useLanguage } from '../../src/i18n';
 
 export default function RegisterScreen() {
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
-  const [brand, setBrand] = useState({ name: 'AM Mart', logo: '' });
-
-  useEffect(() => {
-    appSettingsApi.getPublic()
-      .then((r) => {
-        const d = r.data;
-        if (d) setBrand({ name: d.APP_NAME || 'AM Mart', logo: d.APP_LOGO || '' });
-      })
-      .catch(() => {});
-  }, []);
+  const { appName, appLogo } = useBranding();
+  const { t } = useLanguage();
+  const brand = { name: appName, logo: appLogo };
 
   const [fullName, setFullName] = useState('');
   const [phonePart1, setPhonePart1] = useState('');
@@ -60,16 +55,16 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!fullName.trim()) {
-      Toast.show({ type: 'error', text1: 'Please enter your full name' }); return;
+      Toast.show({ type: 'error', text1: t('enterNameError') }); return;
     }
     if (!phoneComplete) {
-      Toast.show({ type: 'error', text1: 'Enter complete phone number (010-XXXX-XXXX)' }); return;
+      Toast.show({ type: 'error', text1: t('enterPhoneError') }); return;
     }
     if (password.length < 8) {
-      Toast.show({ type: 'error', text1: 'Password must be at least 8 characters' }); return;
+      Toast.show({ type: 'error', text1: t('passwordMinLength') }); return;
     }
     if (password !== confirmPassword) {
-      Toast.show({ type: 'error', text1: 'Passwords do not match' }); return;
+      Toast.show({ type: 'error', text1: t('passwordsNoMatch') }); return;
     }
 
     setIsLoading(true);
@@ -82,10 +77,15 @@ export default function RegisterScreen() {
       });
       router.push({
         pathname: '/(auth)/verify-otp',
-        params: { userId: res.data.userId, phone: fullPhone, returnTo: returnTo || '' },
+        params: {
+          userId: res.data.userId,
+          phone: fullPhone,
+          returnTo: returnTo || '',
+          devCode: res.data.devCode || '',
+        },
       });
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || 'Registration failed' });
+      Toast.show({ type: 'error', text1: e.response?.data?.message || t('registrationFailed') });
     } finally {
       setIsLoading(false);
     }
@@ -102,19 +102,19 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Register with {brand.name} using your Korean mobile number</Text>
+            <Text style={styles.title}>{t('createAccount')}</Text>
+            <Text style={styles.subtitle}>{t('registerSubtitle').replace('{name}', brand.name)}</Text>
           </View>
 
           <View style={styles.form}>
             {/* Full Name */}
             <View style={styles.field}>
-              <Text style={styles.label}>Full Name <Text style={styles.req}>*</Text></Text>
+              <Text style={styles.label}>{t('fullName')} <Text style={styles.req}>*</Text></Text>
               <View style={styles.inputRow}>
                 <Ionicons name="person-outline" size={20} color={Colors.textSecondary} style={styles.icon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Your full name"
+                  placeholder={t('enterFullName')}
                   placeholderTextColor={Colors.textLight}
                   value={fullName}
                   onChangeText={setFullName}
@@ -127,8 +127,8 @@ export default function RegisterScreen() {
             {/* Korean Phone */}
             <View style={styles.field}>
               <Text style={styles.label}>
-                Mobile Number <Text style={styles.req}>*</Text>
-                <Text style={styles.note}> · Korean number only</Text>
+                {t('mobileNumber')} <Text style={styles.req}>*</Text>
+                <Text style={styles.note}> · {t('koreanNumberOnly')}</Text>
               </Text>
               <View style={styles.phoneRow}>
                 <View style={styles.phonePrefix}>
@@ -160,12 +160,12 @@ export default function RegisterScreen() {
                   textAlign="center"
                 />
               </View>
-              <Text style={styles.hint}>OTP will be sent to this number to verify your account</Text>
+              <Text style={styles.hint}>{t('otpHint')}</Text>
             </View>
 
             {/* Email — Optional */}
             <View style={styles.field}>
-              <Text style={styles.label}>Email <Text style={styles.optional}>(Optional)</Text></Text>
+              <Text style={styles.label}>{t('emailOptional')}</Text>
               <View style={styles.inputRow}>
                 <Ionicons name="mail-outline" size={20} color={Colors.textSecondary} style={styles.icon} />
                 <TextInput
@@ -185,13 +185,13 @@ export default function RegisterScreen() {
 
             {/* Password */}
             <View style={styles.field}>
-              <Text style={styles.label}>Password <Text style={styles.req}>*</Text></Text>
+              <Text style={styles.label}>{t('password')} <Text style={styles.req}>*</Text></Text>
               <View style={styles.inputRow}>
                 <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.icon} />
                 <TextInput
                   ref={passwordRef}
                   style={[styles.input, { paddingRight: 40 }]}
-                  placeholder="Min 8 characters"
+                  placeholder={t('passwordMinLength')}
                   placeholderTextColor={Colors.textLight}
                   value={password}
                   onChangeText={setPassword}
@@ -207,13 +207,13 @@ export default function RegisterScreen() {
 
             {/* Confirm Password */}
             <View style={styles.field}>
-              <Text style={styles.label}>Confirm Password <Text style={styles.req}>*</Text></Text>
+              <Text style={styles.label}>{t('confirmPassword')} <Text style={styles.req}>*</Text></Text>
               <View style={[styles.inputRow, !!confirmPassword && password !== confirmPassword && styles.inputError]}>
                 <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.icon} />
                 <TextInput
                   ref={confirmRef}
                   style={[styles.input, { paddingRight: 40 }]}
-                  placeholder="Re-enter password"
+                  placeholder={t('reEnterPassword')}
                   placeholderTextColor={Colors.textLight}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -226,13 +226,13 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               </View>
               {confirmPassword.length > 0 && password !== confirmPassword && (
-                <Text style={styles.errorText}>Passwords do not match</Text>
+                <Text style={styles.errorText}>{t('passwordsNoMatch')}</Text>
               )}
             </View>
 
             <View style={styles.terms}>
-              <Text style={styles.termsText}>By registering you agree to our </Text>
-              <TouchableOpacity><Text style={styles.termsLink}>Terms & Privacy Policy</Text></TouchableOpacity>
+              <Text style={styles.termsText}>{t('termsAgree')} </Text>
+              <TouchableOpacity><Text style={styles.termsLink}>{t('termsLink')}</Text></TouchableOpacity>
             </View>
 
             <TouchableOpacity
@@ -242,7 +242,7 @@ export default function RegisterScreen() {
             >
               {isLoading ? <ActivityIndicator color="#fff" /> : (
                 <>
-                  <Text style={styles.buttonText}>Send Verification Code</Text>
+                  <Text style={styles.buttonText}>{t('sendVerification')}</Text>
                   <Ionicons name="arrow-forward" size={18} color="#fff" />
                 </>
               )}
@@ -250,15 +250,15 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have a {brand.name} account? </Text>
+            <Text style={styles.footerText}>{t('alreadyAccount').replace('{name}', brand.name)} </Text>
             <TouchableOpacity onPress={() => router.push({ pathname: '/(auth)/login', params: { returnTo } })}>
-              <Text style={styles.footerLink}>Sign In</Text>
+              <Text style={styles.footerLink}>{t('signIn')}</Text>
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity style={styles.sellerLink} onPress={() => router.push('/(auth)/seller-apply')}>
             <Ionicons name="storefront-outline" size={16} color={Colors.primary} />
-            <Text style={styles.sellerLinkText}>Register as a Seller</Text>
+            <Text style={styles.sellerLinkText}>{t('registerSeller')}</Text>
             <Ionicons name="arrow-forward" size={14} color={Colors.primary} />
           </TouchableOpacity>
         </ScrollView>

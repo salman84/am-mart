@@ -34,6 +34,11 @@ export class UsersService {
     return this.prisma.user.update({ where: { id: userId }, data: { fcmToken } });
   }
 
+  async getAddresses(userId: string) {
+    const customer = await this.prisma.customer.findFirst({ where: { userId }, include: { addresses: true } });
+    return { addresses: customer?.addresses || [] };
+  }
+
   async addAddress(userId: string, dto: any) {
     const customer = await this.prisma.customer.findFirst({ where: { userId } });
     if (!customer) throw new NotFoundException('Customer not found');

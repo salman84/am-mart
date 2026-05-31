@@ -91,11 +91,18 @@ export class SimService {
     return { total, page, limit, numbers };
   }
 
-  async reserveSimNumber(simNumberId: string, customerId: string) {
+  async reserveSimNumber(simNumberId: string, customerId: string, isAdminTest = false, chosenLastFour?: string) {
     return this.prisma.$transaction(async (tx) => {
       const sim = await tx.simNumber.findUnique({ where: { id: simNumberId } });
       if (!sim) throw new NotFoundException('SIM number not found');
       if (sim.status !== 'AVAILABLE') throw new ConflictException('SIM number is no longer available');
+
+      // Validate chosen last four for prefix-mode numbers
+      if (sim.customerChoosesLastFour) {
+        if (!chosenLastFour || !/^\d{4}$/.test(chosenLastFour)) {
+          throw new BadRequestException('Please provide your preferred last 4 digits');
+        }
+      }
 
       const existingReservation = await tx.simOrder.findFirst({
         where: { customerId, status: { in: ['PENDING', 'RESERVED', 'CONFIRMED', 'PROCESSING'] } },
@@ -105,6 +112,8 @@ export class SimService {
       }
 
       const reservedUntil = new Date(Date.now() + 15 * 60 * 1000);
+
+      // For prefix-mode: lock the number (only one customer can reserve a given prefix at a time)
       await tx.simNumber.update({
         where: { id: simNumberId },
         data: { status: 'RESERVED', reservedUntil },
@@ -119,6 +128,8 @@ export class SimService {
           status: 'RESERVED',
           reservedAt: new Date(),
           price: sim.price,
+          isAdminTest,
+          ...(chosenLastFour ? { chosenLastFour } : {}),
         },
         include: { simNumber: true },
       });
@@ -185,6 +196,12 @@ export class SimService {
 
   // Admin methods
   async addSimNumber(data: AddSimNumberDto) {
+    // Validate price
+    if (data.price === null || data.price === undefined || isNaN(Number(data.price))) {
+      throw new BadRequestException('Price is required and must be a valid number');
+    }
+    data.price = Number(data.price);
+
     // ── Prefix mode: admin enters prefix, customer picks last 4 ──
     if (data.customerChoosesLastFour && data.numberPrefix) {
       const prefix = data.numberPrefix.replace(/\D/g, '');
@@ -216,6 +233,7 @@ export class SimService {
     }
 
     // ── Full number mode ──
+    if (!data.fullNumber) throw new BadRequestException('Full number is required');
     const fullNumber = data.fullNumber.replace(/\D/g, '');
     if (fullNumber.length < 10) throw new BadRequestException('Invalid phone number');
 
@@ -239,6 +257,62 @@ export class SimService {
         addedBy: data.addedBy,
       },
     });
+  }
+
+  // ── Admin: list all SIM numbers with optional type filter ──
+  async getAllSimNumbers(page = 1, limit = 50, type?: 'full' | 'prefix', carrier?: string) {
+    const skip = (page - 1) * limit;
+    const where: any = {};
+    if (type === 'full')   where.customerChoosesLastFour = false;
+    if (type === 'prefix') where.customerChoosesLastFour = true;
+    if (carrier) where.carrier = carrier;
+
+    const [total, numbers] = await Promise.all([
+      this.prisma.simNumber.count({ where }),
+      this.prisma.simNumber.findMany({
+        where, skip, take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+    return { total, page, limit, numbers };
+  }
+
+  // ── Admin: edit a SIM number ──
+  async editSimNumber(id: string, data: Partial<AddSimNumberDto>) {
+    const sim = await this.prisma.simNumber.findUnique({ where: { id } });
+    if (!sim) throw new NotFoundException('SIM number not found');
+
+    const update: any = {};
+    if (data.carrier)   update.carrier = data.carrier;
+    if (data.simType)   update.simType = data.simType;
+    if (data.price !== undefined && !isNaN(Number(data.price))) update.price = Number(data.price);
+    if (data.activationRequired !== undefined)    update.activationRequired    = data.activationRequired;
+    if (data.requiresIdVerification !== undefined) update.requiresIdVerification = data.requiresIdVerification;
+    if (data.notes !== undefined) update.notes = data.notes;
+
+    return this.prisma.simNumber.update({ where: { id }, data: update });
+  }
+
+  // ── Admin: delete a SIM number ──
+  async deleteSimNumber(id: string) {
+    const sim = await this.prisma.simNumber.findUnique({ where: { id } });
+    if (!sim) throw new NotFoundException('SIM number not found');
+    if (['RESERVED', 'CONFIRMED', 'PROCESSING', 'OUT_FOR_DELIVERY'].includes(sim.status)) {
+      throw new BadRequestException('Cannot delete a SIM number with an active order');
+    }
+    await this.prisma.simNumber.delete({ where: { id } });
+    return { message: 'SIM number deleted' };
+  }
+
+  // ── Admin: toggle hide/unhide ──
+  async toggleSimNumberVisibility(id: string) {
+    const sim = await this.prisma.simNumber.findUnique({ where: { id } });
+    if (!sim) throw new NotFoundException('SIM number not found');
+    if (!['AVAILABLE', 'HIDDEN'].includes(sim.status)) {
+      throw new BadRequestException('Can only hide/unhide AVAILABLE numbers');
+    }
+    const newStatus = sim.status === 'AVAILABLE' ? 'HIDDEN' : 'AVAILABLE';
+    return this.prisma.simNumber.update({ where: { id }, data: { status: newStatus as any } });
   }
 
   async bulkUploadSimNumbers(buffer: Buffer, addedBy: string) {

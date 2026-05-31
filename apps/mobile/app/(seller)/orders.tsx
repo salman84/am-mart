@@ -6,9 +6,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSelector } from 'react-redux';
 import { sellerApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
+import { useLanguage } from '../../src/i18n';
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: Colors.warning,
@@ -23,6 +25,8 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_TABS = ['ALL', 'PENDING', 'CONFIRMED', 'PREPARING', 'DELIVERED'];
 
 export default function SellerOrdersScreen() {
+  const currency = useSelector((state: any) => state.appSettings?.currencySymbol ?? '₨');
+  const { t } = useLanguage();
   const [orders, setOrders] = useState<any[]>([]);
   const [selectedTab, setSelectedTab] = useState('ALL');
   const [isLoading, setIsLoading] = useState(true);
@@ -45,9 +49,9 @@ export default function SellerOrdersScreen() {
     try {
       await sellerApi.updateOrderStatus(orderId, status);
       setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o));
-      Toast.show({ type: 'success', text1: `Order marked as ${status}` });
+      Toast.show({ type: 'success', text1: t('orderMarkedAs').replace('{status}', status) });
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to update order' });
+      Toast.show({ type: 'error', text1: t('failedUpdateOrder') });
     }
   };
 
@@ -57,7 +61,7 @@ export default function SellerOrdersScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Orders</Text>
+        <Text style={styles.headerTitle}>{t('sellerOrdersTitle')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -83,7 +87,7 @@ export default function SellerOrdersScreen() {
       ) : orders.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="receipt-outline" size={56} color={Colors.textLight} />
-          <Text style={styles.emptyText}>No orders</Text>
+          <Text style={styles.emptyText}>{t('noOrdersSeller')}</Text>
         </View>
       ) : (
         <FlatList
@@ -98,7 +102,7 @@ export default function SellerOrdersScreen() {
                 <View style={styles.orderHeader}>
                   <View>
                     <Text style={styles.orderNum}>#{item.orderNumber}</Text>
-                    <Text style={styles.orderDate}>{new Date(item.createdAt).toLocaleDateString('ko-KR')}</Text>
+                    <Text style={styles.orderDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: `${color}20` }]}>
                     <Text style={[styles.statusText, { color }]}>{item.status.replace(/_/g, ' ')}</Text>
@@ -111,25 +115,29 @@ export default function SellerOrdersScreen() {
                       • {i.productName} × {i.quantity}
                     </Text>
                   ))}
-                  {item.items?.length > 2 && <Text style={styles.moreText}>+{item.items.length - 2} more items</Text>}
+                  {item.items?.length > 2 && (
+                    <Text style={styles.moreText}>
+                      {t('moreItems').replace('{count}', String(item.items.length - 2))}
+                    </Text>
+                  )}
                 </View>
 
                 <View style={styles.orderFooter}>
-                  <Text style={styles.total}>₩{item.total?.toLocaleString()}</Text>
+                  <Text style={styles.total}>{currency}{item.total?.toLocaleString()}</Text>
                   {item.status === 'PENDING' && (
                     <TouchableOpacity style={styles.confirmBtn} onPress={() => updateStatus(item.id, 'CONFIRMED')}>
                       <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                      <Text style={styles.confirmBtnText}>Confirm</Text>
+                      <Text style={styles.confirmBtnText}>{t('confirm')}</Text>
                     </TouchableOpacity>
                   )}
                   {item.status === 'CONFIRMED' && (
                     <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: Colors.secondary }]} onPress={() => updateStatus(item.id, 'PREPARING')}>
-                      <Text style={styles.confirmBtnText}>Start Preparing</Text>
+                      <Text style={styles.confirmBtnText}>{t('startPreparing')}</Text>
                     </TouchableOpacity>
                   )}
                   {item.status === 'PREPARING' && (
                     <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: Colors.info }]} onPress={() => updateStatus(item.id, 'PICKED_UP')}>
-                      <Text style={styles.confirmBtnText}>Ready for Pickup</Text>
+                      <Text style={styles.confirmBtnText}>{t('readyForPickup')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>

@@ -7,12 +7,15 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../src/store';
 import { sellerApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
+import { useLanguage } from '../../src/i18n';
 
 export default function SellerDashboard() {
   const user = useSelector((state: RootState) => state.auth.user);
+  const currency = useSelector((state: RootState) => (state as any).appSettings?.currencySymbol ?? '₨');
   const [dashboard, setDashboard] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { t } = useLanguage();
 
   const loadDashboard = async () => {
     try {
@@ -29,17 +32,17 @@ export default function SellerDashboard() {
   if (isLoading) return <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>;
 
   const stats = [
-    { icon: 'cube-outline', label: 'Products', value: dashboard?.totalProducts || 0, color: Colors.info },
-    { icon: 'receipt-outline', label: 'Total Orders', value: dashboard?.totalOrders || 0, color: Colors.secondary },
-    { icon: 'cash-outline', label: "Today's Revenue", value: `₩${(dashboard?.todayRevenue || 0).toLocaleString()}`, color: Colors.primary },
-    { icon: 'wallet-outline', label: 'Pending Payout', value: `₩${(dashboard?.pendingPayout || 0).toLocaleString()}`, color: Colors.warning },
+    { icon: 'cube-outline', label: t('sellerProductsStat'), value: dashboard?.totalProducts || 0, color: Colors.info },
+    { icon: 'receipt-outline', label: t('sellerTotalOrders'), value: dashboard?.totalOrders || 0, color: Colors.secondary },
+    { icon: 'cash-outline', label: t('sellerTodayRevenue'), value: `${currency}${(dashboard?.todayRevenue || 0).toLocaleString()}`, color: Colors.primary },
+    { icon: 'wallet-outline', label: t('pendingPayoutLabel'), value: `${currency}${(dashboard?.pendingPayout || 0).toLocaleString()}`, color: Colors.warning },
   ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerGreeting}>Welcome back,</Text>
+          <Text style={styles.headerGreeting}>{t('sellerWelcome')}</Text>
           <Text style={styles.headerName}>{user?.fullName}</Text>
         </View>
         <View style={styles.ratingBadge}>
@@ -63,19 +66,19 @@ export default function SellerDashboard() {
         </View>
 
         <View style={styles.earningCard}>
-          <Text style={styles.earningLabel}>Total Earnings</Text>
-          <Text style={styles.earningValue}>₩{(dashboard?.totalEarnings || 0).toLocaleString()}</Text>
-          <Text style={styles.earningSubtitle}>Lifetime revenue (after commission)</Text>
+          <Text style={styles.earningLabel}>{t('sellerTotalEarnings')}</Text>
+          <Text style={styles.earningValue}>{currency}{(dashboard?.totalEarnings || 0).toLocaleString()}</Text>
+          <Text style={styles.earningSubtitle}>{t('sellerLifetimeRevenue')}</Text>
         </View>
 
         <View style={styles.quickActions}>
-          <Text style={styles.quickTitle}>Quick Actions</Text>
+          <Text style={styles.quickTitle}>{t('quickActions')}</Text>
           <View style={styles.actionsGrid}>
             {[
-              { icon: 'add-circle', label: 'Add Product', color: Colors.primary, action: () => router.push('/(seller)/add-product') },
-              { icon: 'receipt', label: 'View Orders', color: Colors.secondary, action: () => router.push('/(seller)/orders') },
-              { icon: 'analytics', label: 'Analytics', color: Colors.info, action: () => {} },
-              { icon: 'settings', label: 'Store Settings', color: Colors.textSecondary, action: () => {} },
+              { icon: 'add-circle', label: t('addProduct'), color: Colors.primary, action: () => router.push('/(seller)/add-product') },
+              { icon: 'receipt', label: t('viewOrders'), color: Colors.secondary, action: () => router.push('/(seller)/orders') },
+              { icon: 'analytics', label: t('analytics'), color: Colors.info, action: () => {} },
+              { icon: 'settings', label: t('storeSettings'), color: Colors.textSecondary, action: () => {} },
             ].map((item, i) => (
               <TouchableOpacity key={i} style={styles.actionBtn} onPress={item.action}>
                 <View style={[styles.actionIcon, { backgroundColor: `${item.color}20` }]}>

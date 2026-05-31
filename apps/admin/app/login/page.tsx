@@ -53,6 +53,9 @@ export default function LoginPage() {
       }
       localStorage.setItem('adminToken', accessToken || token);
       localStorage.setItem('adminUser', JSON.stringify(user));
+      toast.success(`Welcome back, ${user?.fullName || 'Admin'}!`);
+      // Brief delay so the toast renders before navigation destroys this page
+      await new Promise<void>((resolve) => setTimeout(resolve, 700));
       router.replace('/dashboard');
     } catch (e: any) {
       toast.error(e.response?.data?.message || e.message || 'Invalid credentials');

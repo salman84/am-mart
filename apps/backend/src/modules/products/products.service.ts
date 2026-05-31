@@ -152,6 +152,21 @@ export class ProductsService {
     return updated;
   }
 
+  /** Seller toggles their own product visible (ACTIVE) / hidden (INACTIVE) */
+  async setSellerVisibility(productId: string, userId: string, visible: boolean) {
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, seller: { userId } },
+    });
+    if (!product) throw new NotFoundException('Product not found or not owned by you');
+    if (product.status === 'DELETED') throw new NotFoundException('Product not found');
+
+    await this.prisma.product.update({
+      where: { id: productId },
+      data: { status: visible ? 'ACTIVE' : 'INACTIVE' },
+    });
+    return { visible, message: visible ? 'Product is now visible' : 'Product is now hidden' };
+  }
+
   async deleteProduct(id: string, userId: string, userRole?: string) {
     const where = (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN')
       ? { id }
@@ -161,6 +176,29 @@ export class ProductsService {
 
     await this.prisma.product.update({ where: { id }, data: { status: 'DELETED' } });
     return { message: 'Product deleted' };
+  }
+
+  /** Same-category products, excluding the current one — used for "You may also like" */
+  async getRelatedProducts(productId: string, limit = 8) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { categoryId: true },
+    });
+    if (!product) return [];
+
+    return this.prisma.product.findMany({
+      where: {
+        categoryId: product.categoryId,
+        id:         { not: productId },
+        status:     'ACTIVE',
+      },
+      take: limit,
+      include: {
+        images: { take: 1, orderBy: { sortOrder: 'asc' } },
+        seller: { select: { storeName: true } },
+      },
+      orderBy: { viewCount: 'desc' },
+    });
   }
 
   async getFeaturedProducts(limit = 10) {
@@ -264,6 +302,9 @@ interface CreateProductDto {
   discountPrice?: number;
   stock: number;
   unit?: string;
+  weight?: string;
+  brand?: string;
+  countryOfOrigin?: string;
   isDeliveryAvailable?: boolean;
   deliveryFee?: number;
   minOrderQty?: number;

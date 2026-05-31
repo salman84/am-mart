@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Query,
+  Controller, Get, Post, Put, Patch, Delete, Body, Param, Query,
   UseGuards, Req, ParseIntPipe, DefaultValuePipe, ParseBoolPipe, ParseFloatPipe, Optional,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
@@ -53,6 +53,15 @@ export class ProductsController {
     return this.productsService.getWishlist(req.user.id);
   }
 
+  @Get(':id/related')
+  @ApiOperation({ summary: 'Get related products (same category)' })
+  getRelated(
+    @Param('id') id: string,
+    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+  ) {
+    return this.productsService.getRelatedProducts(id, limit);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
@@ -88,6 +97,19 @@ export class ProductsController {
   @ApiBearerAuth()
   toggleWishlist(@Param('id') id: string, @Req() req: any) {
     return this.productsService.toggleWishlist(req.user.id, id);
+  }
+
+  @Patch(':id/visibility')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SELLER', 'ADMIN', 'SUPER_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Seller hides/shows their own product' })
+  setSellerVisibility(
+    @Param('id') id: string,
+    @Body('visible') visible: boolean,
+    @Req() req: any,
+  ) {
+    return this.productsService.setSellerVisibility(id, req.user.id, visible);
   }
 
   @Put(':id/admin-visibility')

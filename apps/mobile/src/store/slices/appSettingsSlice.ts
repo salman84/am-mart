@@ -17,6 +17,8 @@ export interface AppSettings {
   featureWallet: boolean;
   featureReviews: boolean;
   featureDeliveryTracking: boolean;
+  featureAddressSearch: boolean;
+  kakaoApiKey: string;
   appMinVersion: string;
   loaded: boolean;
 }
@@ -38,6 +40,8 @@ const initialState: AppSettings = {
   featureWallet: true,
   featureReviews: true,
   featureDeliveryTracking: true,
+  featureAddressSearch: true,
+  kakaoApiKey: '',
   appMinVersion: '1.0.0',
   loaded: false,
 };

@@ -2,10 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useSelector } from 'react-redux';
 import { riderApi } from '../../src/services/api';
-import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
+import { Colors, FontSize, FontWeight, BorderRadius, Spacing } from '../../src/theme';
+import { useLanguage } from '../../src/i18n';
 
 export default function EarningsScreen() {
+  const currency = useSelector((state: any) => state.appSettings?.currencySymbol ?? '₨');
+  const { t } = useLanguage();
   const [earnings, setEarnings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -16,16 +20,16 @@ export default function EarningsScreen() {
   if (isLoading) return <View style={styles.loading}><ActivityIndicator size="large" color={Colors.secondary} /></View>;
 
   const stats = [
-    { icon: 'bicycle', label: "Today's Deliveries", value: earnings?.todayDeliveries || 0, color: Colors.secondary },
-    { icon: 'wallet', label: "Today's Earnings", value: `₩${(earnings?.todayEarnings || 0).toLocaleString()}`, color: Colors.primary },
-    { icon: 'trophy', label: 'Total Deliveries', value: earnings?.totalDeliveries || 0, color: Colors.info },
-    { icon: 'cash', label: 'Total Earnings', value: `₩${(earnings?.totalEarnings || 0).toLocaleString()}`, color: Colors.success },
+    { icon: 'bicycle', label: t('riderTodayDeliveries'), value: earnings?.todayDeliveries || 0, color: Colors.secondary },
+    { icon: 'wallet', label: t('riderTodayEarnings'), value: `${currency}${(earnings?.todayEarnings || 0).toLocaleString()}`, color: Colors.primary },
+    { icon: 'trophy', label: t('riderTotalDeliveries'), value: earnings?.totalDeliveries || 0, color: Colors.info },
+    { icon: 'cash', label: t('riderTotalEarnings'), value: `${currency}${(earnings?.totalEarnings || 0).toLocaleString()}`, color: Colors.success },
   ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Earnings</Text>
+        <Text style={styles.headerTitle}>{t('riderEarningsTitle')}</Text>
         <View style={styles.ratingBadge}>
           <Ionicons name="star" size={14} color={Colors.secondary} />
           <Text style={styles.ratingText}>{earnings?.rating?.toFixed(1) || '—'}</Text>
@@ -45,7 +49,7 @@ export default function EarningsScreen() {
 
         <View style={styles.infoCard}>
           <Ionicons name="information-circle-outline" size={20} color={Colors.info} />
-          <Text style={styles.infoText}>Earnings are calculated based on completed deliveries and distance. Payments are processed weekly.</Text>
+          <Text style={styles.infoText}>{t('riderEarningsInfo')}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

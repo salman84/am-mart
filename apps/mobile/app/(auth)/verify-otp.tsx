@@ -13,6 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
 import { AppDispatch } from '../../src/store';
+import { useLanguage } from '../../src/i18n';
 
 function formatKoreanPhone(phone: string) {
   // 01012345678 → 010-1234-5678
@@ -23,10 +24,11 @@ function formatKoreanPhone(phone: string) {
 }
 
 export default function VerifyOtpScreen() {
-  const { userId, phone, returnTo, mode } = useLocalSearchParams<{
-    userId?: string; phone: string; returnTo?: string; mode?: string;
+  const { userId, phone, returnTo, mode, devCode } = useLocalSearchParams<{
+    userId?: string; phone: string; returnTo?: string; mode?: string; devCode?: string;
   }>();
   const dispatch = useDispatch<AppDispatch>();
+  const { t } = useLanguage();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -34,8 +36,14 @@ export default function VerifyOtpScreen() {
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
-    inputRefs.current[0]?.focus();
-  }, []);
+    // Only auto-fill in development builds when backend returns a devCode
+    if (__DEV__ && devCode && devCode.length === 6) {
+      const digits = devCode.split('');
+      setOtp(digits);
+    } else {
+      inputRefs.current[0]?.focus();
+    }
+  }, [devCode]);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -73,7 +81,7 @@ export default function VerifyOtpScreen() {
   const handleVerify = async (otpCode?: string) => {
     const code = otpCode || otp.join('');
     if (code.length !== 6) {
-      Toast.show({ type: 'error', text1: 'Enter all 6 digits' });
+      Toast.show({ type: 'error', text1: t('enter6Digits') });
       return;
     }
     setIsLoading(true);
@@ -81,7 +89,7 @@ export default function VerifyOtpScreen() {
       if (mode === 'login') {
         // OTP login — loginWithOtp thunk
         if (!userId) {
-          Toast.show({ type: 'error', text1: 'Missing verification session' });
+          Toast.show({ type: 'error', text1: t('missingSession') });
           return;
         }
         const result = await dispatch(loginWithOtp({ userId, otp: code }));
@@ -92,7 +100,7 @@ export default function VerifyOtpScreen() {
           else if (returnTo === 'cart') router.replace('/(customer)/cart');
           else router.replace('/(customer)');
         } else {
-          throw new Error(result.payload as string || 'Invalid OTP');
+          throw new Error(result.payload as string || t('invalidOtp'));
         }
       } else {
         // Registration OTP verify
@@ -104,7 +112,7 @@ export default function VerifyOtpScreen() {
         else router.replace('/(customer)');
       }
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.message || e.response?.data?.message || 'Invalid OTP' });
+      Toast.show({ type: 'error', text1: e.message || e.response?.data?.message || t('invalidOtp') });
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -115,13 +123,19 @@ export default function VerifyOtpScreen() {
   const handleResend = async () => {
     if (resendTimer > 0) return;
     try {
-      await authApi.sendOtp(phone);
+      const res = await authApi.sendOtp(phone);
       setResendTimer(60);
-      setOtp(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
-      Toast.show({ type: 'success', text1: 'OTP resent!', text2: `New code sent to ${formatKoreanPhone(phone)}` });
+      const newDevCode: string | undefined = res?.data?.devCode;
+      if (__DEV__ && newDevCode && newDevCode.length === 6) {
+        setOtp(newDevCode.split(''));
+        Toast.show({ type: 'info', text1: 'DEV: SMS unavailable', text2: `Code: ${newDevCode}` });
+      } else {
+        setOtp(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
+        Toast.show({ type: 'success', text1: t('otpResent'), text2: t('newCodeSentTo').replace('{phone}', formatKoreanPhone(phone)) });
+      }
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to resend. Try again.' });
+      Toast.show({ type: 'error', text1: t('failedResend') });
     }
   };
 
@@ -139,9 +153,9 @@ export default function VerifyOtpScreen() {
             <Ionicons name="chatbubble-ellipses" size={36} color={Colors.primary} />
           </View>
 
-          <Text style={styles.title}>Enter OTP</Text>
+          <Text style={styles.title}>{t('enterOtp')}</Text>
           <Text style={styles.subtitle}>
-            We sent a 6-digit code to{'\n'}
+            {t('weSent6Digit')}{'\n'}
             <Text style={styles.phoneHighlight}>{formatKoreanPhone(phone)}</Text>
           </Text>
 
@@ -164,10 +178,10 @@ export default function VerifyOtpScreen() {
 
           {/* Resend */}
           <View style={styles.resendRow}>
-            <Text style={styles.resendLabel}>Didn't receive the code? </Text>
+            <Text style={styles.resendLabel}>{t('didntReceive')}</Text>
             <TouchableOpacity onPress={handleResend} disabled={resendTimer > 0}>
               <Text style={[styles.resendLink, resendTimer > 0 && styles.resendDisabled]}>
-                {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend'}
+                {resendTimer > 0 ? t('resendIn').replace('{seconds}', String(resendTimer)) : t('resend')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -182,18 +196,23 @@ export default function VerifyOtpScreen() {
             ) : (
               <>
                 <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />
-                <Text style={styles.buttonText}>Verify & Continue</Text>
+                <Text style={styles.buttonText}>{t('verifyAndContinue')}</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Dev helper */}
-          {__DEV__ && (
+          {/* Dev helper — shows when SMS gateway is not configured */}
+          {devCode ? (
             <View style={styles.devNote}>
               <Ionicons name="code-slash-outline" size={14} color="#92400E" />
-              <Text style={styles.devText}>DEV: Check backend console/logs for OTP</Text>
+              <Text style={styles.devText}>SMS not sent — code auto-filled: <Text style={{ fontWeight: '700' }}>{devCode}</Text></Text>
             </View>
-          )}
+          ) : __DEV__ ? (
+            <View style={styles.devNote}>
+              <Ionicons name="code-slash-outline" size={14} color="#92400E" />
+              <Text style={styles.devText}>DEV: Check backend console for OTP</Text>
+            </View>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

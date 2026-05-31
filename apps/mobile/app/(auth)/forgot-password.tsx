@@ -9,8 +9,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { authApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
+import { useLanguage } from '../../src/i18n';
 
 export default function ForgotPasswordScreen() {
+  const { t } = useLanguage();
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
@@ -21,14 +23,14 @@ export default function ForgotPasswordScreen() {
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   const sendOtp = async () => {
-    if (!phone.trim()) { Toast.show({ type: 'error', text1: 'Enter your phone number' }); return; }
+    if (!phone.trim()) { Toast.show({ type: 'error', text1: t('enterPhoneAndPassword') }); return; }
     setIsLoading(true);
     try {
       await authApi.forgotPassword(phone);
       setStep('otp');
-      Toast.show({ type: 'success', text1: 'OTP sent!', text2: `Reset code sent to ${phone}` });
+      Toast.show({ type: 'success', text1: t('otpResent'), text2: t('resetCodeSentTo').replace('{phone}', phone) });
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || 'Phone not found' });
+      Toast.show({ type: 'error', text1: e.response?.data?.message || t('phoneNotFound') });
     } finally {
       setIsLoading(false);
     }
@@ -36,19 +38,19 @@ export default function ForgotPasswordScreen() {
 
   const verifyOtp = async () => {
     const code = otp.join('');
-    if (code.length < 6) { Toast.show({ type: 'error', text1: 'Enter all 6 digits' }); return; }
+    if (code.length < 6) { Toast.show({ type: 'error', text1: t('enter6Digits') }); return; }
     setStep('reset');
   };
 
   const resetPassword = async () => {
-    if (!newPassword || newPassword.length < 8) { Toast.show({ type: 'error', text1: 'Password must be at least 8 characters' }); return; }
-    if (newPassword !== confirmPassword) { Toast.show({ type: 'error', text1: 'Passwords do not match' }); return; }
+    if (!newPassword || newPassword.length < 8) { Toast.show({ type: 'error', text1: t('passwordMinLength') }); return; }
+    if (newPassword !== confirmPassword) { Toast.show({ type: 'error', text1: t('passwordsNoMatch') }); return; }
     setIsLoading(true);
     try {
       await authApi.resetPassword({ phone, otp: otp.join(''), newPassword });
       setStep('done');
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || 'Reset failed' });
+      Toast.show({ type: 'error', text1: e.response?.data?.message || t('resetFailed') });
     } finally {
       setIsLoading(false);
     }
@@ -78,13 +80,13 @@ export default function ForgotPasswordScreen() {
               <Ionicons name="lock-open-outline" size={36} color={Colors.primary} />
             </View>
             <Text style={styles.title}>
-              {step === 'phone' ? 'Forgot Password' : step === 'otp' ? 'Verify OTP' : step === 'reset' ? 'New Password' : 'Password Reset!'}
+              {step === 'phone' ? t('forgotPasswordTitle') : step === 'otp' ? t('verifyOtpTitle') : step === 'reset' ? t('newPasswordTitle') : t('passwordResetTitle')}
             </Text>
             <Text style={styles.subtitle}>
-              {step === 'phone' ? "Enter your phone number and we'll send a reset code"
-                : step === 'otp' ? `Enter the 6-digit code sent to ${phone}`
-                : step === 'reset' ? 'Enter your new password'
-                : 'Your password has been reset successfully'}
+              {step === 'phone' ? t('forgotPasswordDesc')
+                : step === 'otp' ? t('enterResetCode').replace('{phone}', phone)
+                : step === 'reset' ? t('enterNewPasswordDesc')
+                : t('passwordResetSuccess')}
             </Text>
           </View>
 
@@ -95,7 +97,7 @@ export default function ForgotPasswordScreen() {
                 <TextInput style={styles.input} placeholder="+82 10-0000-0000" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholderTextColor={Colors.textLight} />
               </View>
               <TouchableOpacity style={[styles.btn, isLoading && styles.disabled]} onPress={sendOtp} disabled={isLoading}>
-                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Send Reset Code</Text>}
+                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t('sendResetCode')}</Text>}
               </TouchableOpacity>
             </View>
           )}
@@ -118,7 +120,7 @@ export default function ForgotPasswordScreen() {
                 ))}
               </View>
               <TouchableOpacity style={[styles.btn, otp.join('').length < 6 && styles.disabled]} onPress={verifyOtp} disabled={otp.join('').length < 6}>
-                <Text style={styles.btnText}>Verify Code</Text>
+                <Text style={styles.btnText}>{t('verifyCode')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -127,17 +129,17 @@ export default function ForgotPasswordScreen() {
             <View style={styles.form}>
               <View style={styles.inputContainer}>
                 <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                <TextInput style={[styles.input, { paddingRight: 44 }]} placeholder="New password" value={newPassword} onChangeText={setNewPassword} secureTextEntry={!showPass} placeholderTextColor={Colors.textLight} />
+                <TextInput style={[styles.input, { paddingRight: 44 }]} placeholder={t('newPasswordTitle')} value={newPassword} onChangeText={setNewPassword} secureTextEntry={!showPass} placeholderTextColor={Colors.textLight} />
                 <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
                   <Ionicons name={showPass ? 'eye-outline' : 'eye-off-outline'} size={20} color={Colors.textSecondary} />
                 </TouchableOpacity>
               </View>
               <View style={styles.inputContainer}>
                 <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                <TextInput style={styles.input} placeholder="Confirm new password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showPass} placeholderTextColor={Colors.textLight} />
+                <TextInput style={styles.input} placeholder={t('confirmPassword')} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showPass} placeholderTextColor={Colors.textLight} />
               </View>
               <TouchableOpacity style={[styles.btn, isLoading && styles.disabled]} onPress={resetPassword} disabled={isLoading}>
-                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Reset Password</Text>}
+                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t('resetPasswordBtn')}</Text>}
               </TouchableOpacity>
             </View>
           )}
@@ -148,7 +150,7 @@ export default function ForgotPasswordScreen() {
                 <Ionicons name="checkmark-circle" size={64} color={Colors.primary} />
               </View>
               <TouchableOpacity style={styles.btn} onPress={() => router.replace('/(auth)/login')}>
-                <Text style={styles.btnText}>Sign In Now</Text>
+                <Text style={styles.btnText}>{t('signInNow')}</Text>
               </TouchableOpacity>
             </View>
           )}

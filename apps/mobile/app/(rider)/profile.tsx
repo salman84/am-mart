@@ -7,10 +7,12 @@ import { router } from 'expo-router';
 import { RootState, AppDispatch } from '../../src/store';
 import { logout } from '../../src/store/slices/authSlice';
 import { Colors, FontSize, FontWeight, Spacing, BorderRadius } from '../../src/theme';
+import { useLanguage } from '../../src/i18n';
 
 export default function RiderProfileScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((state: RootState) => state.auth.user);
+  const { t } = useLanguage();
 
   const handleLogout = () => {
     dispatch(logout());
@@ -20,7 +22,7 @@ export default function RiderProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>{t('riderProfileTitle')}</Text>
       </View>
 
       <View style={styles.profileCard}>
@@ -30,13 +32,13 @@ export default function RiderProfileScreen() {
         <Text style={styles.name}>{user?.fullName}</Text>
         <Text style={styles.phone}>{user?.phone}</Text>
         <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>Rider</Text>
+          <Text style={styles.roleText}>{t('riderRole')}</Text>
         </View>
       </View>
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-        <Text style={styles.logoutText}>Sign Out</Text>
+        <Text style={styles.logoutText}>{t('signOut')}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

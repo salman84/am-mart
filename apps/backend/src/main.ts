@@ -45,6 +45,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
+  // Health check endpoint (used by Render)
+  app.use('/health', (_req: any, res: any) => res.json({ status: 'ok', ts: Date.now() }));
+
   const port = process.env.PORT || 3001;
   await app.listen(port);
   console.log(`AM Mart API running on http://localhost:${port}`);

@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator, Switch, Image, Alert,
+  TouchableOpacity, ActivityIndicator, Switch, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useSelector } from 'react-redux';
 import { sellerApi, categoryApi, uploadApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
+import { useLanguage } from '../../src/i18n';
 
 type FieldProps = {
   label: string;
@@ -30,6 +32,8 @@ function Field({ label, required, children }: FieldProps) {
 }
 
 export default function AddProductScreen() {
+  const currency = useSelector((state: any) => state.appSettings?.currencySymbol ?? '₩');
+  const { t } = useLanguage();
   const [categories, setCategories] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -50,9 +54,11 @@ export default function AddProductScreen() {
     categoryApi.getAll().then((res) => setCategories(res.data.categories || [])).catch(() => {});
   }, []);
 
+  const MAX_IMAGES = 20;
+
   const pickImage = async () => {
-    if (images.length >= 5) {
-      Toast.show({ type: 'error', text1: 'Maximum 5 images allowed' });
+    if (images.length >= MAX_IMAGES) {
+      Toast.show({ type: 'error', text1: `Maximum ${MAX_IMAGES} images allowed` });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -75,7 +81,7 @@ export default function AddProductScreen() {
       const url: string = res.data.url || res.data.imageUrl || res.data.path;
       setImages((prev) => [...prev, url]);
     } catch {
-      Toast.show({ type: 'error', text1: 'Image upload failed' });
+      Toast.show({ type: 'error', text1: t('imageUploadFailed') });
     } finally {
       setUploadingImage(false);
     }
@@ -87,19 +93,19 @@ export default function AddProductScreen() {
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
-      Toast.show({ type: 'error', text1: 'Product name is required' });
+      Toast.show({ type: 'error', text1: t('productNameRequired') });
       return;
     }
     if (!form.categoryId) {
-      Toast.show({ type: 'error', text1: 'Please select a category' });
+      Toast.show({ type: 'error', text1: t('selectCategoryFirst') });
       return;
     }
     if (!form.price || isNaN(Number(form.price))) {
-      Toast.show({ type: 'error', text1: 'Enter a valid price' });
+      Toast.show({ type: 'error', text1: t('enterValidPrice') });
       return;
     }
     if (!form.stock || isNaN(Number(form.stock))) {
-      Toast.show({ type: 'error', text1: 'Enter a valid stock quantity' });
+      Toast.show({ type: 'error', text1: t('enterValidStock') });
       return;
     }
 
@@ -117,10 +123,14 @@ export default function AddProductScreen() {
         isFeatured: form.isFeatured,
         images,
       });
-      Toast.show({ type: 'success', text1: 'Product published!', text2: `${form.name} is now live` });
+      Toast.show({
+        type: 'success',
+        text1: t('productPublished'),
+        text2: t('productNowLive').replace('{name}', form.name),
+      });
       router.back();
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || 'Failed to add product' });
+      Toast.show({ type: 'error', text1: e.response?.data?.message || t('failedAddProduct') });
     } finally {
       setIsSubmitting(false);
     }
@@ -132,24 +142,24 @@ export default function AddProductScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Product</Text>
+        <Text style={styles.headerTitle}>{t('addProductTitle')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Basic Info */}
         <View style={styles.card}>
-          <Field label="Product Name" required>
+          <Field label={t('productNameLabel')} required>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Fresh Apples 1kg"
+              placeholder={t('productNamePlaceholder')}
               placeholderTextColor={Colors.textLight}
               value={form.name}
               onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
             />
           </Field>
 
-          <Field label="Category" required>
+          <Field label={t('categoryLabel')} required>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
               <View style={styles.categoryRow}>
                 {categories.map((cat) => (
@@ -167,10 +177,10 @@ export default function AddProductScreen() {
             </ScrollView>
           </Field>
 
-          <Field label="Description">
+          <Field label={t('description')}>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Describe your product..."
+              placeholder={t('productDescPlaceholder')}
               placeholderTextColor={Colors.textLight}
               value={form.description}
               onChangeText={(v) => setForm((f) => ({ ...f, description: v }))}
@@ -184,7 +194,7 @@ export default function AddProductScreen() {
         {/* Pricing & Stock */}
         <View style={styles.card}>
           <View style={styles.row}>
-            <Field label="Price (₩)" required>
+            <Field label={`${t('price')} (${currency})`} required>
               <TextInput
                 style={styles.input}
                 placeholder="0"
@@ -194,10 +204,10 @@ export default function AddProductScreen() {
                 keyboardType="numeric"
               />
             </Field>
-            <Field label="Discount Price (₩)">
+            <Field label={`${t('discountPrice')} (${currency})`}>
               <TextInput
                 style={styles.input}
-                placeholder="Optional"
+                placeholder={t('optional') || 'Optional'}
                 placeholderTextColor={Colors.textLight}
                 value={form.discountPrice}
                 onChangeText={(v) => setForm((f) => ({ ...f, discountPrice: v }))}
@@ -207,7 +217,7 @@ export default function AddProductScreen() {
           </View>
 
           <View style={styles.row}>
-            <Field label="Stock" required>
+            <Field label={t('stockLabel')} required>
               <TextInput
                 style={styles.input}
                 placeholder="0"
@@ -217,7 +227,7 @@ export default function AddProductScreen() {
                 keyboardType="numeric"
               />
             </Field>
-            <Field label="Unit">
+            <Field label={t('unitLabel')}>
               <TextInput
                 style={styles.input}
                 placeholder="e.g. kg, pcs"
@@ -231,7 +241,7 @@ export default function AddProductScreen() {
           <Field label="SKU">
             <TextInput
               style={styles.input}
-              placeholder="Optional"
+              placeholder={t('optional') || 'Optional'}
               placeholderTextColor={Colors.textLight}
               value={form.sku}
               onChangeText={(v) => setForm((f) => ({ ...f, sku: v }))}
@@ -241,8 +251,8 @@ export default function AddProductScreen() {
           {/* Featured Toggle */}
           <View style={styles.toggleRow}>
             <View>
-              <Text style={styles.fieldLabel}>Featured Product</Text>
-              <Text style={styles.toggleSub}>Show this product in the featured section</Text>
+              <Text style={styles.fieldLabel}>{t('featuredProductLabel')}</Text>
+              <Text style={styles.toggleSub}>{t('featuredProductDesc')}</Text>
             </View>
             <Switch
               value={form.isFeatured}
@@ -256,31 +266,36 @@ export default function AddProductScreen() {
         {/* Image Upload */}
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>
-            Product Images <Text style={styles.imageCount}>({images.length}/5)</Text>
+            {t('productImagesLabel')} <Text style={styles.imageCount}>({images.length}/{MAX_IMAGES})</Text>
           </Text>
           <View style={styles.imagesRow}>
             {images.map((uri, index) => (
               <View key={index} style={styles.imageThumb}>
                 <Image source={{ uri }} style={styles.thumbImg} />
+                {index === 0 && (
+                  <View style={styles.mainBadge}>
+                    <Text style={styles.mainBadgeTxt}>Main</Text>
+                  </View>
+                )}
                 <TouchableOpacity style={styles.removeImg} onPress={() => removeImage(index)}>
                   <Ionicons name="close-circle" size={20} color={Colors.danger} />
                 </TouchableOpacity>
               </View>
             ))}
-            {images.length < 5 && (
+            {images.length < MAX_IMAGES && (
               <TouchableOpacity style={styles.imageUpload} onPress={pickImage} disabled={uploadingImage}>
                 {uploadingImage ? (
                   <ActivityIndicator color={Colors.primary} />
                 ) : (
                   <>
                     <Ionicons name="camera-outline" size={28} color={Colors.textLight} />
-                    <Text style={styles.imageUploadText}>Add Photo</Text>
+                    <Text style={styles.imageUploadText}>{t('addPhoto') || 'Add Photo'}</Text>
                   </>
                 )}
               </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.imageUploadSub}>Max 5 images, JPG/PNG, up to 5MB each</Text>
+          <Text style={styles.imageUploadSub}>JPG/PNG up to 5MB each · First image = main display photo</Text>
         </View>
 
         <TouchableOpacity
@@ -293,7 +308,7 @@ export default function AddProductScreen() {
           ) : (
             <>
               <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-              <Text style={styles.submitText}>Publish Product</Text>
+              <Text style={styles.submitText}>{t('publishProduct')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -339,6 +354,8 @@ const styles = StyleSheet.create({
   imageThumb: { width: 80, height: 80, borderRadius: BorderRadius.md, position: 'relative' },
   thumbImg: { width: 80, height: 80, borderRadius: BorderRadius.md },
   removeImg: { position: 'absolute', top: -6, right: -6, backgroundColor: '#fff', borderRadius: 10 },
+  mainBadge: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(16,185,129,0.85)', borderBottomLeftRadius: BorderRadius.md, borderBottomRightRadius: BorderRadius.md, paddingVertical: 2, alignItems: 'center' },
+  mainBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: FontWeight.bold },
   imageUpload: {
     width: 80, height: 80, borderWidth: 2, borderColor: Colors.border,
     borderStyle: 'dashed', borderRadius: BorderRadius.md,

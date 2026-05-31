@@ -22,6 +22,8 @@ model User {
   isEmailVerified   Boolean    @default(false)
   fcmToken          String?
   lastLoginAt       DateTime?
+  referralCode      String?    @unique
+  referredBy        String?
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
@@ -33,23 +35,26 @@ model User {
   notifications     Notification[]
   supportTickets    SupportTicket[]
   adminLogs         AdminLog[]
+  userCoupons       UserCoupon[]
 
   @@index([phone])
   @@index([email])
   @@index([role])
+  @@index([referralCode])
   @@map("users")
 }
 
 model OtpVerification {
-  id         String   @id @default(uuid())
-  userId     String
-  phone      String
-  otp        String
-  purpose    OtpPurpose
-  isUsed     Boolean  @default(false)
-  attempts   Int      @default(0)
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
+  id          String   @id @default(uuid())
+  userId      String
+  phone       String
+  otp         String
+  sessionInfo String?  // Firebase sessionInfo for phone auth
+  purpose     OtpPurpose
+  isUsed      Boolean  @default(false)
+  attempts    Int      @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id])
 
@@ -96,17 +101,26 @@ model Address {
   id           String   @id @default(uuid())
   customerId   String
   label        String   @default("Home")
-  fullName     String
-  phone        String
-  addressLine1 String
+  fullName     String?
+  phone        String?
+  addressLine1 String   @default("")
   addressLine2 String?
-  city         String
-  district     String
+  city         String   @default("")
+  district     String?
   postalCode   String?
-  lat          Float
-  lng          Float
-  isDefault    Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  lat          Float?
+  lng          Float?
+  isDefault             Boolean  @default(false)
+  deliveryGeneral       String?
+  deliveryLockerCode    String?
+  deliveryOtherNote     String?
+  gateCode              String?
+  deliveryDawn          String?
+  deliveryDawnSub       String?
+  deliveryDawnCode      String?
+  deliveryDawnNotify    String?
+  deliveryDawnOtherNote String?
+  createdAt             DateTime @default(now())
 
   customer     Customer @relation(fields: [customerId], references: [id])
   orders       Order[]
@@ -266,6 +280,9 @@ model Product {
   stock                Int           @default(0)
   unit                 String        @default("pc")
   sku                  String?       @unique
+  weight               String?
+  brand                String?
+  countryOfOrigin      String?
   status               ProductStatus @default(ACTIVE)
   rating               Float         @default(0)
   reviewCount          Int           @default(0)
@@ -355,6 +372,7 @@ model Order {
   deliveredAt     DateTime?
   cancelledAt     DateTime?
   cancelReason    String?
+  isAdminTest     Boolean       @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -476,6 +494,8 @@ model SimOrder {
   adminNotes       String?
   price            Float
   paymentStatus    PaymentStatus @default(PENDING)
+  isAdminTest      Boolean       @default(false)
+  chosenLastFour   String?       // for prefix-mode numbers: the last 4 digits customer chose
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -675,26 +695,52 @@ model DeliveryTracking {
 // ─── Promotions ──────────────────────────────────────────────────────────────
 
 model Coupon {
-  id              String      @id @default(uuid())
-  code            String      @unique
+  id              String          @id @default(uuid())
+  code            String          @unique
   title           String
   description     String?
   type            CouponType
+  category        CouponCategory  @default(MANUAL)
   value           Float
-  minOrderAmount  Float       @default(0)
+  minOrderAmount  Float           @default(0)
   maxDiscount     Float?
   usageLimit      Int?
-  usedCount       Int         @default(0)
-  perUserLimit    Int         @default(1)
-  isActive        Boolean     @default(true)
+  usedCount       Int             @default(0)
+  perUserLimit    Int             @default(1)
+  isActive        Boolean         @default(true)
+  autoAssign      Boolean         @default(false)
   startDate       DateTime
   endDate         DateTime
-  createdAt       DateTime    @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   orders          Order[]
+  userCoupons     UserCoupon[]
 
   @@index([code])
+  @@index([category])
+  @@index([isActive])
   @@map("coupons")
+}
+
+// Per-user coupon wallet: links a Coupon to a specific User
+model UserCoupon {
+  id          String          @id @default(uuid())
+  userId      String
+  couponId    String
+  isUsed      Boolean         @default(false)
+  usedAt      DateTime?
+  usedOrderId String?
+  source      CouponCategory  @default(MANUAL)
+  createdAt   DateTime        @default(now())
+
+  user        User            @relation(fields: [userId], references: [id])
+  coupon      Coupon          @relation(fields: [couponId], references: [id])
+
+  @@unique([userId, couponId])
+  @@index([userId])
+  @@index([couponId])
+  @@map("user_coupons")
 }
 
 model Banner {
@@ -1656,6 +1702,7 @@ enum PaymentStatus {
 enum SimStatus {
   PENDING
   AVAILABLE
+  HIDDEN
   RESERVED
   CONFIRMED
   PROCESSING
@@ -1726,6 +1773,14 @@ enum CouponType {
   PERCENTAGE
   FIXED
   FREE_DELIVERY
+}
+
+enum CouponCategory {
+  MANUAL           // Admin creates code, users enter manually
+  WELCOME          // Auto-assigned to every new customer on signup
+  FIRST_PURCHASE   // Valid only on the user's very first order
+  REFERRAL_SENDER  // Awarded to referrer when referred friend places first order
+  REFERRAL_RECEIVER // Auto-assigned to new user who signed up via referral
 }
 
 enum BannerLink {

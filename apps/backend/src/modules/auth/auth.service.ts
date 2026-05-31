@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OtpService } from './otp.service';
+import { CouponsService } from '../coupons/coupons.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -23,6 +24,7 @@ export class AuthService {
     private jwt: JwtService,
     private config: ConfigService,
     private otp: OtpService,
+    private coupons: CouponsService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -42,6 +44,9 @@ export class AuthService {
       }
     }
 
+    // Generate unique referral code
+    const referralCode = await this.generateReferralCode();
+
     const hash = await bcrypt.hash(dto.password, 12);
     const user = await this.prisma.user.create({
       data: {
@@ -50,6 +55,8 @@ export class AuthService {
         fullName: dto.fullName,
         passwordHash: hash,
         role: dto.role || UserRole.CUSTOMER,
+        referralCode,
+        referredBy: (dto as any).referredBy || null,
         customer:
           dto.role === UserRole.CUSTOMER || !dto.role
             ? { create: {} }
@@ -180,12 +187,15 @@ export class AuthService {
       }
     }
 
-    await this.otp.sendOtp(user.id, dto.phone, 'PHONE_VERIFICATION');
+    const { devCode } = await this.otp.sendOtp(user.id, dto.phone, 'PHONE_VERIFICATION');
+    const isDev = process.env.NODE_ENV !== 'production';
     return {
       message: dto.role === 'SELLER'
         ? 'Seller registration submitted. Your account is under review.'
         : 'Registration successful. OTP sent to your phone.',
       userId: user.id,
+      // Only expose devCode in non-production environments
+      ...(devCode && isDev ? { devCode } : {}),
     };
   }
 
@@ -199,6 +209,15 @@ export class AuthService {
     });
 
     const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
+
+    // Auto-assign welcome + first-purchase coupons (fire-and-forget — never block login)
+    this.coupons.assignWelcomeCoupons(dto.userId).catch(() => {});
+
+    // Process referral rewards if user was referred
+    if (user?.referredBy) {
+      this.coupons.processReferralSignup(dto.userId, user.referredBy).catch(() => {});
+    }
+
     return this.generateTokens(user);
   }
 
@@ -220,8 +239,10 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
     if (!user.isPhoneVerified) {
-      await this.otp.sendOtp(user.id, user.phone, 'PHONE_VERIFICATION');
-      throw new BadRequestException('Phone not verified. OTP sent.');
+      const { devCode } = await this.otp.sendOtp(user.id, user.phone, 'PHONE_VERIFICATION');
+      throw new BadRequestException(
+        devCode ? `Phone not verified. OTP: ${devCode}` : 'Phone not verified. OTP sent.',
+      );
     }
 
     // Seller approval gate — only APPROVED sellers may sign in
@@ -253,8 +274,13 @@ export class AuthService {
   async sendLoginOtp(phone: string) {
     const user = await this.prisma.user.findUnique({ where: { phone } });
     if (!user) throw new NotFoundException('No account found with this phone');
-    await this.otp.sendOtp(user.id, phone, 'LOGIN');
-    return { message: 'OTP sent', userId: user.id };
+    const { devCode } = await this.otp.sendOtp(user.id, phone, 'LOGIN');
+    const isDev = process.env.NODE_ENV !== 'production';
+    return {
+      message: 'OTP sent',
+      userId: user.id,
+      ...(devCode && isDev ? { devCode } : {}),
+    };
   }
 
   async loginWithOtp(dto: VerifyOtpDto) {
@@ -294,8 +320,13 @@ export class AuthService {
   async forgotPassword(phone: string) {
     const user = await this.prisma.user.findUnique({ where: { phone } });
     if (!user) throw new NotFoundException('No account found');
-    await this.otp.sendOtp(user.id, phone, 'PASSWORD_RESET');
-    return { message: 'OTP sent', userId: user.id };
+    const { devCode } = await this.otp.sendOtp(user.id, phone, 'PASSWORD_RESET');
+    const isDev = process.env.NODE_ENV !== 'production';
+    return {
+      message: 'OTP sent',
+      userId: user.id,
+      ...(devCode && isDev ? { devCode } : {}),
+    };
   }
 
   async resetPassword(userId: string, otp: string, newPassword: string) {
@@ -307,6 +338,16 @@ export class AuthService {
     return { message: 'Password reset successful' };
   }
 
+  private async generateReferralCode(): Promise<string> {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const code = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      const exists = await (this.prisma as any).user.findFirst({ where: { referralCode: code } });
+      if (!exists) return code;
+    }
+    return `REF${Date.now().toString(36).toUpperCase()}`;
+  }
+
   private async generateTokens(user: any) {
     const payload = { sub: user.id, role: user.role, phone: user.phone };
     const accessToken = this.jwt.sign(payload);
@@ -316,7 +357,7 @@ export class AuthService {
       data: {
         userId: user.id,
         token: refreshTokenStr,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days — users stay logged in
       },
     });
 

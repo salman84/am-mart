@@ -21,6 +21,7 @@ const TEXT_SETTINGS = [
   { label: 'Support Email', key: 'SUPPORT_EMAIL' },
   { label: 'Support Phone', key: 'SUPPORT_PHONE' },
   { label: 'Minimum App Version', key: 'APP_MIN_VERSION' },
+  { label: 'Kakao REST API Key (for Korean address search)', key: 'KAKAO_REST_API_KEY' },
 ];
 
 const FEATURE_FLAGS = [
@@ -29,6 +30,7 @@ const FEATURE_FLAGS = [
   { key: 'FEATURE_WALLET', label: 'Wallet System', description: 'Enable/disable customer wallet' },
   { key: 'FEATURE_REVIEWS', label: 'Product Reviews', description: 'Allow customers to leave reviews' },
   { key: 'FEATURE_DELIVERY_TRACKING', label: 'Live Delivery Tracking', description: 'Show delivery tracking map' },
+  { key: 'FEATURE_ADDRESS_SEARCH', label: 'Korean Address Search (도로명주소)', description: 'Enable Kakao/Daum postcode address search for Korea — disable if selling outside Korea' },
 ];
 
 const LANDING_SECTIONS = [

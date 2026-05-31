@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { reviewsApi } from '../../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../../src/theme';
+import { useLanguage } from '../../../src/i18n';
 
 export default function ReviewScreen() {
   const { orderId, productId, productName } = useLocalSearchParams<{
@@ -16,6 +17,7 @@ export default function ReviewScreen() {
     productId: string;
     productName: string;
   }>();
+  const { t } = useLanguage();
 
   const decodedProductName = productName ? decodeURIComponent(productName) : 'Product';
 
@@ -25,16 +27,16 @@ export default function ReviewScreen() {
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      Alert.alert('Rating Required', 'Please select a star rating before submitting.');
+      Alert.alert(t('ratingRequired'), t('selectStarRating'));
       return;
     }
     setSubmitting(true);
     try {
       await reviewsApi.create({ productId, orderId, rating, comment });
-      Toast.show({ type: 'success', text1: 'Review submitted!', text2: 'Thank you for your feedback.' });
+      Toast.show({ type: 'success', text1: t('reviewSubmitted'), text2: t('reviewThankYou') });
       router.back();
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || 'Failed to submit review' });
+      Toast.show({ type: 'error', text1: e.response?.data?.message || t('failedSubmitReview') });
     } finally {
       setSubmitting(false);
     }
@@ -47,13 +49,13 @@ export default function ReviewScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Leave a Review</Text>
+        <Text style={styles.headerTitle}>{t('leaveReview')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
-          <Text style={styles.productTitle}>Rate {decodedProductName}</Text>
+          <Text style={styles.productTitle}>{t('rateProductTitle').replace('{name}', decodedProductName)}</Text>
 
           {/* Star Rating */}
           <View style={styles.starsRow}>
@@ -66,14 +68,16 @@ export default function ReviewScreen() {
             ))}
           </View>
           <Text style={styles.ratingLabel}>
-            {rating === 0 ? 'Tap to rate' : ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][rating]}
+            {rating === 0 ? t('tapToRate') : [
+              '', t('ratePoor'), t('rateFair'), t('rateGood'), t('rateVeryGood'), t('rateExcellent'),
+            ][rating]}
           </Text>
 
           {/* Comment Input */}
-          <Text style={styles.label}>Your Review (optional)</Text>
+          <Text style={styles.label}>{t('yourReviewOptional')}</Text>
           <TextInput
             style={styles.textArea}
-            placeholder="Share your experience..."
+            placeholder={t('shareYourExperience')}
             placeholderTextColor={Colors.textLight}
             multiline
             numberOfLines={5}
@@ -91,7 +95,7 @@ export default function ReviewScreen() {
             {submitting ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.submitBtnText}>Submit Review</Text>
+              <Text style={styles.submitBtnText}>{t('submitReviewBtn')}</Text>
             )}
           </TouchableOpacity>
         </View>

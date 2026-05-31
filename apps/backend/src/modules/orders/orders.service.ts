@@ -4,12 +4,14 @@ import {
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CouponsService } from '../coupons/coupons.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private notifications: NotificationsService,
+    private coupons: CouponsService,
   ) {}
 
   async getCart(userId: string) {
@@ -148,7 +150,7 @@ export class OrdersService {
           } else if (coupon.type === 'FIXED') {
             discount = Math.min(coupon.value, subtotal);
           }
-          await this.prisma.coupon.update({ where: { id: coupon.id }, data: { usedCount: { increment: 1 } } });
+          // usedCount + UserCoupon marking handled after order creation
         }
       }
     }
@@ -171,6 +173,7 @@ export class OrdersService {
           total,
           paymentMethod: dto.paymentMethod,
           notes: dto.notes,
+          isAdminTest: dto.isAdminTest === true,
           items: { create: orderItems },
         },
         include: { items: true },
@@ -212,6 +215,11 @@ export class OrdersService {
 
       return newOrder;
     });
+
+    // Mark coupon as used in wallet + increment global usedCount
+    if (dto.couponCode) {
+      this.coupons.markCouponUsed(userId, dto.couponCode, order.id).catch(() => {});
+    }
 
     // Send notification
     await this.notifications.sendPushToUser(userId, {
@@ -363,4 +371,5 @@ interface CreateOrderDto {
   couponCode?: string;
   deliveryFee?: number;
   notes?: string;
+  isAdminTest?: boolean;
 }

@@ -42,6 +42,8 @@ module.exports = {
           'AM Mart needs photo library access to upload product images and ID documents.',
         NSPhotoLibraryAddUsageDescription:
           'AM Mart needs access to save delivery proof photos.',
+        NSFaceIDUsageDescription:
+          'AM Mart uses Face ID to quickly and securely unlock the app.',
         UIBackgroundModes: ['location', 'remote-notification', 'fetch'],
       },
     },
@@ -69,6 +71,8 @@ module.exports = {
         'VIBRATE',
         'INTERNET',
         'ACCESS_NETWORK_STATE',
+        'USE_BIOMETRIC',
+        'USE_FINGERPRINT',
       ],
     },
 
@@ -80,6 +84,7 @@ module.exports = {
     plugins: [
       'expo-router',
       'expo-font',
+      'expo-updates',
       // expo-dev-client removed — app runs standalone without development server picker
       [
         'expo-location',

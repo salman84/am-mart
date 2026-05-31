@@ -7,15 +7,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../../src/store';
 import { orderApi } from '../../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../../src/theme';
-
-const STATUS_STEPS = [
-  { key: 'PENDING', label: 'Order Placed', icon: 'time-outline' },
-  { key: 'CONFIRMED', label: 'Confirmed', icon: 'checkmark-circle-outline' },
-  { key: 'PREPARING', label: 'Preparing', icon: 'restaurant-outline' },
-  { key: 'PICKED_UP', label: 'Picked Up', icon: 'bicycle-outline' },
-  { key: 'OUT_FOR_DELIVERY', label: 'On the Way', icon: 'navigate-outline' },
-  { key: 'DELIVERED', label: 'Delivered', icon: 'checkmark-done-circle-outline' },
-];
+import { useLanguage } from '../../../src/i18n';
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: Colors.warning,
@@ -29,16 +21,27 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const currency = useSelector((state: RootState) => (state.appSettings as any)?.currencySymbol || '₩');
+  const { t } = useLanguage();
+  const currency = useSelector((state: RootState) => (state.appSettings as any)?.currencySymbol || '₨');
   const [order, setOrder] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Build STATUS_STEPS using translated labels
+  const STATUS_STEPS = [
+    { key: 'PENDING',           label: t('orderPlaced'),    icon: 'time-outline' },
+    { key: 'CONFIRMED',         label: t('statusConfirmed'), icon: 'checkmark-circle-outline' },
+    { key: 'PREPARING',         label: t('statusPreparing'), icon: 'restaurant-outline' },
+    { key: 'PICKED_UP',         label: t('statusPickedUp'),  icon: 'bicycle-outline' },
+    { key: 'OUT_FOR_DELIVERY',  label: t('statusOnTheWay'),  icon: 'navigate-outline' },
+    { key: 'DELIVERED',         label: t('statusDelivered'), icon: 'checkmark-done-circle-outline' },
+  ];
 
   useEffect(() => {
     orderApi.getOne(id).then((res) => setOrder(res.data.order)).finally(() => setIsLoading(false));
   }, [id]);
 
   if (isLoading) return <View style={styles.loading}><ActivityIndicator size="large" color={Colors.primary} /></View>;
-  if (!order) return <View style={styles.loading}><Text style={{ color: Colors.textSecondary }}>Order not found</Text></View>;
+  if (!order) return <View style={styles.loading}><Text style={{ color: Colors.textSecondary }}>{t('orderNotFound')}</Text></View>;
 
   const currentStepIndex = STATUS_STEPS.findIndex((s) => s.key === order.status);
   const isCancelled = order.status === 'CANCELLED';
@@ -59,7 +62,7 @@ export default function OrderDetailScreen() {
           <Ionicons name={STATUS_STEPS[currentStepIndex]?.icon as any || 'ellipse-outline'} size={28} color={STATUS_COLORS[order.status] || Colors.primary} />
           <View>
             <Text style={[styles.statusLabel, { color: STATUS_COLORS[order.status] || Colors.primary }]}>
-              {isCancelled ? 'Order Cancelled' : STATUS_STEPS[currentStepIndex]?.label || order.status}
+              {isCancelled ? t('orderCancelled') : STATUS_STEPS[currentStepIndex]?.label || order.status}
             </Text>
             <Text style={styles.statusDate}>{new Date(order.updatedAt || order.createdAt).toLocaleString()}</Text>
           </View>
@@ -68,7 +71,7 @@ export default function OrderDetailScreen() {
         {/* Timeline */}
         {!isCancelled && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Order Progress</Text>
+            <Text style={styles.sectionTitle}>{t('orderProgress')}</Text>
             <View style={styles.timeline}>
               {STATUS_STEPS.map((step, index) => {
                 const isDone = index <= currentStepIndex;
@@ -93,7 +96,7 @@ export default function OrderDetailScreen() {
 
         {/* Delivery Address */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delivery Address</Text>
+          <Text style={styles.sectionTitle}>{t('deliveryAddress')}</Text>
           <View style={styles.addressCard}>
             <Ionicons name="location-outline" size={18} color={Colors.primary} />
             <Text style={styles.addressText}>
@@ -106,7 +109,7 @@ export default function OrderDetailScreen() {
         {/* Rider Info */}
         {order.deliveryAssignment?.rider && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Rider</Text>
+            <Text style={styles.sectionTitle}>{t('yourRider')}</Text>
             <View style={styles.riderCard}>
               <View style={styles.riderAvatar}>
                 <Text style={styles.riderAvatarText}>{order.deliveryAssignment.rider.user?.fullName?.[0]}</Text>
@@ -124,7 +127,7 @@ export default function OrderDetailScreen() {
 
         {/* Order Items */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Items</Text>
+          <Text style={styles.sectionTitle}>{t('orderItems')}</Text>
           {order.items?.map((item: any) => (
             <View key={item.id} style={styles.orderItem}>
               <View style={styles.itemIcon}>
@@ -142,14 +145,14 @@ export default function OrderDetailScreen() {
         {/* Leave a Review */}
         {order.status === 'DELIVERED' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Rate Your Order</Text>
+            <Text style={styles.sectionTitle}>{t('rateYourOrder')}</Text>
             {order.items?.map((item: any) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.reviewBtn}
                 onPress={() => router.push(`/(customer)/order/review?orderId=${order.id}&productId=${item.productId}&productName=${encodeURIComponent(item.product?.name || 'Product')}`)}
               >
-                <Text style={styles.reviewBtnText}>★ Rate {item.product?.name || 'Product'}</Text>
+                <Text style={styles.reviewBtnText}>★ {t('rateProductTitle').replace('{name}', item.product?.name || 'Product')}</Text>
                 <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
               </TouchableOpacity>
             ))}
@@ -158,16 +161,16 @@ export default function OrderDetailScreen() {
 
         {/* Price Summary */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Summary</Text>
-          <View style={styles.priceRow}><Text style={styles.priceLabel}>Subtotal</Text><Text style={styles.priceValue}>{currency}{order.subtotal?.toLocaleString()}</Text></View>
-          <View style={styles.priceRow}><Text style={styles.priceLabel}>Delivery Fee</Text><Text style={styles.priceValue}>{order.deliveryFee === 0 ? 'FREE' : `${currency}${order.deliveryFee?.toLocaleString()}`}</Text></View>
-          {order.discount > 0 && <View style={styles.priceRow}><Text style={[styles.priceLabel, { color: Colors.primary }]}>Discount</Text><Text style={[styles.priceValue, { color: Colors.primary }]}>-{currency}{order.discount?.toLocaleString()}</Text></View>}
+          <Text style={styles.sectionTitle}>{t('paymentSummary')}</Text>
+          <View style={styles.priceRow}><Text style={styles.priceLabel}>{t('subtotal')}</Text><Text style={styles.priceValue}>{currency}{order.subtotal?.toLocaleString()}</Text></View>
+          <View style={styles.priceRow}><Text style={styles.priceLabel}>{t('deliveryFee')}</Text><Text style={styles.priceValue}>{order.deliveryFee === 0 ? t('free') : `${currency}${order.deliveryFee?.toLocaleString()}`}</Text></View>
+          {order.discount > 0 && <View style={styles.priceRow}><Text style={[styles.priceLabel, { color: Colors.primary }]}>{t('discount')}</Text><Text style={[styles.priceValue, { color: Colors.primary }]}>-{currency}{order.discount?.toLocaleString()}</Text></View>}
           <View style={[styles.priceRow, { borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: 8, marginTop: 4 }]}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{t('total')}</Text>
             <Text style={styles.totalValue}>{currency}{order.total?.toLocaleString()}</Text>
           </View>
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Payment Method</Text>
+            <Text style={styles.priceLabel}>{t('paymentMethod')}</Text>
             <Text style={styles.priceValue}>{order.paymentMethod}</Text>
           </View>
         </View>

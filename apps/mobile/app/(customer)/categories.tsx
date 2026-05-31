@@ -8,7 +8,7 @@ import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../
 import { useLanguage } from '../../src/i18n';
 
 const { width } = Dimensions.get('window');
-const CARD_SIZE = (width - Spacing.lg * 2 - 12) / 2;
+const CARD_SIZE = (width - Spacing.lg * 2 - 16) / 3;
 
 const FALLBACK = [
   { id: '1', name: 'Meat & Fish' },
@@ -38,6 +38,8 @@ const CAT_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
   'Condiments':     { icon: 'flask-outline',         color: '#10B981', bg: '#ECFDF5' },
   'Eggs':           { icon: 'ellipse-outline',       color: '#F97316', bg: '#FFF7ED' },
   'Canned Goods':   { icon: 'archive-outline',       color: '#6B7280', bg: '#F9FAFB' },
+  'Fruits & Vegetables': { icon: 'leaf-outline',    color: '#22C55E', bg: '#F0FDF4' },
+  'Household':      { icon: 'home-outline',          color: '#6366F1', bg: '#EEF2FF' },
 };
 
 const FALLBACK_STYLES = Object.values(CAT_STYLES);
@@ -58,10 +60,10 @@ export default function CategoriesScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Build rows of 2 for ScrollView (avoids FlatList scroll jumping)
+  // Build rows of 3 for ScrollView
   const rows: any[][] = [];
-  for (let i = 0; i < categories.length; i += 2) {
-    rows.push(categories.slice(i, i + 2));
+  for (let i = 0; i < categories.length; i += 3) {
+    rows.push(categories.slice(i, i + 3));
   }
 
   return (
@@ -70,7 +72,7 @@ export default function CategoriesScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{t('categories')}</Text>
+        <Text style={styles.title}>{t('shopCategories' as any) || t('categories')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -80,13 +82,12 @@ export default function CategoriesScreen() {
         <ScrollView
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          // Prevents scroll from jumping on re-render
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         >
           {rows.map((row, rowIdx) => (
             <View key={rowIdx} style={styles.row}>
               {row.map((item: any, colIdx: number) => {
-                const s = getCatStyle(item.name, rowIdx * 2 + colIdx);
+                const s = getCatStyle(item.name, rowIdx * 3 + colIdx);
                 return (
                   <TouchableOpacity
                     key={item.id}
@@ -95,17 +96,15 @@ export default function CategoriesScreen() {
                     activeOpacity={0.75}
                   >
                     <View style={[styles.iconBox, { backgroundColor: s.bg }]}>
-                      <Ionicons name={s.icon} size={32} color={s.color} />
+                      <Ionicons name={s.icon} size={28} color={s.color} />
                     </View>
                     <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
-                    <View style={styles.cardArrow}>
-                      <Ionicons name="chevron-forward" size={14} color={Colors.textLight} />
-                    </View>
                   </TouchableOpacity>
                 );
               })}
-              {/* Fill empty slot if odd number */}
-              {row.length === 1 && <View style={styles.cardEmpty} />}
+              {/* Fill empty slots if not a full row */}
+              {row.length === 1 && <><View style={styles.cardEmpty} /><View style={styles.cardEmpty} /></>}
+              {row.length === 2 && <View style={styles.cardEmpty} />}
             </View>
           ))}
           <View style={{ height: 20 }} />
@@ -124,28 +123,28 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, justifyContent: 'center' },
   title: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.text },
-  list: { padding: Spacing.lg, gap: 12 },
-  row: { flexDirection: 'row', gap: 12 },
+  list: { padding: Spacing.lg, gap: 8 },
+  row: { flexDirection: 'row', gap: 8 },
   card: {
     width: CARD_SIZE,
     backgroundColor: '#fff',
     borderRadius: BorderRadius.xl,
-    padding: Spacing.base,
+    paddingVertical: Spacing.base,
+    paddingHorizontal: 4,
     alignItems: 'center',
     borderWidth: 1, borderColor: '#F0F0F0',
     ...Shadow.sm,
   },
   cardEmpty: { width: CARD_SIZE },
   iconBox: {
-    width: 64, height: 64, borderRadius: 18,
+    width: 64, height: 64, borderRadius: 32,
     justifyContent: 'center', alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
     borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)',
   },
   cardName: {
-    fontSize: FontSize.sm, fontWeight: FontWeight.semibold,
-    color: Colors.text, textAlign: 'center', lineHeight: 18,
+    fontSize: 11, fontWeight: FontWeight.semibold,
+    color: Colors.text, textAlign: 'center', lineHeight: 15,
   },
-  cardArrow: { marginTop: 6 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

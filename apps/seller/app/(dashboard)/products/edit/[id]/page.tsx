@@ -33,6 +33,11 @@ export default function EditProductPage() {
     discountPrice: '',
     stock: '',
     isFeatured: false,
+    unit: '',
+    weight: '',
+    brand: '',
+    countryOfOrigin: '',
+    sku: '',
   });
 
   const set = (field: string, value: any) =>
@@ -66,6 +71,11 @@ export default function EditProductPage() {
       discountPrice: product.discountPrice?.toString() || '',
       stock: product.stock?.toString() || '',
       isFeatured: product.isFeatured || false,
+      unit: product.unit || '',
+      weight: product.weight || '',
+      brand: product.brand || '',
+      countryOfOrigin: product.countryOfOrigin || '',
+      sku: product.sku || '',
     });
     const imgs = product.images?.map((img: any) => img.url || img) || [];
     if (product.imageUrl) imgs.unshift(product.imageUrl);
@@ -119,6 +129,11 @@ export default function EditProductPage() {
         discountPrice: form.discountPrice ? Number(form.discountPrice) : null,
         stock: Number(form.stock),
         isFeatured: form.isFeatured,
+        unit: form.unit.trim() || undefined,
+        weight: form.weight.trim() || undefined,
+        brand: form.brand.trim() || undefined,
+        countryOfOrigin: form.countryOfOrigin.trim() || undefined,
+        sku: form.sku.trim() || undefined,
         imageUrls,
       });
       toast.success('Product updated successfully!');
@@ -179,6 +194,46 @@ export default function EditProductPage() {
                 </option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* Product Information (seller-editable details shown on product page) */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-5">
+          <div>
+            <h2 className="font-semibold text-gray-900">Product Information</h2>
+            <p className="text-xs text-gray-400 mt-0.5">These details appear on the product page for customers</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="form-label" htmlFor="pbrand">Brand</label>
+              <input id="pbrand" type="text" className="form-input" placeholder="e.g. Samsung, Nike"
+                value={form.brand} onChange={(e) => set('brand', e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label" htmlFor="porigin">Country of Origin</label>
+              <input id="porigin" type="text" className="form-input" placeholder="e.g. Korea, USA"
+                value={form.countryOfOrigin} onChange={(e) => set('countryOfOrigin', e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="form-label" htmlFor="pweight">Weight / Size</label>
+              <input id="pweight" type="text" className="form-input" placeholder="e.g. 500g, 1kg, 2L"
+                value={form.weight} onChange={(e) => set('weight', e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label" htmlFor="punit">Unit</label>
+              <input id="punit" type="text" className="form-input" placeholder="e.g. pc, kg, L, box"
+                value={form.unit} onChange={(e) => set('unit', e.target.value)} />
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label" htmlFor="psku">SKU / Barcode</label>
+            <input id="psku" type="text" className="form-input" placeholder="e.g. ABC-12345 (optional)"
+              value={form.sku} onChange={(e) => set('sku', e.target.value)} />
           </div>
         </div>
 

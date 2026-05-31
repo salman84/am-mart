@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
   Image, RefreshControl, ActivityIndicator, Dimensions,
   Animated,
 } from 'react-native';
@@ -9,9 +9,10 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../src/store';
-import { productApi, categoryApi, bannerApi, appSettingsApi } from '../../src/services/api';
+import { productApi, categoryApi, bannerApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import { useLanguage } from '../../src/i18n';
+import { useBranding } from '../../src/context/BrandingContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - Spacing.lg * 2 - 12) / 2;
@@ -66,14 +67,12 @@ export default function HomeScreen() {
   const featureTopup = useSelector((state: RootState) => (state.appSettings as any)?.featureTopup !== false);
   const featureSim = useSelector((state: RootState) => (state.appSettings as any)?.featureSim !== false);
   const { t } = useLanguage();
+  const { appName, appLogo, currency } = useBranding();
 
   const [banners, setBanners]       = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [featured, setFeatured]     = useState<any[]>([]);
   const [popular, setPopular]       = useState<any[]>([]);
-  const [appLogo, setAppLogo]       = useState<string | null>(null);
-  const [appName, setAppName]       = useState('AM Mart');
-  const [currency, setCurrency]     = useState('₩');
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -102,12 +101,11 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [bannersRes, categoriesRes, featuredRes, popularRes, settingsRes] = await Promise.allSettled([
+      const [bannersRes, categoriesRes, featuredRes, popularRes] = await Promise.allSettled([
         bannerApi.getActive(),
         categoryApi.getAll(),
         productApi.getFeatured(),
         productApi.getPopular(),
-        appSettingsApi.getPublic(),
       ]);
 
       let bannerList: any[] = [];
@@ -124,19 +122,30 @@ export default function HomeScreen() {
         const cats = categoriesRes.value.data?.categories ?? categoriesRes.value.data ?? [];
         setCategories(cats);
       }
+
+      let featuredItems: any[] = [];
+      let popularItems: any[] = [];
+
       if (featuredRes.status === 'fulfilled') {
-        const items = featuredRes.value.data?.products ?? featuredRes.value.data ?? [];
-        setFeatured(items);
+        // backend returns plain array for featured/popular
+        const d = featuredRes.value.data;
+        featuredItems = Array.isArray(d) ? d : (d?.products ?? d?.data ?? []);
+        setFeatured(featuredItems);
       }
       if (popularRes.status === 'fulfilled') {
-        const items = popularRes.value.data?.products ?? popularRes.value.data ?? [];
-        setPopular(items);
+        const d = popularRes.value.data;
+        popularItems = Array.isArray(d) ? d : (d?.products ?? d?.data ?? []);
+        setPopular(popularItems);
       }
-      if (settingsRes.status === 'fulfilled') {
-        const s = settingsRes.value.data;
-        if (s?.APP_LOGO) setAppLogo(s.APP_LOGO);
-        if (s?.APP_NAME) setAppName(s.APP_NAME);
-        if (s?.CURRENCY_SYMBOL) setCurrency(s.CURRENCY_SYMBOL);
+
+      // Fallback: load all products when featured & popular both empty
+      if (featuredItems.length === 0 && popularItems.length === 0) {
+        try {
+          const allRes = await productApi.getAll({ page: 1, limit: 12, status: 'ACTIVE' });
+          const d = allRes.data;
+          const allItems = Array.isArray(d) ? d : (d?.products ?? d?.data ?? []);
+          if (allItems.length > 0) setPopular(allItems);
+        } catch {}
       }
     } finally {
       setLoading(false);
@@ -164,25 +173,41 @@ export default function HomeScreen() {
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        {/* Logo — far left */}
+        {/* Logo — far left, pulled from admin settings */}
         <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)} activeOpacity={0.8}>
           {appLogo ? (
             <Image source={{ uri: appLogo }} style={styles.headerLogo} resizeMode="contain" />
           ) : (
-            <Image source={require('../../assets/AM-Logo.jpeg')} style={styles.headerLogo} resizeMode="contain" />
+            <View style={styles.logoFallback} />
           )}
         </TouchableOpacity>
 
         {/* Right icons */}
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(customer)/search' as any)}>
-            <Ionicons name="time-outline" size={23} color={Colors.text} />
-          </TouchableOpacity>
+          {/* Order history — only visible when logged in */}
+          {user && (
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => router.push('/(customer)/orders' as any)}
+            >
+              <Ionicons name="receipt-outline" size={23} color={Colors.text} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(customer)/notifications' as any)}>
             <Ionicons name="notifications-outline" size={23} color={Colors.text} />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ── Search Bar (sticky, below header) ── */}
+      <TouchableOpacity
+        style={styles.searchBar}
+        activeOpacity={0.8}
+        onPress={() => router.push('/(customer)/search' as any)}
+      >
+        <Ionicons name="search-outline" size={18} color="#9CA3AF" />
+        <Text style={styles.searchPlaceholder}>{t('searchPlaceholder')}</Text>
+      </TouchableOpacity>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -284,9 +309,18 @@ export default function HomeScreen() {
                 <Text style={styles.seeAll}>{t('seeAll')}</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hProductRow}>
-              {featured.map((p: any) => <HProductCard key={p.id} product={p} currency={currency} />)}
-            </ScrollView>
+            <FlatList
+              horizontal
+              data={featured}
+              keyExtractor={(p) => p.id}
+              renderItem={({ item }) => <HProductCard product={item} currency={currency} />}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.hProductRow}
+              initialNumToRender={4}
+              maxToRenderPerBatch={4}
+              windowSize={5}
+              removeClippedSubviews
+            />
           </View>
         )}
 
@@ -299,16 +333,25 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           {popular.length > 0 ? (
-            <View style={styles.productGrid}>
-              {popular.map((p: any) => <GridProductCard key={p.id} product={p} currency={currency} />)}
-            </View>
+            <FlatList
+              data={popular}
+              keyExtractor={(p) => p.id}
+              renderItem={({ item }) => <GridProductCard product={item} currency={currency} />}
+              numColumns={2}
+              columnWrapperStyle={styles.productRow}
+              scrollEnabled={false}
+              initialNumToRender={6}
+              maxToRenderPerBatch={6}
+              windowSize={5}
+              removeClippedSubviews
+            />
           ) : (
             <View style={styles.emptyProducts}>
               <Ionicons name="storefront-outline" size={48} color={Colors.textLight} />
-              <Text style={styles.emptyProductsTitle}>Products Coming Soon</Text>
-              <Text style={styles.emptyProductsText}>Check back later for fresh arrivals</Text>
+              <Text style={styles.emptyProductsTitle}>{t('productsComingSoon')}</Text>
+              <Text style={styles.emptyProductsText}>{t('checkBackLater')}</Text>
               <TouchableOpacity style={styles.shopNowBtn} onPress={() => router.push('/(customer)/products' as any)}>
-                <Text style={styles.shopNowText}>Browse All Products</Text>
+                <Text style={styles.shopNowText}>{t('browseAllProducts')}</Text>
                 <Ionicons name="arrow-forward" size={14} color={Colors.primary} />
               </TouchableOpacity>
             </View>
@@ -323,7 +366,7 @@ export default function HomeScreen() {
 
 /* ─── Product Cards ─────────────────────────────────────────── */
 
-function HProductCard({ product, currency }: { product: any; currency: string }) {
+const HProductCard = memo(function HProductCard({ product, currency }: { product: any; currency: string }) {
   const price = product.discountPrice ?? product.price;
   const image = product.images?.[0]?.url;
   const discountPct = product.discountPrice
@@ -355,9 +398,9 @@ function HProductCard({ product, currency }: { product: any; currency: string })
       </View>
     </TouchableOpacity>
   );
-}
+});
 
-function GridProductCard({ product, currency }: { product: any; currency: string }) {
+const GridProductCard = memo(function GridProductCard({ product, currency }: { product: any; currency: string }) {
   const price = product.discountPrice ?? product.price;
   const image = product.images?.[0]?.url;
   const discountPct = product.discountPrice
@@ -395,23 +438,39 @@ function GridProductCard({ product, currency }: { product: any; currency: string
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 /* ─── Styles ─────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
   container:        { flex: 1, backgroundColor: '#F5F5F5' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F5F5' },
+  productRow: { justifyContent: 'space-between', paddingHorizontal: Spacing.base },
 
-  /* Header — logo far left */
+  /* Header — logo far left, like Coupang */
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: Spacing.lg, paddingVertical: 10,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
+    paddingLeft: 4, paddingRight: 8, paddingVertical: 8,
+    backgroundColor: '#fff',
   },
-  headerRight: { flexDirection: 'row', gap: 4 },
-  headerLogo:  { height: 40, width: 120 },
-  iconBtn:     { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  headerLogo:  { height: 44, width: 120 },
+  logoFallback: {
+    height: 40, width: 40, borderRadius: 20,
+    backgroundColor: '#000',
+    marginLeft: 8,
+  },
+  iconBtn:     { width: 42, height: 42, justifyContent: 'center', alignItems: 'center' },
+
+  /* Search Bar — full width sticky like Coupang */
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 12, marginBottom: 10,
+    backgroundColor: '#F3F4F6', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1.5, borderColor: '#E5E7EB',
+  },
+  searchPlaceholder: { fontSize: 14, color: '#9CA3AF', flex: 1 },
 
   /* Hero Banner */
   heroSection:        { backgroundColor: '#fff', paddingBottom: 12, marginBottom: 8 },

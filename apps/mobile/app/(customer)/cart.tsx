@@ -19,6 +19,7 @@ export default function CartScreen() {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   const appSettings = useSelector((state: RootState) => state.appSettings as AppSettings);
   const { t } = useLanguage();
+  const canGoBack = router.canGoBack();
 
   const currency = appSettings.currencySymbol || '₩';
   const freeThreshold = appSettings.freeDeliveryThreshold || 50000;
@@ -48,10 +49,10 @@ export default function CartScreen() {
 
   const handleDeleteSelected = () => {
     if (selected.size === 0) return;
-    Alert.alert('Delete Items', `Remove ${selected.size} item(s)?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('delete'), `${t('removeItem')} ${selected.size}?`, [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive',
+        text: t('delete'), style: 'destructive',
         onPress: () => {
           selected.forEach((id) => dispatch(updateCartItem({ itemId: id, quantity: 0 })));
           setSelected(new Set());
@@ -82,16 +83,22 @@ export default function CartScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
+          {canGoBack ? (
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={22} color={Colors.text} />
+            </TouchableOpacity>
+          ) : null}
           <Text style={styles.headerTitle}>{t('myCart')}</Text>
+          {canGoBack ? <View style={styles.backBtn} /> : null}
         </View>
         <View style={styles.emptyCart}>
           <View style={styles.emptyIconBox}>
             <Ionicons name="cart-outline" size={56} color={Colors.textLight} />
           </View>
-          <Text style={styles.emptyTitle}>Your cart is empty</Text>
-          <Text style={styles.emptySubtitle}>Add items to get started</Text>
+          <Text style={styles.emptyTitle}>{t('emptyCart')}</Text>
+          <Text style={styles.emptySubtitle}>{t('emptyCartSub')}</Text>
           <TouchableOpacity style={styles.shopButton} onPress={() => router.push('/(customer)/products')}>
-            <Text style={styles.shopButtonText}>Start Shopping</Text>
+            <Text style={styles.shopButtonText}>{t('startShopping')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -162,7 +169,13 @@ export default function CartScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Cart ({items.length})</Text>
+        {canGoBack ? (
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          </TouchableOpacity>
+        ) : null}
+        <Text style={styles.headerTitle}>{t('myCart')} ({items.length})</Text>
+        {canGoBack ? <View style={styles.backBtn} /> : null}
       </View>
 
       {/* Select All Bar */}
@@ -172,13 +185,13 @@ export default function CartScreen() {
             {selected.size === items.length && <Ionicons name="checkmark" size={14} color="#fff" />}
           </View>
           <Text style={styles.selectAllText}>
-            All ({selected.size}/{items.length})
+            {t('all')} ({selected.size}/{items.length})
           </Text>
         </TouchableOpacity>
         {selected.size > 0 && (
           <TouchableOpacity onPress={handleDeleteSelected} style={styles.deleteBtn}>
             <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-            <Text style={styles.deleteBtnText}>Delete ({selected.size})</Text>
+            <Text style={styles.deleteBtnText}>{t('delete')} ({selected.size})</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -197,24 +210,24 @@ export default function CartScreen() {
           <View style={styles.freeDeliveryBar}>
             <Ionicons name="bicycle-outline" size={14} color={Colors.primary} />
             <Text style={styles.freeDeliveryHint}>
-              Add {currency}{(freeThreshold - selectedSubtotal).toLocaleString()} more for free delivery
+              {t('addMoreFree', { currency, amount: (freeThreshold - selectedSubtotal).toLocaleString() })}
             </Text>
           </View>
         )}
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Selected items subtotal</Text>
+          <Text style={styles.summaryLabel}>{t('subtotal')}</Text>
           <Text style={styles.summaryValue}>{currency}{selectedSubtotal.toLocaleString()}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Delivery fee</Text>
+          <Text style={styles.summaryLabel}>{t('deliveryFee')}</Text>
           {deliveryFee === 0 ? (
-            <Text style={[styles.summaryValue, { color: Colors.primary }]}>FREE</Text>
+            <Text style={[styles.summaryValue, { color: Colors.primary }]}>{t('free')}</Text>
           ) : (
             <Text style={styles.summaryValue}>{currency}{deliveryFee.toLocaleString()}</Text>
           )}
         </View>
         <View style={[styles.summaryRow, styles.totalRow]}>
-          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalLabel}>{t('total')}</Text>
           <Text style={styles.totalValue}>{currency}{total.toLocaleString()}</Text>
         </View>
 
@@ -230,7 +243,7 @@ export default function CartScreen() {
           }}
         >
           <Text style={styles.checkoutText}>
-            {selected.size === 0 ? 'Select items to checkout' : `Order (${selected.size} items)`}
+            {selected.size === 0 ? t('selectItemsToCheckout') : t('orderItems', { count: selected.size })}
           </Text>
           {selected.size > 0 && <Ionicons name="arrow-forward" size={18} color="#fff" />}
         </TouchableOpacity>
@@ -243,10 +256,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F5F5' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    paddingHorizontal: Spacing.lg, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.base, paddingVertical: 12,
     backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight,
   },
-  headerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.text },
+  headerTitle: { flex: 1, fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.text, textAlign: 'center' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   selectBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: 10,

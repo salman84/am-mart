@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { OtpService } from './otp.service';
+import { CouponsModule } from '../coupons/coupons.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { OtpService } from './otp.service';
         signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '15m') },
       }),
     }),
+    CouponsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, OtpService],

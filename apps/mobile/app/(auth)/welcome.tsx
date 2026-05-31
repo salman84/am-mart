@@ -5,11 +5,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing } from '../../src/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { appSettingsApi } from '../../src/services/api';
+import { useLanguage } from '../../src/i18n';
 
 const { width, height } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const { t } = useLanguage();
   const [brand, setBrand] = useState({ name: 'AM Mart', logo: '', tagline: '' });
 
   useEffect(() => {
@@ -47,10 +49,10 @@ export default function WelcomeScreen() {
         <View style={styles.illustrationSection}>
           <View style={styles.featureCards}>
             {[
-              { icon: '🛒', label: 'Groceries & More', color: '#D1FAE5' },
-              { icon: '📱', label: 'SIM Cards', color: '#EDE9FE' },
-              { icon: '💳', label: 'Mobile Top-Up', color: '#DBEAFE' },
-              { icon: '🚀', label: 'Fast Delivery', color: '#FEF3C7' },
+              { icon: '🛒', label: t('groceriesMore'), color: '#D1FAE5' },
+              { icon: '📱', label: t('simCards'), color: '#EDE9FE' },
+              { icon: '💳', label: t('mobileTopUp'), color: '#DBEAFE' },
+              { icon: '🚀', label: t('fastDelivery'), color: '#FEF3C7' },
             ].map((item, i) => (
               <View key={i} style={[styles.featureCard, { backgroundColor: item.color }]}>
                 <Text style={styles.featureIcon}>{item.icon}</Text>
@@ -62,15 +64,15 @@ export default function WelcomeScreen() {
 
         <View style={styles.bottomSection}>
           <TouchableOpacity style={styles.loginButton} onPress={() => router.push({ pathname: '/(auth)/login', params: { returnTo } })}>
-            <Text style={styles.loginText}>Sign In</Text>
+            <Text style={styles.loginText}>{t('signIn')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.registerButton} onPress={() => router.push({ pathname: '/(auth)/register', params: { returnTo } })}>
-            <Text style={styles.registerText}>Create Account</Text>
+            <Text style={styles.registerText}>{t('createAccount')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.push({ pathname: '/(auth)/login-otp', params: { returnTo } })}>
-            <Text style={styles.otpText}>Sign in with OTP instead</Text>
+            <Text style={styles.otpText}>{t('signInOTP')}</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>

@@ -3,14 +3,17 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, FontWeight } from '../../src/theme';
+import { useLanguage } from '../../src/i18n';
 
 export default function RiderMapScreen() {
+  const { t } = useLanguage();
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.center}>
         <Ionicons name="map-outline" size={64} color={Colors.textLight} />
-        <Text style={styles.title}>Navigation</Text>
-        <Text style={styles.subtitle}>Map navigation coming soon</Text>
+        <Text style={styles.title}>{t('navigationTitle')}</Text>
+        <Text style={styles.subtitle}>{t('mapComingSoon')}</Text>
       </View>
     </SafeAreaView>
   );

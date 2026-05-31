@@ -1,0 +1,66 @@
+services:
+  - type: web
+    name: ammart-backend
+    env: node
+    region: singapore        # closest free region to Myanmar
+    plan: free
+    buildCommand: >
+      npm install -g pnpm@9.1.0 &&
+      pnpm install &&
+      cd apps/backend &&
+      npx prisma generate &&
+      npx prisma db push &&
+      pnpm build
+    startCommand: cd apps/backend && node dist/main.js
+    healthCheckPath: /health
+
+    envVars:
+      # ── Runtime ──────────────────────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production
+
+      # ── Database (Neon) ───────────────────────────────────────────────────────
+      - key: DATABASE_URL
+        sync: false           # paste your Neon connection string in Render dashboard
+
+      # ── Auth ──────────────────────────────────────────────────────────────────
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+
+      # ── File storage (Cloudinary) ─────────────────────────────────────────────
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # ── App URLs ──────────────────────────────────────────────────────────────
+      # Set APP_URL to your Render service URL after first deploy
+      # e.g. https://ammart-backend.onrender.com
+      - key: APP_URL
+        sync: false
+      # Set FRONTEND_URL to your Vercel admin URL after first deploy
+      # e.g. https://ammart-admin.vercel.app
+      - key: FRONTEND_URL
+        sync: false
+
+      # ── Admin seed account ────────────────────────────────────────────────────
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+
+      # ── Rate limiting ─────────────────────────────────────────────────────────
+      - key: THROTTLE_TTL
+        value: 60
+      - key: THROTTLE_LIMIT
+        value: 200

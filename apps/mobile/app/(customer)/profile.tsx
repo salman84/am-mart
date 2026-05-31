@@ -1,27 +1,49 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../src/store';
 import { logout } from '../../src/store/slices/authSlice';
-import { walletApi } from '../../src/services/api';
+import { walletApi, couponApi, orderApi } from '../../src/services/api';
+import { isPinEnabled, clearPin } from '../../src/utils/pinSecurity';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
-import { useLanguage } from '../../src/i18n';
+import { useLanguage, LANGUAGES } from '../../src/i18n';
+import { LanguagePickerModal } from '../../src/components/LanguagePickerModal';
 import Toast from 'react-native-toast-message';
 
 export default function ProfileScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const currency = useSelector((state: RootState) => (state.appSettings as any)?.currencySymbol || '₩');
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language } = useLanguage();
   const [notifEnabled, setNotifEnabled] = useState(true);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [pinEnabled, setPinEnabled] = useState(false);
+  const [showLangPicker, setShowLangPicker] = useState(false);
+  const [couponCount, setCouponCount] = useState<number>(0);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referredCount, setReferredCount] = useState<number>(0);
+  const [orderCount, setOrderCount] = useState<number | null>(null);
+
+  const currentLang = LANGUAGES.find((l) => l.code === language);
 
   React.useEffect(() => {
     if (isAuthenticated) {
       walletApi.getBalance().then((r) => setWalletBalance(r.data?.balance ?? 0)).catch(() => {});
+      isPinEnabled().then(setPinEnabled);
+      couponApi.getMyCoupons().then((r) => {
+        const active = (r.data?.coupons || []).filter((c: any) => c.isValid).length;
+        setCouponCount(active);
+      }).catch(() => {});
+      orderApi.getMyOrders({ limit: 1 }).then((r) => {
+        setOrderCount(r.data?.total ?? r.data?.orders?.length ?? 0);
+      }).catch(() => setOrderCount(0));
+      couponApi.getReferralStats().then((r) => {
+        setReferralCode(r.data?.referralCode || null);
+        setReferredCount(r.data?.referredCount || 0);
+      }).catch(() => {});
     }
   }, [isAuthenticated]);
 
@@ -33,22 +55,47 @@ export default function ProfileScreen() {
     { icon: 'person-outline', label: t('myInformation'), sublabel: user?.email || user?.phone || t('editProfileDetails'), action: 'info' },
     { icon: 'location-outline', label: t('myAddresses'), sublabel: t('deliveryAddresses'), action: 'addresses' },
     { icon: 'wallet-outline', label: t('myWallet'), sublabel: walletBalance !== null ? `${currency}${walletBalance.toLocaleString()}` : '...', action: 'wallet' },
+    { icon: 'pricetag-outline', label: t('myCoupons'), sublabel: couponCount > 0 ? `${couponCount} active coupon${couponCount !== 1 ? 's' : ''}` : t('noCoupons'), action: 'coupons' },
     { icon: 'heart-outline', label: t('wishlist'), sublabel: t('savedItems'), action: 'wishlist' },
   ];
 
   const SUPPORT_ITEMS = [
     { icon: 'notifications-outline', label: t('notifications'), action: 'notifications' },
+    { icon: 'shield-checkmark-outline', label: pinEnabled ? t('pinLockChange') : t('pinLock'), action: 'pin' },
     { icon: 'headset-outline', label: t('support'), action: 'support' },
     { icon: 'document-text-outline', label: t('termsPrivacy'), action: 'terms' },
   ];
 
-  const handleMenuTap = (action: string) => {
+  const handleMenuTap = async (action: string) => {
     if (!isAuthenticated) {
       Toast.show({ type: 'info', text1: t('signInToAccess') });
       return;
     }
     if (action === 'notifications') router.push('/(customer)/notifications');
-    else Toast.show({ type: 'info', text1: `Coming soon` });
+    else if (action === 'addresses') router.push('/(customer)/addresses' as any);
+    else if (action === 'coupons') router.push('/(customer)/coupons' as any);
+    else if (action === 'wishlist') router.push('/(customer)/products' as any);
+    else if (action === 'wallet') Toast.show({ type: 'info', text1: 'Wallet coming soon' });
+    else if (action === 'info') Toast.show({ type: 'info', text1: 'Profile edit coming soon' });
+    else if (action === 'support') Toast.show({ type: 'info', text1: 'Support coming soon' });
+    else if (action === 'terms') Toast.show({ type: 'info', text1: 'Terms coming soon' });
+    else if (action === 'pin') {
+      if (pinEnabled) {
+        await clearPin();
+        setPinEnabled(false);
+        Toast.show({ type: 'success', text1: t('pinEnabled') });
+        router.push('/(auth)/pin-setup');
+      } else {
+        router.push('/(auth)/pin-setup');
+      }
+    }
+  };
+
+  const handleShareReferral = async () => {
+    if (!referralCode) return;
+    await Share.share({
+      message: `Join AM Mart and get a discount on your first order! Use my referral code: ${referralCode}`,
+    });
   };
 
   return (
@@ -110,14 +157,14 @@ export default function ProfileScreen() {
           <View style={styles.statsRow}>
             <TouchableOpacity style={styles.statItem} onPress={() => router.push('/(customer)/orders')}>
               <Ionicons name="receipt-outline" size={20} color={Colors.primary} />
-              <Text style={styles.statValue}>—</Text>
+              <Text style={styles.statValue}>{orderCount !== null ? orderCount : '...'}</Text>
               <Text style={styles.statLabel}>{t('ordersCount')}</Text>
             </TouchableOpacity>
             <View style={styles.statDivider} />
-            <TouchableOpacity style={styles.statItem}>
-              <Ionicons name="heart-outline" size={20} color={Colors.primary} />
-              <Text style={styles.statValue}>—</Text>
-              <Text style={styles.statLabel}>{t('wishlistCount')}</Text>
+            <TouchableOpacity style={styles.statItem} onPress={() => router.push('/(customer)/coupons' as any)}>
+              <Ionicons name="pricetag-outline" size={20} color={Colors.primary} />
+              <Text style={styles.statValue}>{couponCount}</Text>
+              <Text style={styles.statLabel}>{t('myCoupons')}</Text>
             </TouchableOpacity>
             <View style={styles.statDivider} />
             <TouchableOpacity style={styles.statItem}>
@@ -128,31 +175,50 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Language */}
-        <View style={styles.card}>
-          <View style={styles.cardRowHeader}>
+        {/* Referral Card — authenticated only */}
+        {isAuthenticated && referralCode && (
+          <View style={styles.referralCard}>
+            <View style={styles.referralHeader}>
+              <Ionicons name="gift-outline" size={22} color={Colors.primary} />
+              <Text style={styles.referralTitle}>{t('referFriend')}</Text>
+            </View>
+            <Text style={styles.referralSub}>{t('referFriendSub')}</Text>
+            <View style={styles.referralCodeRow}>
+              <Text style={styles.referralCode}>{referralCode}</Text>
+              <TouchableOpacity style={styles.shareBtn} onPress={handleShareReferral}>
+                <Ionicons name="share-social-outline" size={16} color="#fff" />
+                <Text style={styles.shareBtnText}>{t('share')}</Text>
+              </TouchableOpacity>
+            </View>
+            {referredCount > 0 && (
+              <Text style={styles.referralStats}>
+                {referredCount} friend{referredCount !== 1 ? 's' : ''} referred • {referredCount} coupon{referredCount !== 1 ? 's' : ''} earned
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Language — dropdown with search */}
+        <TouchableOpacity style={styles.card} onPress={() => setShowLangPicker(true)} activeOpacity={0.8}>
+          <View style={styles.langPickerRow}>
             <View style={styles.iconWrap}>
               <Ionicons name="language-outline" size={18} color={Colors.primary} />
             </View>
-            <Text style={styles.cardLabel}>{t('language')}</Text>
+            <View style={styles.langPickerInfo}>
+              <Text style={styles.cardLabel}>{t('language')}</Text>
+              <Text style={styles.langPickerCurrent}>
+                {currentLang ? `${currentLang.flag}  ${currentLang.name}` : language}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
           </View>
-          <View style={styles.langRow}>
-            <TouchableOpacity
-              style={[styles.langOption, language === 'en' && styles.langOptionActive]}
-              onPress={() => setLanguage('en')}
-            >
-              <Text style={[styles.langText, language === 'en' && styles.langTextActive]}>English</Text>
-              {language === 'en' && <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.langOption, language === 'ko' && styles.langOptionActive]}
-              onPress={() => setLanguage('ko')}
-            >
-              <Text style={[styles.langText, language === 'ko' && styles.langTextActive]}>한국어</Text>
-              {language === 'ko' && <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />}
-            </TouchableOpacity>
-          </View>
-        </View>
+        </TouchableOpacity>
+
+        <LanguagePickerModal
+          visible={showLangPicker}
+          onClose={() => setShowLangPicker(false)}
+          isFirstRun={false}
+        />
 
         {/* Account Menu */}
         <View style={styles.menuCard}>
@@ -215,7 +281,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.version}>{t('version')}</Text>
+        <Text style={styles.version}>{t('appVersion')}</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -281,15 +347,9 @@ const styles = StyleSheet.create({
   },
   cardRowHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   cardLabel: { fontSize: FontSize.base, fontWeight: FontWeight.semibold, color: Colors.text },
-  langRow: { flexDirection: 'row', gap: 10 },
-  langOption: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    padding: Spacing.sm, borderRadius: BorderRadius.lg,
-    borderWidth: 1.5, borderColor: Colors.borderLight, backgroundColor: Colors.surfaceVariant,
-  },
-  langOptionActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
-  langText: { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium, color: Colors.textSecondary },
-  langTextActive: { color: Colors.primary },
+  langPickerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  langPickerInfo: { flex: 1 },
+  langPickerCurrent: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2 },
   menuCard: {
     backgroundColor: Colors.surface, borderRadius: BorderRadius.xl, ...Shadow.sm,
     paddingHorizontal: Spacing.base, overflow: 'hidden',
@@ -318,4 +378,26 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: Colors.danger, fontSize: FontSize.base, fontWeight: FontWeight.bold },
   version: { textAlign: 'center', fontSize: FontSize.xs, color: Colors.textLight, marginTop: 4 },
+  // Referral card
+  referralCard: {
+    backgroundColor: Colors.primary, borderRadius: BorderRadius.xl,
+    padding: Spacing.base, gap: 10, ...Shadow.sm,
+  },
+  referralHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  referralTitle: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: '#fff' },
+  referralSub: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.8)' },
+  referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  referralCode: {
+    flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.base, paddingVertical: 10,
+    fontSize: FontSize.lg, fontWeight: FontWeight.extrabold,
+    color: '#fff', letterSpacing: 2, textAlign: 'center',
+  },
+  shareBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: Spacing.base,
+    paddingVertical: 10, borderRadius: BorderRadius.lg,
+  },
+  shareBtnText: { color: '#fff', fontWeight: FontWeight.bold, fontSize: FontSize.sm },
+  referralStats: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
 });

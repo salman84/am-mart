@@ -3,17 +3,18 @@ import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { Readable } from 'stream';
 
 @Injectable()
 export class UploadService {
   constructor(private config: ConfigService) {}
 
   async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
-    const ext = path.extname(file.originalname);
-    const filename = `${crypto.randomBytes(16).toString('hex')}${ext}`;
-    const key = `${folder}/${filename}`;
-
+    // ── Development: save locally ────────────────────────────────────────────
     if (process.env.NODE_ENV !== 'production') {
+      const ext = path.extname(file.originalname);
+      const filename = `${crypto.randomBytes(16).toString('hex')}${ext}`;
+      const key = `${folder}/${filename}`;
       const uploadDir = path.join(process.cwd(), 'uploads', folder);
       if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
       writeFileSync(path.join(uploadDir, filename), file.buffer);
@@ -21,39 +22,45 @@ export class UploadService {
       return `http://localhost:${port}/uploads/${key}`;
     }
 
-    // Production: use S3
+    // ── Production: Cloudinary ───────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const AWS = require('aws-sdk');
-    const s3 = new AWS.S3({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION') || 'ap-northeast-2',
+    const { v2: cloudinary } = require('cloudinary');
+    cloudinary.config({
+      cloud_name: this.config.get('CLOUDINARY_CLOUD_NAME'),
+      api_key:    this.config.get('CLOUDINARY_API_KEY'),
+      api_secret: this.config.get('CLOUDINARY_API_SECRET'),
     });
 
-    const result = await s3.upload({
-      Bucket: this.config.get('AWS_S3_BUCKET'),
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-      ACL: 'public-read',
-    }).promise();
-
-    return result.Location;
+    return new Promise<string>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: `ammart/${folder}`, resource_type: 'auto' },
+        (error: any, result: any) => {
+          if (error) reject(error);
+          else resolve(result.secure_url as string);
+        },
+      );
+      Readable.from(file.buffer).pipe(uploadStream);
+    });
   }
 
   async deleteFile(url: string): Promise<void> {
-    if (!url.includes('s3.amazonaws.com')) return;
+    if (process.env.NODE_ENV !== 'production') return;
+    if (!url || !url.includes('cloudinary.com')) return;
+
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const AWS = require('aws-sdk');
-    const s3 = new AWS.S3({
-      accessKeyId: this.config.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.config.get('AWS_REGION') || 'ap-northeast-2',
+    const { v2: cloudinary } = require('cloudinary');
+    cloudinary.config({
+      cloud_name: this.config.get('CLOUDINARY_CLOUD_NAME'),
+      api_key:    this.config.get('CLOUDINARY_API_KEY'),
+      api_secret: this.config.get('CLOUDINARY_API_SECRET'),
     });
-    const key = url.split('.amazonaws.com/')[1];
-    await s3.deleteObject({
-      Bucket: this.config.get('AWS_S3_BUCKET'),
-      Key: key,
-    }).promise();
+
+    // Extract public_id from URL
+    // e.g. https://res.cloudinary.com/CLOUD/image/upload/v123/ammart/folder/file.jpg
+    //  → public_id = ammart/folder/file
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+    if (match?.[1]) {
+      await cloudinary.uploader.destroy(match[1]);
+    }
   }
 }

@@ -20,7 +20,7 @@ export default function ProductsScreen() {
     search?: string; categoryId?: string; categoryName?: string; featured?: string;
   }>();
   const { t } = useLanguage();
-  const currency = useSelector((state: RootState) => (state.appSettings as any)?.currencySymbol || '₩');
+  const currency = useSelector((state: RootState) => (state.appSettings as any)?.currencySymbol || '₨');
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

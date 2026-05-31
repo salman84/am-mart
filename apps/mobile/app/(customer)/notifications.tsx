@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { notificationApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
+import { useLanguage } from '../../src/i18n';
 
 const NOTIF_ICON: Record<string, string> = {
   ORDER: 'receipt-outline',
@@ -15,6 +16,7 @@ const NOTIF_ICON: Record<string, string> = {
 };
 
 export default function NotificationsScreen() {
+  const { t } = useLanguage();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,10 +48,10 @@ export default function NotificationsScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={styles.headerTitle}>{t('notificationsTitle')}</Text>
         {unreadCount > 0 && (
           <TouchableOpacity onPress={markAllRead}>
-            <Text style={styles.markAllText}>Mark all read</Text>
+            <Text style={styles.markAllText}>{t('markAllRead')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -59,7 +61,7 @@ export default function NotificationsScreen() {
       ) : notifications.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="notifications-off-outline" size={56} color={Colors.textLight} />
-          <Text style={styles.emptyText}>No notifications yet</Text>
+          <Text style={styles.emptyText}>{t('noNotifications')}</Text>
         </View>
       ) : (
         <FlatList
@@ -77,7 +79,7 @@ export default function NotificationsScreen() {
               <View style={styles.notifContent}>
                 <Text style={[styles.notifTitle, !item.isRead && styles.unreadTitle]}>{item.title}</Text>
                 <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
-                <Text style={styles.notifTime}>{new Date(item.createdAt).toLocaleString('ko-KR')}</Text>
+                <Text style={styles.notifTime}>{new Date(item.createdAt).toLocaleString()}</Text>
               </View>
               {!item.isRead && <View style={styles.unreadDot} />}
             </TouchableOpacity>

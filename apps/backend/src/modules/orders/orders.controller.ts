@@ -38,9 +38,10 @@ export class OrdersController {
 
   // Orders
   @Post()
-  @Roles('CUSTOMER')
+  @UseGuards(JwtAuthGuard)
   createOrder(@Req() req: any, @Body() dto: any) {
-    return this.ordersService.createOrder(req.user.id, dto);
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user.role);
+    return this.ordersService.createOrder(req.user.id, { ...dto, isAdminTest: isAdmin });
   }
 
   @Get('my')

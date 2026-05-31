@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { sellerApi, uploadApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
+import { useLanguage } from '../../src/i18n';
 
 const APPROVAL_COLORS: Record<string, string> = {
   APPROVED: Colors.primary,
@@ -18,6 +19,7 @@ const APPROVAL_COLORS: Record<string, string> = {
 };
 
 export default function SellerProfileScreen() {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -44,7 +46,7 @@ export default function SellerProfileScreen() {
         logoUrl: p.logoUrl || '',
       });
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to load profile' });
+      Toast.show({ type: 'error', text1: t('failedLoadProfile') });
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +75,7 @@ export default function SellerProfileScreen() {
       const url: string = res.data.url || res.data.imageUrl || res.data.path;
       setForm((f) => ({ ...f, logoUrl: url }));
     } catch {
-      Toast.show({ type: 'error', text1: 'Logo upload failed' });
+      Toast.show({ type: 'error', text1: t('logoUploadFailed') });
     } finally {
       setUploadingLogo(false);
     }
@@ -81,7 +83,7 @@ export default function SellerProfileScreen() {
 
   const handleSave = async () => {
     if (!form.storeName.trim()) {
-      Toast.show({ type: 'error', text1: 'Store name is required' });
+      Toast.show({ type: 'error', text1: t('storeNameRequired') });
       return;
     }
     setIsSaving(true);
@@ -93,9 +95,9 @@ export default function SellerProfileScreen() {
         contactEmail: form.contactEmail.trim() || undefined,
         logoUrl: form.logoUrl || undefined,
       });
-      Toast.show({ type: 'success', text1: 'Profile updated!' });
+      Toast.show({ type: 'success', text1: t('profileUpdated') });
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || 'Failed to save' });
+      Toast.show({ type: 'error', text1: e.response?.data?.message || t('failedSave') });
     } finally {
       setIsSaving(false);
     }
@@ -114,7 +116,7 @@ export default function SellerProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Store Profile</Text>
+        <Text style={styles.headerTitle}>{t('storeProfileTitle')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -122,14 +124,14 @@ export default function SellerProfileScreen() {
         <View style={[styles.statusCard, { borderColor: `${statusColor}40` }]}>
           <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.statusLabel}>Account Status</Text>
+            <Text style={styles.statusLabel}>{t('accountStatus')}</Text>
             <Text style={[styles.statusValue, { color: statusColor }]}>
               {profile?.approvalStatus || 'UNKNOWN'}
             </Text>
           </View>
           {profile?.commissionRate != null && (
             <View style={styles.commissionWrap}>
-              <Text style={styles.commissionLabel}>Commission</Text>
+              <Text style={styles.commissionLabel}>{t('commissionLabel')}</Text>
               <Text style={styles.commissionValue}>{profile.commissionRate}%</Text>
             </View>
           )}
@@ -137,7 +139,7 @@ export default function SellerProfileScreen() {
 
         {/* Logo */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Store Logo</Text>
+          <Text style={styles.sectionTitle}>{t('storeLogo')}</Text>
           <View style={styles.logoRow}>
             <TouchableOpacity style={styles.logoWrap} onPress={pickLogo} disabled={uploadingLogo}>
               {uploadingLogo ? (
@@ -154,25 +156,25 @@ export default function SellerProfileScreen() {
               <TouchableOpacity style={styles.uploadLogoBtn} onPress={pickLogo} disabled={uploadingLogo}>
                 <Ionicons name="camera-outline" size={16} color={Colors.primary} />
                 <Text style={styles.uploadLogoBtnText}>
-                  {form.logoUrl ? 'Change Logo' : 'Upload Logo'}
+                  {form.logoUrl ? t('changeLogo') : t('uploadLogo')}
                 </Text>
               </TouchableOpacity>
-              <Text style={styles.logoHint}>PNG or JPG, recommended 200×200px</Text>
+              <Text style={styles.logoHint}>{t('logoHint')}</Text>
             </View>
           </View>
         </View>
 
         {/* Store Info */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Store Information</Text>
+          <Text style={styles.sectionTitle}>{t('storeInformation')}</Text>
 
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>
-              Store Name <Text style={{ color: Colors.danger }}>*</Text>
+              {t('storeNameLabel')} <Text style={{ color: Colors.danger }}>*</Text>
             </Text>
             <TextInput
               style={styles.input}
-              placeholder="Your store name"
+              placeholder={t('storeNameLabel')}
               placeholderTextColor={Colors.textLight}
               value={form.storeName}
               onChangeText={(v) => setForm((f) => ({ ...f, storeName: v }))}
@@ -180,10 +182,10 @@ export default function SellerProfileScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Store Description</Text>
+            <Text style={styles.fieldLabel}>{t('storeDescriptionLabel')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Tell customers about your store..."
+              placeholder={t('productDescPlaceholder')}
               placeholderTextColor={Colors.textLight}
               value={form.storeDescription}
               onChangeText={(v) => setForm((f) => ({ ...f, storeDescription: v }))}
@@ -196,10 +198,10 @@ export default function SellerProfileScreen() {
 
         {/* Contact Info */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
+          <Text style={styles.sectionTitle}>{t('contactInformation')}</Text>
 
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Contact Phone</Text>
+            <Text style={styles.fieldLabel}>{t('contactPhoneLabel')}</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g. 010-1234-5678"
@@ -211,7 +213,7 @@ export default function SellerProfileScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Contact Email</Text>
+            <Text style={styles.fieldLabel}>{t('contactEmailLabel')}</Text>
             <TextInput
               style={styles.input}
               placeholder="store@email.com"
@@ -234,7 +236,7 @@ export default function SellerProfileScreen() {
           ) : (
             <>
               <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-              <Text style={styles.saveBtnText}>Save Changes</Text>
+              <Text style={styles.saveBtnText}>{t('save')}</Text>
             </>
           )}
         </TouchableOpacity>

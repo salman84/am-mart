@@ -27,16 +27,16 @@ function formatDate(dateStr: string, locale = 'en-US') {
   return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function getExpectedArrival(createdAt: string, status: string) {
+function getExpectedArrival(createdAt: string, status: string, tFn: (k: any) => string) {
   const d = new Date(createdAt);
-  if (status === 'DELIVERED') return `Delivered ${formatDate(createdAt)}`;
+  if (status === 'DELIVERED') return `${tFn('deliveredOn')} ${formatDate(createdAt)}`;
   d.setDate(d.getDate() + 2);
-  return `Expected by ${d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}`;
+  return `${tFn('expectedBy')} ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 }
 
 export default function OrdersScreen() {
   const { t } = useLanguage();
-  const currency = useSelector((state: RootState) => (state.appSettings as any)?.currencySymbol || '₩');
+  const currency = useSelector((state: RootState) => (state.appSettings as any)?.currencySymbol || '₨');
 
   const STATUS_TABS = [
     { key: 'All', label: t('statusAll') },
@@ -138,7 +138,7 @@ export default function OrdersScreen() {
           <Ionicons name={isDelivered ? 'checkmark-circle' : 'time-outline'} size={14}
             color={isDelivered ? Colors.primary : Colors.textSecondary} />
           <Text style={[styles.arrivalText, isDelivered && { color: Colors.primary }]}>
-            {getExpectedArrival(item.createdAt, item.status)}
+            {getExpectedArrival(item.createdAt, item.status, t)}
           </Text>
         </View>
 

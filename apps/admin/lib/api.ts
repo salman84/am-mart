@@ -53,9 +53,15 @@ export const ordersApi = {
 };
 
 export const simApi = {
-  addNumber: (data: any) => api.post('/sim/admin/numbers', data),
-  getOrders: (params?: any) => api.get('/sim/admin/orders', { params }),
-  updateOrderStatus: (id: string, status: string, notes?: string) =>
+  // Numbers inventory
+  addNumber:        (data: any)               => api.post('/sim/admin/numbers', data),
+  getNumbers:       (params?: any)            => api.get('/sim/admin/numbers', { params }),
+  editNumber:       (id: string, data: any)   => api.put(`/sim/admin/numbers/${id}`, data),
+  deleteNumber:     (id: string)              => api.delete(`/sim/admin/numbers/${id}`),
+  toggleNumber:     (id: string)              => api.patch(`/sim/admin/numbers/${id}/toggle`),
+  // Orders
+  getOrders:        (params?: any)            => api.get('/sim/admin/orders', { params }),
+  updateOrderStatus:(id: string, status: string, notes?: string) =>
     api.post(`/sim/admin/orders/${id}/status`, { status, notes }),
 };
 
@@ -116,6 +122,7 @@ export const couponsApi = {
   getAll: () => api.get('/coupons'),
   create: (data: any) => api.post('/coupons', data),
   update: (id: string, data: any) => api.put(`/coupons/${id}`, data),
+  toggle: (id: string) => api.patch(`/coupons/${id}/toggle`),
   delete: (id: string) => api.delete(`/coupons/${id}`),
 };
 

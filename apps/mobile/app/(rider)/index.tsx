@@ -12,6 +12,7 @@ import { riderApi } from '../../src/services/api';
 import * as Location from 'expo-location';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
+import { useLanguage } from '../../src/i18n';
 
 const STATUS_COLORS: Record<string, string> = {
   ASSIGNED: Colors.info, ACCEPTED: Colors.secondary,
@@ -19,16 +20,19 @@ const STATUS_COLORS: Record<string, string> = {
   OUT_FOR_DELIVERY: Colors.topup, DELIVERED: Colors.primary,
 };
 
-const NEXT_STATUS: Record<string, { status: string; label: string }> = {
-  ASSIGNED: { status: 'ACCEPTED', label: 'Accept Order' },
-  ACCEPTED: { status: 'HEADING_TO_PICKUP', label: 'Heading to Pickup' },
-  HEADING_TO_PICKUP: { status: 'PICKED_UP', label: 'Mark Picked Up' },
-  PICKED_UP: { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery' },
-  OUT_FOR_DELIVERY: { status: 'DELIVERED', label: 'Mark Delivered' },
-};
-
 export default function RiderDeliveriesScreen() {
   const user = useSelector((state: RootState) => state.auth.user);
+  const { t } = useLanguage();
+
+  // NEXT_STATUS labels must use t() — defined inside component
+  const NEXT_STATUS: Record<string, { status: string; label: string }> = {
+    ASSIGNED: { status: 'ACCEPTED', label: t('riderAcceptOrder') },
+    ACCEPTED: { status: 'HEADING_TO_PICKUP', label: t('riderHeadingToPickup') },
+    HEADING_TO_PICKUP: { status: 'PICKED_UP', label: t('riderMarkPickedUp') },
+    PICKED_UP: { status: 'OUT_FOR_DELIVERY', label: t('riderOutForDelivery') },
+    OUT_FOR_DELIVERY: { status: 'DELIVERED', label: t('riderMarkDelivered') },
+  };
+
   const [assignments, setAssignments] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,7 +56,7 @@ export default function RiderDeliveriesScreen() {
     if (value) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Location Required', 'Please enable location to go online');
+        Alert.alert(t('locationRequired'), t('enableLocation'));
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
@@ -62,13 +66,13 @@ export default function RiderDeliveriesScreen() {
     try {
       await riderApi.updateOnlineStatus(value, lat, lng);
       setIsOnline(value);
-      Toast.show({ type: 'success', text1: value ? 'You are now online' : 'You are now offline' });
+      Toast.show({ type: 'success', text1: value ? t('nowOnline') : t('nowOffline') });
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to update status' });
+      Toast.show({ type: 'error', text1: t('failedUpdateStatus') });
     }
   };
 
-  const handleUpdateStatus = async (assignmentId: string, currentStatus: string, otp?: string) => {
+  const handleUpdateStatus = async (assignmentId: string, currentStatus: string) => {
     const next = NEXT_STATUS[currentStatus];
     if (!next) return;
 
@@ -84,7 +88,7 @@ export default function RiderDeliveriesScreen() {
       Toast.show({ type: 'success', text1: `Status: ${next.status.replace(/_/g, ' ')}` });
       loadAssignments();
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || 'Failed to update' });
+      Toast.show({ type: 'error', text1: e.response?.data?.message || t('failedUpdateStatus') });
     } finally {
       setUpdatingId(null);
     }
@@ -146,7 +150,7 @@ export default function RiderDeliveriesScreen() {
               onPress={() => handleNavigate(item.pickupLat, item.pickupLng)}
             >
               <Ionicons name="navigate" size={14} color="#fff" />
-              <Text style={styles.navText}>Pickup Location</Text>
+              <Text style={styles.navText}>{t('pickupLocation')}</Text>
             </TouchableOpacity>
           )}
           {['PICKED_UP', 'OUT_FOR_DELIVERY'].includes(item.status) && (
@@ -155,7 +159,7 @@ export default function RiderDeliveriesScreen() {
               onPress={() => handleNavigate(item.dropoffLat, item.dropoffLng)}
             >
               <Ionicons name="navigate" size={14} color="#fff" />
-              <Text style={styles.navText}>Delivery Location</Text>
+              <Text style={styles.navText}>{t('deliveryLocation')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -187,12 +191,12 @@ export default function RiderDeliveriesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>My Deliveries</Text>
+          <Text style={styles.headerTitle}>{t('myDeliveries')}</Text>
           <Text style={styles.headerSubtitle}>Hello, {user?.fullName?.split(' ')[0]}</Text>
         </View>
         <View style={styles.onlineToggle}>
           <Text style={[styles.onlineLabel, { color: isOnline ? Colors.primary : Colors.textSecondary }]}>
-            {isOnline ? 'Online' : 'Offline'}
+            {isOnline ? t('riderOnline') : t('riderOffline')}
           </Text>
           <Switch
             value={isOnline}
@@ -206,7 +210,7 @@ export default function RiderDeliveriesScreen() {
       {!isOnline && (
         <View style={styles.offlineBanner}>
           <Ionicons name="warning-outline" size={20} color={Colors.warning} />
-          <Text style={styles.offlineText}>You are offline. Go online to receive orders.</Text>
+          <Text style={styles.offlineText}>{t('riderOfflineBanner')}</Text>
         </View>
       )}
 
@@ -217,8 +221,8 @@ export default function RiderDeliveriesScreen() {
       ) : assignments.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="bicycle-outline" size={72} color={Colors.textLight} />
-          <Text style={styles.emptyTitle}>No active deliveries</Text>
-          <Text style={styles.emptySubtitle}>{isOnline ? 'Waiting for new orders...' : 'Go online to start receiving orders'}</Text>
+          <Text style={styles.emptyTitle}>{t('noActiveDeliveries')}</Text>
+          <Text style={styles.emptySubtitle}>{isOnline ? t('waitingForOrders') : t('goOnlineToReceive')}</Text>
         </View>
       ) : (
         <FlatList
@@ -237,8 +241,8 @@ export default function RiderDeliveriesScreen() {
     <Modal visible={otpModal.visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={styles.modalBox}>
-          <Text style={styles.modalTitle}>Delivery OTP</Text>
-          <Text style={styles.modalSubtitle}>Enter the 4-digit OTP from the customer</Text>
+          <Text style={styles.modalTitle}>{t('deliveryOtp')}</Text>
+          <Text style={styles.modalSubtitle}>{t('deliveryOtpSubtitle')}</Text>
           <TextInput
             style={styles.otpInput}
             value={otpInput}
@@ -250,7 +254,7 @@ export default function RiderDeliveriesScreen() {
           />
           <View style={styles.modalButtons}>
             <TouchableOpacity style={styles.modalCancel} onPress={() => setOtpModal({ visible: false, assignmentId: '' })}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
+              <Text style={styles.modalCancelText}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalConfirm, !otpInput && styles.disabled]}
@@ -260,16 +264,16 @@ export default function RiderDeliveriesScreen() {
                 setUpdatingId(otpModal.assignmentId);
                 try {
                   await riderApi.updateDeliveryStatus(otpModal.assignmentId, 'DELIVERED', { otp: otpInput });
-                  Toast.show({ type: 'success', text1: 'Delivery confirmed!' });
+                  Toast.show({ type: 'success', text1: t('deliveryConfirmed') });
                   loadAssignments();
                 } catch (e: any) {
-                  Toast.show({ type: 'error', text1: e.response?.data?.message || 'Failed to confirm' });
+                  Toast.show({ type: 'error', text1: e.response?.data?.message || t('failedConfirmDelivery') });
                 } finally {
                   setUpdatingId(null);
                 }
               }}
             >
-              <Text style={styles.modalConfirmText}>Confirm</Text>
+              <Text style={styles.modalConfirmText}>{t('confirm')}</Text>
             </TouchableOpacity>
           </View>
         </View>

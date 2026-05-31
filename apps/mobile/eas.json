@@ -59,6 +59,18 @@
       "android": {
         "buildType": "apk"
       }
+    },
+    "live": {
+      "distribution": "internal",
+      "channel": "live",
+      "env": {
+        "APP_ENV": "production",
+        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031",
+        "EXPO_PUBLIC_API_URL": "https://ammart-backend.onrender.com/api/v1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
