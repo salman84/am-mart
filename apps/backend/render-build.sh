@@ -16,11 +16,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "==> Installing backend dependencies with pnpm..."
-pnpm install --filter backend...
+echo "==> Installing ALL dependencies (including devDeps for nest CLI)..."
+# NODE_ENV=development forces pnpm to install devDependencies
+# (Render sets NODE_ENV=production by default which skips devDeps)
+NODE_ENV=development pnpm install --filter backend...
 
 echo "==> Adding root node_modules/.bin to PATH..."
-export PATH="$ROOT_DIR/node_modules/.bin:$PATH"
+export PATH="$ROOT_DIR/node_modules/.bin:$SCRIPT_DIR/node_modules/.bin:$PATH"
 
 echo "==> Generating Prisma client..."
 cd "$SCRIPT_DIR"
