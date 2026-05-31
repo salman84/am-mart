@@ -102,9 +102,7 @@ export default function LoginScreen() {
             {brand.logo ? (
               <Image source={{ uri: brand.logo }} style={styles.logoImage} resizeMode="contain" />
             ) : (
-              <View style={styles.logoBox}>
-                <Text style={styles.logoText}>{brand.name.slice(0, 2).toUpperCase()}</Text>
-              </View>
+              <View style={styles.logoBox} />
             )}
             <Text style={styles.title}>{t('loginTitle' as any) || 'Welcome Back!'}</Text>
             <Text style={styles.subtitle}>{t('loginSubtitle' as any) || `Sign in to continue shopping at ${brand.name}`}</Text>
@@ -264,8 +262,8 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', paddingVertical: Spacing['2xl'] },
   logoBox: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: Colors.primary, justifyContent: 'center',
-    alignItems: 'center', marginBottom: Spacing.base,
+    backgroundColor: '#000',
+    marginBottom: Spacing.base,
   },
   logoImage: { width: 64, height: 64, borderRadius: 32, marginBottom: Spacing.base },
   logoText: { fontSize: 26, fontWeight: FontWeight.extrabold, color: '#fff' },

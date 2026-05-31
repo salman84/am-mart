@@ -36,9 +36,7 @@ export default function WelcomeScreen() {
           {brand.logo ? (
             <Image source={{ uri: brand.logo }} style={styles.logoImage} resizeMode="contain" />
           ) : (
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>{brand.name.slice(0, 2).toUpperCase()}</Text>
-            </View>
+            <View style={styles.logoCircle} />
           )}
           <Text style={styles.appName}>{brand.name}</Text>
           <Text style={styles.tagline}>
@@ -86,9 +84,7 @@ const styles = StyleSheet.create({
   logoSection: { alignItems: 'center', paddingTop: 60, paddingBottom: Spacing.xl },
   logoCircle: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 3, borderColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: '#000',
     marginBottom: Spacing.base,
   },
   logoImage: { width: 80, height: 80, borderRadius: 40, marginBottom: Spacing.base },
