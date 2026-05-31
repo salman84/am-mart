@@ -53,8 +53,7 @@ export class SimController {
   }
 
   @Post('orders/:id/submit')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('CUSTOMER')
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Submit SIM order with documents' })
   submitOrder(@Param('id') id: string, @Body() body: any, @Req() req: any) {

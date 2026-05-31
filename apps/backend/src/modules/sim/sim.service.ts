@@ -91,7 +91,20 @@ export class SimService {
     return { total, page, limit, numbers };
   }
 
-  async reserveSimNumber(simNumberId: string, customerId: string, isAdminTest = false, chosenLastFour?: string) {
+  /** Finds the customer row for a user, auto-creating it if it doesn't exist yet. */
+  private async getOrCreateCustomer(userId: string) {
+    let customer = await this.prisma.customer.findFirst({ where: { userId } });
+    if (!customer) {
+      customer = await this.prisma.customer.create({ data: { userId } });
+    }
+    return customer;
+  }
+
+  async reserveSimNumber(simNumberId: string, userId: string, isAdminTest = false, chosenLastFour?: string) {
+    // Resolve the Customer record from the User ID — SimOrder.customerId is a FK to Customer, not User
+    const customer = await this.getOrCreateCustomer(userId);
+    const customerId = customer.id;
+
     return this.prisma.$transaction(async (tx) => {
       const sim = await tx.simNumber.findUnique({ where: { id: simNumberId } });
       if (!sim) throw new NotFoundException('SIM number not found');
@@ -138,9 +151,12 @@ export class SimService {
     });
   }
 
-  async submitSimOrder(simOrderId: string, customerId: string, data: SubmitSimOrderDto) {
+  async submitSimOrder(simOrderId: string, userId: string, data: SubmitSimOrderDto) {
+    // Resolve Customer record — SimOrder.customerId is a FK to Customer, not User
+    const customer = await this.getOrCreateCustomer(userId);
+
     const simOrder = await this.prisma.simOrder.findFirst({
-      where: { id: simOrderId, customerId, status: 'RESERVED' },
+      where: { id: simOrderId, customerId: customer.id, status: 'RESERVED' },
       include: { simNumber: true },
     });
 
@@ -154,7 +170,8 @@ export class SimService {
       where: { id: simOrderId },
       data: {
         status: 'PENDING',
-        idDocumentUrl: data.idDocumentUrl,
+        // Accept both field name variants: idDocFrontUrl (mobile) or idDocumentUrl (legacy)
+        idDocumentUrl: data.idDocFrontUrl ?? data.idDocumentUrl,
         idDocumentType: data.idDocumentType,
         deliveryAddressId: data.deliveryAddressId,
       },
@@ -167,12 +184,13 @@ export class SimService {
     return updated;
   }
 
-  async getCustomerSimOrders(customerId: string, page = 1, limit = 10) {
+  async getCustomerSimOrders(userId: string, page = 1, limit = 10) {
+    const customer = await this.getOrCreateCustomer(userId);
     const skip = (page - 1) * limit;
     const [total, orders] = await Promise.all([
-      this.prisma.simOrder.count({ where: { customerId } }),
+      this.prisma.simOrder.count({ where: { customerId: customer.id } }),
       this.prisma.simOrder.findMany({
-        where: { customerId },
+        where: { customerId: customer.id },
         skip,
         take: limit,
         include: { simNumber: true, statusHistory: true },
@@ -182,9 +200,13 @@ export class SimService {
     return { total, page, limit, orders };
   }
 
-  async getSimOrderById(id: string, customerId?: string) {
+  async getSimOrderById(id: string, userId?: string) {
     const where: any = { id };
-    if (customerId) where.customerId = customerId;
+    if (userId) {
+      // Resolve User ID → Customer ID for the where clause
+      const customer = await this.prisma.customer.findFirst({ where: { userId } });
+      if (customer) where.customerId = customer.id;
+    }
 
     const order = await this.prisma.simOrder.findFirst({
       where,
@@ -473,7 +495,9 @@ interface AddSimNumberDto {
 }
 
 interface SubmitSimOrderDto {
-  idDocumentUrl?: string;
+  idDocumentUrl?: string;   // legacy field name
+  idDocFrontUrl?: string;   // field name sent by mobile app
+  idDocBackUrl?: string;    // optional back of ID doc
   idDocumentType?: string;
   deliveryAddressId?: string;
 }
