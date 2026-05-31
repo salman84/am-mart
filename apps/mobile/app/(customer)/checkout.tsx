@@ -6,8 +6,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../src/store';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../../src/store';
+import { clearCart } from '../../src/store/slices/cartSlice';
 import { cartApi, orderApi, couponApi, userApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
@@ -15,6 +16,7 @@ import { useLanguage } from '../../src/i18n';
 
 export default function CheckoutScreen() {
   const { t } = useLanguage();
+  const dispatch = useDispatch<AppDispatch>();
   const currency = useSelector((state: RootState) => (state.appSettings as any)?.currencySymbol || '₨');
 
   const PAYMENT_METHODS = [
@@ -107,6 +109,10 @@ export default function CheckoutScreen() {
   const total = subtotal + deliveryFee - discount;
 
   const placeOrder = async () => {
+    if (!cart?.items?.length) {
+      Toast.show({ type: 'error', text1: 'Cart is empty', text2: 'Please add items to cart first' });
+      return;
+    }
     if (!selectedAddress) { Toast.show({ type: 'error', text1: t('selectDeliveryAddress') }); return; }
     setPlacing(true);
     try {
@@ -116,7 +122,9 @@ export default function CheckoutScreen() {
         couponCode: coupon ? couponCode : undefined,
         note,
       });
-      router.replace({ pathname: '/(customer)/order/[id]', params: { id: res.data.order.id } });
+      dispatch(clearCart()); // Clear Redux cart state after successful order
+      // res.data is the order object directly (not wrapped in { order })
+      router.replace({ pathname: '/(customer)/order/[id]', params: { id: res.data.id } });
     } catch (e: any) {
       Toast.show({ type: 'error', text1: e.response?.data?.message || t('failedPlaceOrder') });
     } finally {

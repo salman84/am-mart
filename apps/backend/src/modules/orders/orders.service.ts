@@ -75,9 +75,9 @@ export class OrdersService {
   }
 
   async updateCartItem(userId: string, itemId: string, quantity: number) {
-    const customer = await this.prisma.customer.findFirst({ where: { userId } });
+    const customer = await this.getOrCreateCustomer(userId);
     const item = await this.prisma.cartItem.findFirst({
-      where: { id: itemId, customerId: customer?.id },
+      where: { id: itemId, customerId: customer.id },
       include: { product: true },
     });
     if (!item) throw new NotFoundException('Cart item not found');
@@ -92,8 +92,8 @@ export class OrdersService {
   }
 
   async clearCart(userId: string) {
-    const customer = await this.prisma.customer.findFirst({ where: { userId } });
-    await this.prisma.cartItem.deleteMany({ where: { customerId: customer?.id } });
+    const customer = await this.getOrCreateCustomer(userId);
+    await this.prisma.cartItem.deleteMany({ where: { customerId: customer.id } });
     return { message: 'Cart cleared' };
   }
 

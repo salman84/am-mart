@@ -4,8 +4,9 @@ import {
   Image, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchCart, updateCartItem, clearCart } from '../../src/store/slices/cartSlice';
 import { AppDispatch, RootState } from '../../src/store';
@@ -26,9 +27,13 @@ export default function CartScreen() {
   const deliveryFeeAmount = appSettings.deliveryFee || 3000;
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (isAuthenticated) dispatch(fetchCart());
-  }, [isAuthenticated]);
+  // Re-fetch from server every time this screen gains focus.
+  // This prevents stale redux-persist data from showing outdated cart items.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isAuthenticated) dispatch(fetchCart());
+    }, [isAuthenticated, dispatch])
+  );
 
   useEffect(() => {
     setSelected(new Set(items.map((i: any) => i.id)));
@@ -53,17 +58,29 @@ export default function CartScreen() {
       { text: t('cancel'), style: 'cancel' },
       {
         text: t('delete'), style: 'destructive',
-        onPress: () => {
-          selected.forEach((id) => dispatch(updateCartItem({ itemId: id, quantity: 0 })));
+        onPress: async () => {
+          const ids = [...selected];
+          const results = await Promise.all(
+            ids.map((id) => dispatch(updateCartItem({ itemId: id, quantity: 0 })))
+          );
           setSelected(new Set());
+          const anyFailed = results.some((r) => updateCartItem.rejected.match(r));
+          if (anyFailed) {
+            Toast.show({ type: 'error', text1: 'Some items could not be removed' });
+          }
+          dispatch(fetchCart()); // Always re-sync with server after bulk delete
         },
       },
     ]);
   };
 
-  const handleQuantityChange = (itemId: string, newQty: number) => {
+  const handleQuantityChange = async (itemId: string, newQty: number) => {
     if (newQty < 0) return;
-    dispatch(updateCartItem({ itemId, quantity: newQty }));
+    const result = await dispatch(updateCartItem({ itemId, quantity: newQty }));
+    if (updateCartItem.rejected.match(result)) {
+      Toast.show({ type: 'error', text1: 'Failed to update item', text2: 'Refreshing cart...' });
+      dispatch(fetchCart()); // Re-sync cart with server
+    }
   };
 
   const selectedItems = items.filter((i: any) => selected.has(i.id));

@@ -52,11 +52,20 @@ const cartSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // fetchCart
+      .addCase(fetchCart.pending, (state) => {
+        state.isLoading = true;
+      })
       .addCase(fetchCart.fulfilled, (state, action) => {
+        state.isLoading = false;
         state.items = action.payload.items;
         state.itemCount = action.payload.itemCount;
         state.subtotal = action.payload.subtotal;
       })
+      .addCase(fetchCart.rejected, (state) => {
+        state.isLoading = false;
+      })
+      // updateCartItem
       .addCase(updateCartItem.fulfilled, (state, action) => {
         const { itemId, quantity } = action.payload;
         if (quantity === 0) {
@@ -67,6 +76,10 @@ const cartSlice = createSlice({
         }
         state.itemCount = state.items.reduce((s, i) => s + i.quantity, 0);
         state.subtotal = state.items.reduce((s, i) => s + (i.product.discountPrice || i.product.price) * i.quantity, 0);
+      })
+      .addCase(updateCartItem.rejected, (state) => {
+        // Silently mark loading done — cart screen re-fetches from server on failure
+        state.isLoading = false;
       });
   },
 });
