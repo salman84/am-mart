@@ -10,7 +10,7 @@
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 export ANDROID_HOME="$HOME/Library/Android/sdk"
 export APP_ENV="production"
-export EXPO_PUBLIC_API_URL="http://192.168.0.38:3001/api/v1"
+export EXPO_PUBLIC_API_URL="https://ammart-backend.onrender.com/api/v1"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
