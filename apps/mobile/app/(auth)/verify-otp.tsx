@@ -36,8 +36,8 @@ export default function VerifyOtpScreen() {
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
-    // Only auto-fill in development builds when backend returns a devCode
-    if (__DEV__ && devCode && devCode.length === 6) {
+    // Auto-fill OTP whenever backend returns a devCode (Firebase SMS unavailable)
+    if (devCode && devCode.length === 6) {
       const digits = devCode.split('');
       setOtp(digits);
     } else {
@@ -126,9 +126,9 @@ export default function VerifyOtpScreen() {
       const res = await authApi.sendOtp(phone);
       setResendTimer(60);
       const newDevCode: string | undefined = res?.data?.devCode;
-      if (__DEV__ && newDevCode && newDevCode.length === 6) {
+      if (newDevCode && newDevCode.length === 6) {
         setOtp(newDevCode.split(''));
-        Toast.show({ type: 'info', text1: 'DEV: SMS unavailable', text2: `Code: ${newDevCode}` });
+        Toast.show({ type: 'success', text1: 'New code ready', text2: `Your code: ${newDevCode}` });
       } else {
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
@@ -201,16 +201,11 @@ export default function VerifyOtpScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Dev helper — shows when SMS gateway is not configured */}
+          {/* Show OTP when SMS is unavailable (auto-filled above, but shown for clarity) */}
           {devCode ? (
             <View style={styles.devNote}>
-              <Ionicons name="code-slash-outline" size={14} color="#92400E" />
-              <Text style={styles.devText}>SMS not sent — code auto-filled: <Text style={{ fontWeight: '700' }}>{devCode}</Text></Text>
-            </View>
-          ) : __DEV__ ? (
-            <View style={styles.devNote}>
-              <Ionicons name="code-slash-outline" size={14} color="#92400E" />
-              <Text style={styles.devText}>DEV: Check backend console for OTP</Text>
+              <Ionicons name="chatbubble-outline" size={14} color="#92400E" />
+              <Text style={styles.devText}>Your verification code: <Text style={{ fontWeight: '700', fontSize: 16 }}>{devCode}</Text></Text>
             </View>
           ) : null}
         </View>

@@ -125,6 +125,11 @@ export default function CustomerLayout() {
       <Tabs.Screen name="coupons"        options={{ href: null }} />
       <Tabs.Screen name="addresses"      options={{ href: null }} />
 
+      {/* New feature screens */}
+      <Tabs.Screen name="my-information"  options={{ href: null }} />
+      <Tabs.Screen name="support"         options={{ href: null }} />
+      <Tabs.Screen name="browsing-history" options={{ href: null }} />
+
       {/* Directories — always hidden from tab bar, accessed via home screen */}
       <Tabs.Screen name="product"        options={{ href: null }} />
       <Tabs.Screen name="order"          options={{ href: null }} />

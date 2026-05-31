@@ -57,6 +57,7 @@ export default function ProfileScreen() {
     { icon: 'wallet-outline', label: t('myWallet'), sublabel: walletBalance !== null ? `${currency}${walletBalance.toLocaleString()}` : '...', action: 'wallet' },
     { icon: 'pricetag-outline', label: t('myCoupons'), sublabel: couponCount > 0 ? `${couponCount} active coupon${couponCount !== 1 ? 's' : ''}` : t('noCoupons'), action: 'coupons' },
     { icon: 'heart-outline', label: t('wishlist'), sublabel: t('savedItems'), action: 'wishlist' },
+    { icon: 'time-outline', label: 'Browsing History', sublabel: 'Recently viewed products', action: 'history' },
   ];
 
   const SUPPORT_ITEMS = [
@@ -75,6 +76,7 @@ export default function ProfileScreen() {
     else if (action === 'addresses') router.push('/(customer)/addresses' as any);
     else if (action === 'coupons') router.push('/(customer)/coupons' as any);
     else if (action === 'wishlist') router.push('/(customer)/products' as any);
+    else if (action === 'history') router.push('/(customer)/browsing-history' as any);
     else if (action === 'wallet') Toast.show({ type: 'info', text1: 'Wallet coming soon' });
     else if (action === 'info') router.push('/(customer)/my-information' as any);
     else if (action === 'support') router.push('/(customer)/support' as any);

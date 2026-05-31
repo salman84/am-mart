@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../../src/store';
 import { productApi, cartApi, reviewsApi } from '../../../src/services/api';
+import { recordProductView } from '../../../src/utils/browsingHistory';
 import { fetchCart } from '../../../src/store/slices/cartSlice';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../../src/theme';
 import Toast from 'react-native-toast-message';
@@ -404,7 +405,11 @@ export default function ProductDetailScreen() {
         reviewsApi.getProductReviews(id),
       ]);
 
-      if (productRes.status === 'fulfilled') setProduct(productRes.value.data);
+      if (productRes.status === 'fulfilled') {
+        setProduct(productRes.value.data);
+        // Record in browsing history (client-side, no backend needed)
+        recordProductView(productRes.value.data).catch(() => {});
+      }
       if (relatedRes.status === 'fulfilled') {
         const data = relatedRes.value.data;
         setRelated(Array.isArray(data) ? data : []);
@@ -561,7 +566,7 @@ export default function ProductDetailScreen() {
         />
       )}
 
-      {/* ── Back button — top-left always. Solid bg when scrolled past gallery ── */}
+      {/* ── Floating header — back (left) + Share/Like/Cart (right) always visible ── */}
       <SafeAreaView
         edges={['top']}
         style={[styles.floatingHeader, headerSolid && styles.floatingHeaderSolid]}
@@ -574,29 +579,25 @@ export default function ProductDetailScreen() {
           {headerSolid && (
             <Text style={styles.headerTitle} numberOfLines={1}>{product.name}</Text>
           )}
-          {/* Spacer to push back button to the left when name is hidden */}
           {!headerSolid && <View style={{ flex: 1 }} />}
+          {/* Share / Like / Cart — always in the header, never scroll */}
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerBtn} onPress={handleShare}>
+              <Ionicons name="share-outline" size={22} color={Colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerBtn} onPress={handleWishlist} disabled={wishlistLoading}>
+              <Ionicons
+                name={wishlisted ? 'heart' : 'heart-outline'}
+                size={22}
+                color={wishlisted ? Colors.danger : Colors.text}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerBtn} onPress={() => router.push('/(customer)/cart' as any)}>
+              <Ionicons name="cart-outline" size={22} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
-
-      {/* ── Share / Like / Cart — fixed on image, hidden when scrolled past ── */}
-      {!headerSolid && (
-        <View style={styles.imageActionsOverlay}>
-          <TouchableOpacity style={styles.headerBtn} onPress={handleShare}>
-            <Ionicons name="share-outline" size={22} color={Colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerBtn} onPress={handleWishlist} disabled={wishlistLoading}>
-            <Ionicons
-              name={wishlisted ? 'heart' : 'heart-outline'}
-              size={22}
-              color={wishlisted ? Colors.danger : Colors.text}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerBtn} onPress={() => router.push('/(customer)/product/cart' as any)}>
-            <Ionicons name="cart-outline" size={22} color={Colors.text} />
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* ── Scrollable content ── */}
       <ScrollView
@@ -884,15 +885,14 @@ const styles = StyleSheet.create({
   notFoundTxt:   { fontSize: FontSize.base, color: Colors.textSecondary, marginTop: 12 },
   scrollContent: { paddingTop: 0 },
 
-  // ── Header & action overlays — all fixed, never scroll ──
-  // imageActionsOverlay: ALWAYS fixed at image bottom-right, never moved to top
-  imageActionsOverlay: { position: 'absolute', top: GALLERY_HEIGHT - 52, right: 12, zIndex: 20, flexDirection: 'row', gap: 8 },
+  // ── Header — always fixed to top, never scrolls ──
   floatingHeader:      { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20 },
   floatingHeaderSolid: { backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   headerRow:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.base, paddingTop: 4, paddingBottom: 4 },
   headerRowSolid:      { paddingVertical: 6 },
   headerTitle:         { flex: 1, fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.text, marginHorizontal: 8 },
   headerBtn:           { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.92)', justifyContent: 'center', alignItems: 'center', ...Shadow.sm },
+  headerActions:       { flexDirection: 'row', gap: 6 },
 
   // ── Info card ──
   infoCard:    { backgroundColor: Colors.surface, paddingHorizontal: Spacing.lg, paddingTop: Spacing.base, paddingBottom: Spacing.base, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },

@@ -9,7 +9,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../../src/store/slices/authSlice';
 import { AppDispatch, RootState } from '../../src/store';
-import { isPinEnabled } from '../../src/utils/pinSecurity';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
 import { useLanguage } from '../../src/i18n';
@@ -17,7 +16,7 @@ import { useBranding } from '../../src/context/BrandingContext';
 
 export default function LoginScreen() {
   const dispatch = useDispatch<AppDispatch>();
-  const { isLoading } = useSelector((state: RootState) => state.auth);
+  const { isLoading, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { t } = useLanguage();
   const { appName, appLogo } = useBranding();
@@ -34,6 +33,14 @@ export default function LoginScreen() {
   const part1Ref = useRef<TextInput>(null);
   const part2Ref = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+
+  // Auto-redirect if already logged in (e.g. user pressed back from pin-setup)
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      if (returnTo === 'cart') router.replace('/(customer)/cart');
+      else router.replace('/(customer)');
+    }
+  }, [isAuthenticated]);
 
   const handlePart1Change = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 4);
@@ -72,12 +79,8 @@ export default function LoginScreen() {
       const role = result.payload.role;
       if (role === 'RIDER') { router.replace('/(rider)'); return; }
       if (role === 'SELLER') { router.replace('/(seller)'); return; }
-      // Customer / Admin: check if PIN is already set
-      const pinSet = await isPinEnabled();
-      if (!pinSet) {
-        // First login → offer PIN setup
-        router.replace('/(auth)/pin-setup');
-      } else if (returnTo === 'cart') {
+      // Customer / Admin — go straight to the app (PIN setup is optional from Profile)
+      if (returnTo === 'cart') {
         router.replace('/(customer)/cart');
       } else {
         router.replace('/(customer)');

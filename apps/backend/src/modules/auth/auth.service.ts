@@ -275,11 +275,12 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { phone } });
     if (!user) throw new NotFoundException('No account found with this phone');
     const { devCode } = await this.otp.sendOtp(user.id, phone, 'LOGIN');
-    const isDev = process.env.NODE_ENV !== 'production';
+    // devCode is non-null only when Firebase SMS was unavailable (always on Render free tier).
+    // Return it so the mobile app can display it to the user as a fallback.
     return {
       message: 'OTP sent',
       userId: user.id,
-      ...(devCode && isDev ? { devCode } : {}),
+      ...(devCode ? { devCode } : {}),
     };
   }
 
