@@ -19,6 +19,9 @@ cd "$ROOT_DIR"
 echo "==> Installing backend dependencies with pnpm..."
 pnpm install --filter backend...
 
+echo "==> Adding root node_modules/.bin to PATH..."
+export PATH="$ROOT_DIR/node_modules/.bin:$PATH"
+
 echo "==> Generating Prisma client..."
 cd "$SCRIPT_DIR"
 npx prisma generate
