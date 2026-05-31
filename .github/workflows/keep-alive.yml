@@ -1,0 +1,23 @@
+name: Keep Backend Alive
+
+# Pings the Render backend every 14 minutes so it never goes to sleep.
+# Render free tier sleeps after 15 minutes of no traffic — this prevents that.
+
+on:
+  schedule:
+    - cron: '*/14 * * * *'   # every 14 minutes
+  workflow_dispatch:           # allow manual trigger from GitHub Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping AM Mart backend
+        run: |
+          echo "Pinging backend at $(date)"
+          curl -sf https://ammart-backend.onrender.com/health \
+            --max-time 60 \
+            --retry 3 \
+            --retry-delay 5 \
+            && echo "✅ Backend is awake" \
+            || echo "⚠️  Backend slow to respond (waking up)"
