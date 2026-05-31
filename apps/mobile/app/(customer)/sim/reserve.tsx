@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { simApi } from '../../../src/services/api';
+import { simApi, uploadApi } from '../../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../../src/theme';
 import Toast from 'react-native-toast-message';
 import { useLanguage } from '../../../src/i18n';
@@ -159,12 +159,25 @@ export default function SimReserveScreen() {
     }
   };
 
+  const uploadLocalImage = async (uri: string): Promise<string> => {
+    const filename = uri.split('/').pop() || 'image.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    const formData = new FormData();
+    formData.append('file', { uri, name: filename, type } as any);
+    const res = await uploadApi.uploadImage(formData);
+    return res.data?.url || res.data?.imageUrl || uri;
+  };
+
   const submitOrder = async () => {
     if (!idDocUri) { Toast.show({ type: 'error', text1: t('pleaseUploadId') }); return; }
     if (!reservedOrderId) return;
     setIsLoading(true);
     try {
-      await simApi.submitOrder(reservedOrderId, { idDocFrontUrl: idDocUri, idDocBackUrl: idDocBack });
+      // Upload images to server first, then submit with remote URLs
+      const frontUrl = await uploadLocalImage(idDocUri);
+      const backUrl = idDocBack ? await uploadLocalImage(idDocBack) : undefined;
+      await simApi.submitOrder(reservedOrderId, { idDocFrontUrl: frontUrl, idDocBackUrl: backUrl });
       Toast.show({ type: 'success', text1: t('applicationSubmitted'), text2: t('trackOrderBelow') });
       setStep('submitted');
     } catch (e: any) {

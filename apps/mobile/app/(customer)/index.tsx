@@ -225,6 +225,9 @@ export default function HomeScreen() {
                   router.push({ pathname: '/(customer)/products' as any, params: { categoryId: currentBanner.linkUrl } });
                 } else if (currentBanner.linkType === 'PRODUCT' && currentBanner.linkUrl) {
                   router.push({ pathname: '/(customer)/product/[id]' as any, params: { id: currentBanner.linkUrl } });
+                } else {
+                  // Default: go to products page
+                  router.push('/(customer)/products' as any);
                 }
               }}
             >
@@ -450,7 +453,7 @@ const styles = StyleSheet.create({
   /* Header — logo far left, like Coupang */
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingLeft: 4, paddingRight: 8, paddingVertical: 8,
+    paddingLeft: 0, paddingRight: 8, paddingVertical: 8,
     backgroundColor: '#fff',
   },
   headerRight: { flexDirection: 'row', alignItems: 'center' },
@@ -458,7 +461,7 @@ const styles = StyleSheet.create({
   logoFallback: {
     height: 40, width: 40, borderRadius: 20,
     backgroundColor: '#000',
-    marginLeft: 8,
+    marginLeft: 0,
   },
   iconBtn:     { width: 42, height: 42, justifyContent: 'center', alignItems: 'center' },
 

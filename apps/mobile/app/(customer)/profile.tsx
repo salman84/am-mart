@@ -76,8 +76,8 @@ export default function ProfileScreen() {
     else if (action === 'coupons') router.push('/(customer)/coupons' as any);
     else if (action === 'wishlist') router.push('/(customer)/products' as any);
     else if (action === 'wallet') Toast.show({ type: 'info', text1: 'Wallet coming soon' });
-    else if (action === 'info') Toast.show({ type: 'info', text1: 'Profile edit coming soon' });
-    else if (action === 'support') Toast.show({ type: 'info', text1: 'Support coming soon' });
+    else if (action === 'info') router.push('/(customer)/my-information' as any);
+    else if (action === 'support') router.push('/(customer)/support' as any);
     else if (action === 'terms') Toast.show({ type: 'info', text1: 'Terms coming soon' });
     else if (action === 'pin') {
       if (pinEnabled) {
@@ -117,7 +117,7 @@ export default function ProfileScreen() {
               {user?.phone && <Text style={styles.profileMeta}>{user.phone}</Text>}
               {user?.email && <Text style={styles.profileMeta}>{user.email}</Text>}
             </View>
-            <TouchableOpacity style={styles.editBtn}>
+            <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/(customer)/my-information' as any)}>
               <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
             </TouchableOpacity>
           </View>

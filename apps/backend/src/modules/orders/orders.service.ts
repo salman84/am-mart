@@ -14,9 +14,18 @@ export class OrdersService {
     private coupons: CouponsService,
   ) {}
 
+  /** Finds the customer row for a user, auto-creating it if it doesn't exist yet.
+   *  This allows admins to browse the customer side without errors. */
+  private async getOrCreateCustomer(userId: string) {
+    let customer = await this.prisma.customer.findFirst({ where: { userId } });
+    if (!customer) {
+      customer = await this.prisma.customer.create({ data: { userId } });
+    }
+    return customer;
+  }
+
   async getCart(userId: string) {
-    const customer = await this.prisma.customer.findFirst({ where: { userId } });
-    if (!customer) throw new NotFoundException('Customer not found');
+    const customer = await this.getOrCreateCustomer(userId);
 
     const items = await this.prisma.cartItem.findMany({
       where: { customerId: customer.id },
@@ -39,8 +48,7 @@ export class OrdersService {
   }
 
   async addToCart(userId: string, productId: string, quantity: number) {
-    const customer = await this.prisma.customer.findFirst({ where: { userId } });
-    if (!customer) throw new NotFoundException('Customer not found');
+    const customer = await this.getOrCreateCustomer(userId);
 
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
     if (!product || product.status !== 'ACTIVE') throw new NotFoundException('Product not found');
@@ -90,8 +98,7 @@ export class OrdersService {
   }
 
   async createOrder(userId: string, dto: CreateOrderDto) {
-    const customer = await this.prisma.customer.findFirst({ where: { userId } });
-    if (!customer) throw new NotFoundException('Customer not found');
+    const customer = await this.getOrCreateCustomer(userId);
 
     const cartItems = await this.prisma.cartItem.findMany({
       where: { customerId: customer.id },
@@ -232,8 +239,7 @@ export class OrdersService {
   }
 
   async getCustomerOrders(userId: string, page = 1, limit = 10, status?: string) {
-    const customer = await this.prisma.customer.findFirst({ where: { userId } });
-    if (!customer) throw new NotFoundException('Customer not found');
+    const customer = await this.getOrCreateCustomer(userId);
 
     const skip = (page - 1) * limit;
     const where: any = { customerId: customer.id };

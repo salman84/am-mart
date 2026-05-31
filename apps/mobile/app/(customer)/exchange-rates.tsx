@@ -84,7 +84,7 @@ export default function ExchangeRatesScreen() {
       fetchRates();
     }, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchRates]);
 
   const onRefresh = () => {
     setRefreshing(true);

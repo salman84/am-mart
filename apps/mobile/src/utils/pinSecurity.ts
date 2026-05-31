@@ -69,7 +69,7 @@ export async function authenticateWithBiometrics(prompt = '신원을 확인하�
     promptMessage: prompt,
     cancelLabel: 'PIN 사용',
     fallbackLabel: 'PIN 사용',
-    disableDeviceFallback: true,
+    disableDeviceFallback: false,
   });
   return result.success;
 }

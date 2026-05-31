@@ -21,7 +21,7 @@ export default function NotificationsScreen() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    notificationApi.getAll({ page: 1, limit: 30 }).then((res) => {
+    notificationApi.getAll({ page: 1, limit: 30, audienceType: 'CUSTOMER' }).then((res) => {
       setNotifications(res.data.notifications || []);
     }).finally(() => setIsLoading(false));
   }, []);

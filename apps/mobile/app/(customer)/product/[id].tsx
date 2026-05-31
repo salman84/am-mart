@@ -579,22 +579,24 @@ export default function ProductDetailScreen() {
         </View>
       </SafeAreaView>
 
-      {/* ── Share / Like / Cart — ALWAYS fixed at image bottom, NEVER at top ── */}
-      <View style={styles.imageActionsOverlay}>
-        <TouchableOpacity style={styles.headerBtn} onPress={handleShare}>
-          <Ionicons name="share-outline" size={22} color={Colors.text} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerBtn} onPress={handleWishlist} disabled={wishlistLoading}>
-          <Ionicons
-            name={wishlisted ? 'heart' : 'heart-outline'}
-            size={22}
-            color={wishlisted ? Colors.danger : Colors.text}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => router.push('/(customer)/product/cart' as any)}>
-          <Ionicons name="cart-outline" size={22} color={Colors.text} />
-        </TouchableOpacity>
-      </View>
+      {/* ── Share / Like / Cart — fixed on image, hidden when scrolled past ── */}
+      {!headerSolid && (
+        <View style={styles.imageActionsOverlay}>
+          <TouchableOpacity style={styles.headerBtn} onPress={handleShare}>
+            <Ionicons name="share-outline" size={22} color={Colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerBtn} onPress={handleWishlist} disabled={wishlistLoading}>
+            <Ionicons
+              name={wishlisted ? 'heart' : 'heart-outline'}
+              size={22}
+              color={wishlisted ? Colors.danger : Colors.text}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => router.push('/(customer)/product/cart' as any)}>
+            <Ionicons name="cart-outline" size={22} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* ── Scrollable content ── */}
       <ScrollView
@@ -753,17 +755,21 @@ export default function ProductDetailScreen() {
           </View>
         </View>
 
-        {/* Description */}
-        {product.description ? (
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>{t('description')}</Text>
-            <Text style={styles.descTxt}>{product.description}</Text>
-          </View>
-        ) : null}
+        {/* Description / Product Detail */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>{t('description')}</Text>
+          <Text style={styles.descTxt}>
+            {product.description || `${product.name} — quality product available for delivery. Unit: ${product.unit || 'pcs'}. Stock: ${product.stock} available.`}
+          </Text>
+        </View>
 
-        {/* Seller info */}
+        {/* Seller info — tappable to view store */}
         {product.seller && (
-          <View style={styles.sectionCard}>
+          <TouchableOpacity
+            style={styles.sectionCard}
+            onPress={() => router.push({ pathname: '/(customer)/products' as any, params: { sellerId: product.seller.id, storeName: product.seller.storeName } })}
+            activeOpacity={0.7}
+          >
             <Text style={styles.sectionTitle}>{t('sellerInfo')}</Text>
             <View style={styles.sellerRow}>
               {product.seller.storeLogo ? (
@@ -787,7 +793,7 @@ export default function ProductDetailScreen() {
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
             </View>
-          </View>
+          </TouchableOpacity>
         )}
 
         {/* Customer Reviews */}
@@ -960,7 +966,7 @@ const styles = StyleSheet.create({
   relatedList:    { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xs },
 
   // ── Bottom bar ──
-  bottomBar:   { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.borderLight, flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, ...Shadow.md },
+  bottomBar:   { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.borderLight, flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: Spacing.sm, ...Shadow.md },
   totalCol:    { flex: 1 },
   totalLbl:    { fontSize: FontSize.xs, color: Colors.textSecondary },
   totalPrice:  { fontSize: FontSize.xl, fontWeight: FontWeight.extrabold, color: Colors.text },
