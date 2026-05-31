@@ -173,7 +173,10 @@ export default function HomeScreen() {
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        {/* Logo — far left, pulled from admin settings */}
+        {/* Left spacer — mirrors right icons so logo stays perfectly centred */}
+        <View style={styles.headerLeft} />
+
+        {/* Logo — centred */}
         <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)} activeOpacity={0.8}>
           {appLogo ? (
             <Image source={{ uri: appLogo }} style={styles.headerLogo} resizeMode="contain" />
@@ -450,18 +453,18 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F5F5' },
   productRow: { justifyContent: 'space-between', paddingHorizontal: Spacing.base },
 
-  /* Header — logo far left, like Coupang */
+  /* Header — logo centred, icons on the right */
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingLeft: 0, paddingRight: 8, paddingVertical: 8,
+    paddingHorizontal: 4, paddingVertical: 8,
     backgroundColor: '#fff',
   },
-  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  headerLeft:  { flex: 1 },                                          // mirrors right to keep logo centred
+  headerRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
   headerLogo:  { height: 44, width: 120 },
   logoFallback: {
     height: 40, width: 40, borderRadius: 20,
     backgroundColor: '#000',
-    marginLeft: 0,
   },
   iconBtn:     { width: 42, height: 42, justifyContent: 'center', alignItems: 'center' },
 
