@@ -33,6 +33,7 @@ model User {
   supportTickets   SupportTicket[]
   userCoupons      UserCoupon[]
   wallet           Wallet?
+  passwordResetRequests PasswordResetRequest[]
 
   @@index([phone])
   @@index([email])
@@ -1527,6 +1528,35 @@ model ActivityLog {
   @@index([userId])
   @@index([sellerId])
   @@map("activity_logs")
+}
+
+enum PasswordResetStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  EXPIRED
+}
+
+model PasswordResetRequest {
+  id                     String               @id @default(uuid())
+  enteredPhone           String
+  enteredName            String
+  enteredEmailOrUsername String?
+  matchedUserId          String?
+  matchedUser            User?                @relation(fields: [matchedUserId], references: [id])
+  status                 PasswordResetStatus  @default(PENDING)
+  adminNote              String?
+  resetTokenHash         String?
+  expiresAt              DateTime?
+  usedAt                 DateTime?
+  approvedBy             String?
+  approvedAt             DateTime?
+  rejectedAt             DateTime?
+  ipAddress              String?
+  createdAt              DateTime             @default(now())
+
+  @@map("password_reset_requests")
 }
 
 enum UserRole {

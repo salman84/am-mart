@@ -339,6 +339,98 @@ export class AuthService {
     return { message: 'Password reset successful' };
   }
 
+  async submitForgotPasswordRequest(
+    enteredPhone: string,
+    enteredName: string,
+    enteredEmailOrUsername: string | undefined,
+    ipAddress: string,
+  ) {
+    // 1. Rate limit: max 3 requests per phone per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentCount = await this.prisma.passwordResetRequest.count({
+      where: { enteredPhone, createdAt: { gte: oneHourAgo } },
+    });
+    if (recentCount >= 3) {
+      // Safe message — don't reveal account existence
+      return { message: 'If the information matches an account, our support team will review your request.' };
+    }
+
+    // 2. Try to find matching user (silently — don't reveal to caller)
+    const matchedUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: enteredPhone },
+          ...(enteredEmailOrUsername ? [
+            { email: enteredEmailOrUsername },
+            { fullName: { equals: enteredEmailOrUsername, mode: 'insensitive' as any } },
+          ] : []),
+        ],
+      },
+    });
+
+    // 3. Save request
+    await this.prisma.passwordResetRequest.create({
+      data: {
+        enteredPhone,
+        enteredName,
+        enteredEmailOrUsername,
+        matchedUserId: matchedUser?.id ?? null,
+        ipAddress,
+      },
+    });
+
+    return { message: 'If the information matches an account, our support team will review your request.' };
+  }
+
+  async validateResetToken(token: string) {
+    const hash = require('crypto').createHash('sha256').update(token).digest('hex');
+    const request = await this.prisma.passwordResetRequest.findFirst({
+      where: { resetTokenHash: hash },
+    });
+    if (!request) return { valid: false, reason: 'Invalid token' };
+    if (request.usedAt) return { valid: false, reason: 'Token already used' };
+    if (!request.expiresAt || request.expiresAt < new Date()) return { valid: false, reason: 'Token expired' };
+    return { valid: true };
+  }
+
+  async resetPasswordWithToken(token: string, newPassword: string) {
+    // Validate password strength
+    const strongPassword = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/.test(newPassword);
+    if (!strongPassword) {
+      throw new BadRequestException('Password must be at least 8 characters and include a letter, number, and special character');
+    }
+
+    const hash = require('crypto').createHash('sha256').update(token).digest('hex');
+    const request = await this.prisma.passwordResetRequest.findFirst({
+      where: { resetTokenHash: hash },
+    });
+
+    if (!request) throw new BadRequestException('Invalid token');
+    if (request.usedAt) throw new BadRequestException('Token already used');
+    if (!request.expiresAt || request.expiresAt < new Date()) throw new BadRequestException('Token expired');
+    if (!request.matchedUserId) throw new BadRequestException('No account associated with this token');
+
+    const newHash = await bcrypt.hash(newPassword, 12);
+
+    // Update password + invalidate all refresh tokens
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: request.matchedUserId },
+        data: { passwordHash: newHash },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: request.matchedUserId, isRevoked: false },
+        data: { isRevoked: true },
+      }),
+      this.prisma.passwordResetRequest.update({
+        where: { id: request.id },
+        data: { usedAt: new Date(), status: 'COMPLETED' },
+      }),
+    ]);
+
+    return { message: 'Your password has been reset successfully. Please log in again.' };
+  }
+
   private async generateReferralCode(): Promise<string> {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     for (let attempt = 0; attempt < 10; attempt++) {

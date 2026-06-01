@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
+  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -11,6 +11,25 @@ import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../
 import Toast from 'react-native-toast-message';
 import { useBranding } from '../../src/context/BrandingContext';
 import { useLanguage } from '../../src/i18n';
+
+// Bundled logo — always available, no network needed
+const LOCAL_LOGO = require('../../assets/splash-logo.png');
+
+function WelcomeLogo({ url, size }: { url: string; size: number }) {
+  const [useFallback, setUseFallback] = React.useState(false);
+  const isValidHttps = url?.startsWith('https://');
+  if (!useFallback && isValidHttps) {
+    return (
+      <Image
+        source={{ uri: url }}
+        style={{ width: size, height: size }}
+        resizeMode="contain"
+        onError={() => setUseFallback(true)}
+      />
+    );
+  }
+  return <Image source={LOCAL_LOGO} style={{ width: size, height: size }} resizeMode="contain" />;
+}
 
 export default function RegisterScreen() {
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
@@ -102,6 +121,7 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           <View style={styles.header}>
+            <WelcomeLogo url={brand.logo} size={60} />
             <Text style={styles.title}>{t('createAccount')}</Text>
             <Text style={styles.subtitle}>{t('registerSubtitle').replace('{name}', brand.name)}</Text>
           </View>
@@ -271,8 +291,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingBottom: 40 },
   back: { marginTop: Spacing.base, width: 40, height: 40, justifyContent: 'center' },
-  header: { paddingVertical: Spacing.xl },
-  title: { fontSize: FontSize['4xl'], fontWeight: FontWeight.extrabold, color: Colors.text },
+  header: { paddingVertical: Spacing.xl, gap: 4 },
+  title: { fontSize: FontSize['4xl'], fontWeight: FontWeight.extrabold, color: Colors.text, marginTop: Spacing.sm },
   subtitle: { fontSize: FontSize.base, color: Colors.textSecondary, marginTop: Spacing.xs },
   form: { gap: 16 },
   field: { gap: 6 },

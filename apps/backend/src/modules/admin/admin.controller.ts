@@ -67,4 +67,31 @@ export class AdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   deleteDeliveryZone(@Param('id') id: string) { return this.adminService.deleteDeliveryZone(id); }
+
+  // ─── Password Reset Requests ─────────────────────────────────────────────────
+
+  @Get('password-reset-requests')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  getPasswordResetRequests(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.getPasswordResetRequests(page, limit, status);
+  }
+
+  @Post('password-reset-requests/:id/approve')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  approvePasswordResetRequest(@Param('id') id: string, @Req() req: any, @Body('adminNote') adminNote?: string) {
+    return this.adminService.approvePasswordResetRequest(id, req.user.id, adminNote);
+  }
+
+  @Post('password-reset-requests/:id/reject')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  rejectPasswordResetRequest(@Param('id') id: string, @Req() req: any, @Body('adminNote') adminNote?: string) {
+    return this.adminService.rejectPasswordResetRequest(id, req.user.id, adminNote);
+  }
 }

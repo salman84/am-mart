@@ -151,6 +151,12 @@ export const deliveryZonesApi = {
   delete: (id: string) => api.delete(`/admin/delivery-zones/${id}`),
 };
 
+export const passwordResetApi = {
+  getAll: (params?: any) => api.get('/admin/password-reset-requests', { params }),
+  approve: (id: string, adminNote?: string) => api.post(`/admin/password-reset-requests/${id}/approve`, { adminNote }),
+  reject: (id: string, adminNote?: string) => api.post(`/admin/password-reset-requests/${id}/reject`, { adminNote }),
+};
+
 export const marketplaceConfigApi = {
   getOverview: () => api.get('/marketplace-config/admin/overview'),
   getSettings: (group?: string) => api.get('/marketplace-config/admin/settings', { params: { group } }),

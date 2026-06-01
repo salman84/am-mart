@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, ShoppingBag, Package, Truck, Zap,
   CreditCard, TicketPercent, Image, MessageSquare, Settings,
   LogOut, Store, ChevronDown, ChevronRight, Smartphone, BarChart3, Tag,
-  Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal,
+  Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal, KeyRound,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -63,6 +63,7 @@ const navGroups = [
     label: 'Support & Settings',
     items: [
       { href: '/support', icon: MessageSquare, label: 'Support Tickets' },
+      { href: '/password-reset-requests', icon: KeyRound, label: 'Password Resets' },
       { href: '/delivery-zones', icon: MapPin, label: 'Delivery Zones' },
       { href: '/settings', icon: Settings, label: 'App Settings' },
       { href: '/marketplace-config', icon: SlidersHorizontal, label: 'Marketplace SaaS' },

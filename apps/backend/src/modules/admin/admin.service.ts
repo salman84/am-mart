@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -227,5 +227,72 @@ export class AdminService {
       categories,
       coupons,
     };
+  }
+
+  async getPasswordResetRequests(page: number, limit: number, status?: string) {
+    const skip = (page - 1) * limit;
+    const where = status ? { status: status as any } : {};
+    const [requests, total] = await Promise.all([
+      this.prisma.passwordResetRequest.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          matchedUser: {
+            select: { id: true, phone: true, email: true, fullName: true, status: true },
+          },
+        },
+      }),
+      this.prisma.passwordResetRequest.count({ where }),
+    ]);
+    return { requests, total, page, limit };
+  }
+
+  async approvePasswordResetRequest(id: string, adminId: string, adminNote?: string) {
+    const request = await this.prisma.passwordResetRequest.findUnique({ where: { id } });
+    if (!request) throw new NotFoundException('Request not found');
+    if (request.status !== 'PENDING') throw new BadRequestException('Request is not pending');
+    if (!request.matchedUserId) throw new BadRequestException('No matching user found for this request');
+
+    // Generate a cryptographically secure one-time token
+    const rawToken = require('crypto').randomBytes(32).toString('hex');
+    const tokenHash = require('crypto').createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await this.prisma.passwordResetRequest.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        resetTokenHash: tokenHash,
+        expiresAt,
+        approvedBy: adminId,
+        approvedAt: new Date(),
+        adminNote,
+      },
+    });
+
+    return {
+      message: 'Request approved. Share this reset code with the user.',
+      resetToken: rawToken,  // Admin shows/sends this to user
+      expiresAt,
+    };
+  }
+
+  async rejectPasswordResetRequest(id: string, adminId: string, adminNote?: string) {
+    const request = await this.prisma.passwordResetRequest.findUnique({ where: { id } });
+    if (!request) throw new NotFoundException('Request not found');
+
+    await this.prisma.passwordResetRequest.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        approvedBy: adminId,
+        rejectedAt: new Date(),
+        adminNote,
+      },
+    });
+
+    return { message: 'Request rejected' };
   }
 }

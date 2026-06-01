@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -78,5 +78,35 @@ export class AuthController {
     @Body('newPassword') newPassword: string,
   ) {
     return this.authService.resetPassword(userId, otp, newPassword);
+  }
+
+  @Post('forgot-password-request')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @ApiOperation({ summary: 'Submit manual forgot password request' })
+  forgotPasswordRequest(
+    @Body('phone') phone: string,
+    @Body('name') name: string,
+    @Body('emailOrUsername') emailOrUsername: string | undefined,
+    @Req() req: any,
+  ) {
+    const ip = req.headers['x-forwarded-for'] || req.ip || '';
+    return this.authService.submitForgotPasswordRequest(phone, name, emailOrUsername, ip);
+  }
+
+  @Get('reset-password/validate/:token')
+  @ApiOperation({ summary: 'Validate reset token' })
+  validateResetToken(@Param('token') token: string) {
+    return this.authService.validateResetToken(token);
+  }
+
+  @Post('reset-password-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password with admin-issued token' })
+  resetPasswordWithToken(
+    @Body('token') token: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    return this.authService.resetPasswordWithToken(token, newPassword);
   }
 }
