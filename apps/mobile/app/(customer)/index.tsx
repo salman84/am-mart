@@ -61,6 +61,26 @@ const DEFAULT_BANNERS = [
   { id: '2', title: 'International Topup', subtitle: 'Send credit worldwide' },
 ];
 
+// ── Logo with HTTPS-only remote + bundled fallback ───────────────────────────
+const LOCAL_LOGO = require('../../assets/splash-logo.png');
+
+function LogoImage({ appLogo, style }: { appLogo: string; style: any }) {
+  const [useFallback, setUseFallback] = React.useState(false);
+  // Only try remote URL when it is a valid https:// link
+  const isValidHttps = appLogo?.startsWith('https://');
+  if (!useFallback && isValidHttps) {
+    return (
+      <Image
+        source={{ uri: appLogo }}
+        style={style}
+        resizeMode="contain"
+        onError={() => setUseFallback(true)}
+      />
+    );
+  }
+  return <Image source={LOCAL_LOGO} style={style} resizeMode="contain" />;
+}
+
 export default function HomeScreen() {
   const { user } = useSelector((state: RootState) => state.auth);
   const cartCount = useSelector((state: RootState) => state.cart.itemCount);
@@ -197,11 +217,7 @@ export default function HomeScreen() {
 
         {/* Logo — centred */}
         <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)} activeOpacity={0.8}>
-          {appLogo ? (
-            <Image source={{ uri: appLogo }} style={styles.headerLogo} resizeMode="contain" />
-          ) : (
-            <View style={styles.logoFallback} />
-          )}
+          <LogoImage appLogo={appLogo} style={styles.headerLogo} />
         </TouchableOpacity>
 
         {/* Right icons */}
