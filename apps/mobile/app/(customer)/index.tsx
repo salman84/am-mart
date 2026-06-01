@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
   /* Header — logo left, icons right */
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingLeft: 4, paddingRight: 12, paddingVertical: 8,
+    paddingLeft: 0, paddingRight: 12, paddingVertical: 8,
     backgroundColor: '#fff',
   },
   headerRight: { flexDirection: 'row', alignItems: 'center' },
