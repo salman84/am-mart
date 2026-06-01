@@ -53,11 +53,19 @@
       ]
     ],
     "scheme": "ammart",
+    "updates": {
+      "url": "https://u.expo.dev/2e9ab6a3-77f8-4011-bd2c-1b6873d22031",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "extra": {
       "eas": {
-        "projectId": "your-eas-project-id"
-      },
-      "apiUrl": "http://localhost:3001/api/v1"
+        "projectId": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031"
+      }
     }
   }
 }
