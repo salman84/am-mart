@@ -1,0 +1,369 @@
+'use client';
+
+import { useState, useMemo, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { adminApi } from '../../../lib/api';
+import toast from 'react-hot-toast';
+import {
+  Globe, Type, MessageSquare, BarChart3, ShoppingBag, Star,
+  Download, Footprints, Image as ImageIcon, ExternalLink, Save, Upload,
+} from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
+/* ─── Section config — defines ALL editable fields ───────────────────── */
+const SECTIONS = [
+  {
+    label: 'Navigation Labels',
+    icon: Globe,
+    fields: [
+      { key: 'LP_NAV_FEATURES',      label: 'Nav: Services',       placeholder: 'Services' },
+      { key: 'LP_NAV_HOW_IT_WORKS',  label: 'Nav: How It Works',   placeholder: 'How It Works' },
+      { key: 'LP_NAV_TESTIMONIALS',  label: 'Nav: Reviews',        placeholder: 'Reviews' },
+      { key: 'LP_NAV_CONTACT',       label: 'Nav: Contact',        placeholder: 'Contact' },
+    ],
+  },
+  {
+    label: 'Hero Section',
+    icon: Type,
+    fields: [
+      { key: 'LP_HERO_TITLE',         label: 'Hero Title',         placeholder: 'Everything You Need, Delivered' },
+      { key: 'LP_HERO_SUBTITLE',      label: 'Hero Subtitle',      placeholder: 'Shop groceries, recharge phones...', multiline: true },
+      { key: 'LP_HERO_CTA_PRIMARY',   label: 'Primary Button Text', placeholder: 'Download App' },
+      { key: 'LP_HERO_CTA_SECONDARY', label: 'Secondary Button Text', placeholder: 'Learn More' },
+    ],
+  },
+  {
+    label: 'Statistics',
+    icon: BarChart3,
+    fields: [
+      { key: 'LP_STATS_CUSTOMERS',  label: 'Customers Count',   placeholder: '10000' },
+      { key: 'LP_STATS_PRODUCTS',   label: 'Products Count',    placeholder: '5000' },
+      { key: 'LP_STATS_SELLERS',    label: 'Sellers Count',     placeholder: '200' },
+      { key: 'LP_STATS_DELIVERIES', label: 'Deliveries Count',  placeholder: '50000' },
+    ],
+  },
+  {
+    label: 'Services (4 cards)',
+    icon: ShoppingBag,
+    fields: [
+      { key: 'LP_SERVICE_1_TITLE', label: 'Service 1 Title', placeholder: 'Grocery Shopping' },
+      { key: 'LP_SERVICE_1_DESC',  label: 'Service 1 Description', placeholder: 'Fresh produce...', multiline: true },
+      { key: 'LP_SERVICE_1_ICON',  label: 'Service 1 Icon Keyword', placeholder: 'shopping | topup | sim | exchange | delivery | global' },
+      { key: 'LP_SERVICE_2_TITLE', label: 'Service 2 Title', placeholder: 'Mobile Top-Up' },
+      { key: 'LP_SERVICE_2_DESC',  label: 'Service 2 Description', placeholder: 'Instant mobile...', multiline: true },
+      { key: 'LP_SERVICE_2_ICON',  label: 'Service 2 Icon Keyword', placeholder: 'shopping | topup | sim | exchange | delivery | global' },
+      { key: 'LP_SERVICE_3_TITLE', label: 'Service 3 Title', placeholder: 'SIM Cards' },
+      { key: 'LP_SERVICE_3_DESC',  label: 'Service 3 Description', placeholder: 'Browse and reserve...', multiline: true },
+      { key: 'LP_SERVICE_3_ICON',  label: 'Service 3 Icon Keyword', placeholder: 'shopping | topup | sim | exchange | delivery | global' },
+      { key: 'LP_SERVICE_4_TITLE', label: 'Service 4 Title', placeholder: 'Exchange Rates' },
+      { key: 'LP_SERVICE_4_DESC',  label: 'Service 4 Description', placeholder: 'Compare real-time...', multiline: true },
+      { key: 'LP_SERVICE_4_ICON',  label: 'Service 4 Icon Keyword', placeholder: 'shopping | topup | sim | exchange | delivery | global' },
+    ],
+  },
+  {
+    label: 'Market Section',
+    icon: Globe,
+    fields: [
+      { key: 'LP_MARKET_TITLE',    label: 'Market Section Title',    placeholder: 'One App, Everything You Need' },
+      { key: 'LP_MARKET_SUBTITLE', label: 'Market Section Subtitle', placeholder: 'From daily groceries...' },
+    ],
+  },
+  {
+    label: 'Why Choose Us (3 features)',
+    icon: Star,
+    fields: [
+      { key: 'LP_WHY_TITLE',       label: 'Section Title',          placeholder: 'Why Choose Us' },
+      { key: 'LP_WHY_SUBTITLE',    label: 'Section Subtitle',       placeholder: 'Built for convenience...' },
+      { key: 'LP_FEATURE_1_TITLE', label: 'Feature 1 Title',        placeholder: 'Fast & Reliable' },
+      { key: 'LP_FEATURE_1_DESC',  label: 'Feature 1 Description',  placeholder: 'Get your orders...', multiline: true },
+      { key: 'LP_FEATURE_2_TITLE', label: 'Feature 2 Title',        placeholder: 'Secure Payments' },
+      { key: 'LP_FEATURE_2_DESC',  label: 'Feature 2 Description',  placeholder: 'Your transactions...', multiline: true },
+      { key: 'LP_FEATURE_3_TITLE', label: 'Feature 3 Title',        placeholder: '24/7 Support' },
+      { key: 'LP_FEATURE_3_DESC',  label: 'Feature 3 Description',  placeholder: 'Our support team...', multiline: true },
+    ],
+  },
+  {
+    label: 'How It Works (3 steps)',
+    icon: Footprints,
+    fields: [
+      { key: 'LP_STEPS_TITLE',    label: 'Section Title',       placeholder: 'How It Works' },
+      { key: 'LP_STEP_1_TITLE',   label: 'Step 1 Title',        placeholder: 'Download the App' },
+      { key: 'LP_STEP_1_DESC',    label: 'Step 1 Description',  placeholder: 'Available on Android...', multiline: true },
+      { key: 'LP_STEP_2_TITLE',   label: 'Step 2 Title',        placeholder: 'Browse & Order' },
+      { key: 'LP_STEP_2_DESC',    label: 'Step 2 Description',  placeholder: 'Explore products...', multiline: true },
+      { key: 'LP_STEP_3_TITLE',   label: 'Step 3 Title',        placeholder: 'Get it Delivered' },
+      { key: 'LP_STEP_3_DESC',    label: 'Step 3 Description',  placeholder: 'Sit back and relax...', multiline: true },
+    ],
+  },
+  {
+    label: 'Testimonials (3 reviews)',
+    icon: MessageSquare,
+    fields: [
+      { key: 'LP_TESTIMONIAL_1_QUOTE',   label: 'Review 1 Quote',   placeholder: 'The best delivery app...', multiline: true },
+      { key: 'LP_TESTIMONIAL_1_NAME',    label: 'Review 1 Name',    placeholder: 'Sarah K.' },
+      { key: 'LP_TESTIMONIAL_1_COMPANY', label: 'Review 1 Title',   placeholder: 'Customer' },
+      { key: 'LP_TESTIMONIAL_2_QUOTE',   label: 'Review 2 Quote',   placeholder: 'SIM card ordering...', multiline: true },
+      { key: 'LP_TESTIMONIAL_2_NAME',    label: 'Review 2 Name',    placeholder: 'Ahmed M.' },
+      { key: 'LP_TESTIMONIAL_2_COMPANY', label: 'Review 2 Title',   placeholder: 'Customer' },
+      { key: 'LP_TESTIMONIAL_3_QUOTE',   label: 'Review 3 Quote',   placeholder: 'Exchange rates...', multiline: true },
+      { key: 'LP_TESTIMONIAL_3_NAME',    label: 'Review 3 Name',    placeholder: 'Ji-Young P.' },
+      { key: 'LP_TESTIMONIAL_3_COMPANY', label: 'Review 3 Title',   placeholder: 'Customer' },
+    ],
+  },
+  {
+    label: 'Download Section',
+    icon: Download,
+    fields: [
+      { key: 'LP_DOWNLOAD_TITLE',    label: 'Download Title',      placeholder: 'Download the App Now' },
+      { key: 'LP_DOWNLOAD_SUBTITLE', label: 'Download Subtitle',   placeholder: 'Available on Android and iOS...' },
+      { key: 'LP_PLAY_STORE_URL',    label: 'Google Play Store URL', placeholder: 'https://play.google.com/store/apps/details?id=...' },
+      { key: 'LP_APP_STORE_URL',     label: 'Apple App Store URL',  placeholder: 'https://apps.apple.com/app/...' },
+      { key: 'LP_QR_ANDROID',        label: 'Android QR Code',     type: 'image' },
+      { key: 'LP_QR_IOS',            label: 'iOS QR Code',         type: 'image' },
+    ],
+  },
+  {
+    label: 'Support & Footer',
+    icon: Globe,
+    fields: [
+      { key: 'LP_SUPPORT_TITLE', label: 'Support Title',     placeholder: 'Need Help?' },
+      { key: 'LP_SUPPORT_DESC',  label: 'Support Description', placeholder: 'Our support team...', multiline: true },
+      { key: 'LP_FOOTER_TEXT',   label: 'Footer Text',       placeholder: 'Your trusted marketplace...' },
+      { key: 'LP_FOOTER_COPYRIGHT', label: 'Copyright Text', placeholder: '© 2026 AM Mart. All rights reserved.' },
+    ],
+  },
+  {
+    label: 'App Screenshots',
+    icon: ImageIcon,
+    fields: [
+      { key: 'LP_APP_SCREENSHOT_1', label: 'Hero Phone Screenshot', type: 'image' },
+      { key: 'LP_APP_SCREENSHOT_2', label: 'Screenshot 2 (future)', type: 'image' },
+      { key: 'LP_APP_SCREENSHOT_3', label: 'Screenshot 3 (future)', type: 'image' },
+    ],
+  },
+];
+
+/* ─── Image uploader component ───────────────────────────────────────── */
+function ImageUpload({ settingKey, currentValue, onUploaded }: {
+  settingKey: string; currentValue: string; onUploaded: (url: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch(`${API_URL}/upload/image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      const url = data.url || data.imageUrl || '';
+      if (url) {
+        onUploaded(url);
+        toast.success('Image uploaded');
+      } else {
+        toast.error('Upload failed');
+      }
+    } catch {
+      toast.error('Upload failed');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <button onClick={() => inputRef.current?.click()} disabled={uploading}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+          <Upload className="w-4 h-4" /> {uploading ? 'Uploading...' : 'Upload Image'}
+        </button>
+        {currentValue && (
+          <button onClick={() => onUploaded('')} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+      {currentValue && (
+        <div className="mt-2">
+          <img src={currentValue} alt="" className="h-24 w-auto object-contain rounded-lg border border-gray-200" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/*  ADMIN CMS — Landing Page Editor                                      */
+/* ═══════════════════════════════════════════════════════════════════════ */
+export default function LandingPageAdmin() {
+  const queryClient = useQueryClient();
+  const [localValues, setLocalValues] = useState<Record<string, string>>({});
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    Object.fromEntries(SECTIONS.map((s) => [s.label, true]))
+  );
+
+  // Fetch all settings
+  const { data: settingsData, isLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => adminApi.getSettings().then((r) => r.data),
+  });
+
+  // Build map of current values
+  const settingsMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (settingsData?.settings || []).forEach((s: any) => { map[s.key] = s.value ?? ''; });
+    return map;
+  }, [settingsData]);
+
+  // Save mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) =>
+      adminApi.updateSetting(key, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+    },
+    onError: () => toast.error('Failed to save'),
+  });
+
+  const getValue = (key: string) => localValues[key] ?? settingsMap[key] ?? '';
+
+  const handleChange = (key: string, value: string) => {
+    setLocalValues((v) => ({ ...v, [key]: value }));
+  };
+
+  const handleSave = (key: string) => {
+    const value = localValues[key] ?? settingsMap[key] ?? '';
+    updateMutation.mutate({ key, value }, {
+      onSuccess: () => toast.success(`Saved: ${key}`),
+    });
+  };
+
+  const handleImageUploaded = (key: string, url: string) => {
+    setLocalValues((v) => ({ ...v, [key]: url }));
+    updateMutation.mutate({ key, value: url }, {
+      onSuccess: () => toast.success(`Saved: ${key}`),
+    });
+  };
+
+  const toggleSection = (label: string) => {
+    setOpenSections((o) => ({ ...o, [label]: !o[label] }));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold">Landing Page</h1>
+          <p className="text-sm text-gray-500 mt-1">Edit every text, image, and link on your public landing page</p>
+        </div>
+        <a href="/" target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+          <ExternalLink className="w-4 h-4" /> Preview Landing Page
+        </a>
+      </div>
+
+      {/* Sections */}
+      <div className="space-y-4">
+        {SECTIONS.map((section) => {
+          const Icon = section.icon;
+          const isOpen = openSections[section.label] !== false;
+          return (
+            <div key={section.label} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              {/* Section header */}
+              <button onClick={() => toggleSection(section.label)}
+                className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Icon className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-gray-900">{section.label}</span>
+                  <span className="text-xs text-gray-400">{section.fields.length} fields</span>
+                </div>
+                <span className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                  <ChevronDown className="w-5 h-5" />
+                </span>
+              </button>
+
+              {/* Fields */}
+              {isOpen && (
+                <div className="px-6 pb-6 border-t border-gray-100 pt-4 space-y-4">
+                  {section.fields.map((field: any) => (
+                    <div key={field.key}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {field.label}
+                        <span className="text-xs text-gray-400 ml-2 font-mono">{field.key}</span>
+                      </label>
+
+                      {field.type === 'image' ? (
+                        <ImageUpload
+                          settingKey={field.key}
+                          currentValue={getValue(field.key)}
+                          onUploaded={(url) => handleImageUploaded(field.key, url)}
+                        />
+                      ) : field.multiline ? (
+                        <div className="flex gap-2">
+                          <textarea
+                            value={getValue(field.key)}
+                            onChange={(e) => handleChange(field.key, e.target.value)}
+                            placeholder={field.placeholder}
+                            rows={3}
+                            className="flex-1 form-input text-sm resize-none"
+                          />
+                          <button onClick={() => handleSave(field.key)}
+                            className="self-start p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                            title="Save">
+                            <Save className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={getValue(field.key)}
+                            onChange={(e) => handleChange(field.key, e.target.value)}
+                            placeholder={field.placeholder}
+                            className="flex-1 form-input text-sm"
+                          />
+                          <button onClick={() => handleSave(field.key)}
+                            className="p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                            title="Save">
+                            <Save className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ChevronDown(props: any) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}

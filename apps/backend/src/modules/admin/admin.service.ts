@@ -82,6 +82,19 @@ export class AdminService {
       'LP_STEP_3_TITLE', 'LP_STEP_3_DESC',
       'LP_SUPPORT_TITLE', 'LP_SUPPORT_DESC',
       'LP_NAV_FEATURES', 'LP_NAV_HOW_IT_WORKS', 'LP_NAV_TESTIMONIALS', 'LP_NAV_CONTACT',
+      // Download section
+      'LP_DOWNLOAD_TITLE', 'LP_DOWNLOAD_SUBTITLE',
+      'LP_PLAY_STORE_URL', 'LP_APP_STORE_URL',
+      'LP_QR_ANDROID', 'LP_QR_IOS',
+      // Services
+      'LP_SERVICE_1_TITLE', 'LP_SERVICE_1_DESC', 'LP_SERVICE_1_ICON',
+      'LP_SERVICE_2_TITLE', 'LP_SERVICE_2_DESC', 'LP_SERVICE_2_ICON',
+      'LP_SERVICE_3_TITLE', 'LP_SERVICE_3_DESC', 'LP_SERVICE_3_ICON',
+      'LP_SERVICE_4_TITLE', 'LP_SERVICE_4_DESC', 'LP_SERVICE_4_ICON',
+      // Footer
+      'LP_FOOTER_TEXT', 'LP_FOOTER_COPYRIGHT',
+      // App screenshots
+      'LP_APP_SCREENSHOT_1', 'LP_APP_SCREENSHOT_2', 'LP_APP_SCREENSHOT_3',
     ];
     const settings = await this.prisma.appSettings.findMany({ where: { key: { in: PUBLIC_KEYS } } });
     const result = Object.fromEntries(settings.map((s) => [s.key, s.value]));

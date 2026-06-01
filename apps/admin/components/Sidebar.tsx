@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, ShoppingBag, Package, Truck, Zap,
   CreditCard, TicketPercent, Image, MessageSquare, Settings,
   LogOut, Store, ChevronDown, ChevronRight, Smartphone, BarChart3, Tag,
-  Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal, KeyRound, Palette,
+  Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal, KeyRound, Palette, Globe,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -57,6 +57,7 @@ const navGroups = [
   {
     label: 'Marketing',
     items: [
+      { href: '/landing-page', icon: Globe, label: 'Landing Page' },
       { href: '/banners', icon: Image, label: 'Main Slider' },
       { href: '/icons', icon: Palette, label: 'Icons' },
       { href: '/coupons', icon: TicketPercent, label: 'Coupons' },
