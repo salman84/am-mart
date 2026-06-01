@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
   Image, RefreshControl, ActivityIndicator, Dimensions,
-  Animated,
+  Animated, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -186,6 +186,16 @@ export default function HomeScreen() {
   }, [startHeroSlide, fadeAnim]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Re-fetch all data when app comes to foreground (cache was already cleared
+  // by BrandingContext) — ensures admin changes show immediately
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') loadData();
+    });
+    return () => sub.remove();
+  }, [loadData]);
+
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   // Auto-retry silently after 5 s when load failed (covers brief network hiccups)
