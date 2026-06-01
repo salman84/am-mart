@@ -212,10 +212,7 @@ export default function HomeScreen() {
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        {/* Left spacer — mirrors right icons so logo stays perfectly centred */}
-        <View style={styles.headerLeft} />
-
-        {/* Logo — centred */}
+        {/* Logo — left */}
         <TouchableOpacity onPress={() => router.push('/(customer)/products' as any)} activeOpacity={0.8}>
           <LogoImage appLogo={appLogo} style={styles.headerLogo} />
         </TouchableOpacity>
@@ -498,14 +495,13 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F5F5' },
   productRow: { justifyContent: 'space-between', paddingHorizontal: Spacing.base },
 
-  /* Header — logo centred, icons on the right */
+  /* Header — logo left, icons right */
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 4, paddingVertical: 8,
+    paddingHorizontal: 12, paddingVertical: 8,
     backgroundColor: '#fff',
   },
-  headerLeft:  { flex: 1 },                                          // mirrors right to keep logo centred
-  headerRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
   headerLogo:  { height: 44, width: 120 },
   logoFallback: {
     height: 40, width: 40, borderRadius: 20,
