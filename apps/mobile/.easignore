@@ -9,3 +9,5 @@ __tests__
 *.test.tsx
 *.spec.ts
 *.spec.tsx
+android
+ios
