@@ -54,12 +54,16 @@
     ],
     "scheme": "ammart",
     "updates": {
-      "url": "https://u.expo.dev/PLACEHOLDER",
+      "url": "https://u.expo.dev/afdc9d1a-7bc8-42e1-b40d-cd8a57079f61",
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": "1.0.0",
-    "extra": {}
+    "extra": {
+      "eas": {
+        "projectId": "afdc9d1a-7bc8-42e1-b40d-cd8a57079f61"
+      }
+    }
   }
 }

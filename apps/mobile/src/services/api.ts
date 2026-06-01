@@ -45,11 +45,11 @@ export function clearApiCache(prefix?: string) {
 }
 
 const TTL = {
-  settings:   10 * 60 * 1000,  // 10 min — admin settings rarely change
-  products:    5 * 60 * 1000,  // 5 min
-  categories:  5 * 60 * 1000,
-  banners:     5 * 60 * 1000,
-  sim:         2 * 60 * 1000,  // 2 min — availability changes more often
+  settings:   30 * 1000,  // 30 sec — auto-refresh picks up admin changes fast
+  products:   30 * 1000,
+  categories: 30 * 1000,
+  banners:    30 * 1000,
+  sim:        30 * 1000,
 };
 
 // ─── 3. AXIOS INSTANCE ───────────────────────────────────────────────────────

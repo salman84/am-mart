@@ -187,14 +187,35 @@ export default function HomeScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Re-fetch all data when app comes to foreground (cache was already cleared
-  // by BrandingContext) — ensures admin changes show immediately
+  // ── AUTO-REFRESH SYSTEM ───────────────────────────────────────────────
+  // Polls every 30 seconds while the app is in the foreground.
+  // Admin changes show in the app within 30 seconds — fully automatic.
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startPoll = useCallback(() => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => { loadData(); }, 30_000);
+  }, [loadData]);
+
+  const stopPoll = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }, []);
+
+  // Start polling on mount, stop on unmount
+  useEffect(() => {
+    startPoll();
+    return () => stopPoll();
+  }, [startPoll, stopPoll]);
+
+  // Foreground → immediate refresh + restart polling
+  // Background → stop polling (save battery)
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') loadData();
+      if (state === 'active') { loadData(); startPoll(); }
+      else { stopPoll(); }
     });
     return () => sub.remove();
-  }, [loadData]);
+  }, [loadData, startPoll, stopPoll]);
 
   const onRefresh = () => { setRefreshing(true); loadData(); };
 

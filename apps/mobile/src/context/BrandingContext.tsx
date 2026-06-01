@@ -3,8 +3,8 @@
  * them across the whole app. Re-fetches when app comes to foreground so icon
  * changes made in the admin panel are picked up instantly.
  */
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { AppState } from 'react-native';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { appSettingsApi, clearApiCache } from '../services/api';
 
 export interface Branding {
@@ -86,17 +86,44 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   // Initial load
   useEffect(() => { load(); }, [load]);
 
-  // Re-fetch when app comes to foreground — clear ALL caches so admin changes
-  // (banners, categories, products, icons, settings) are visible immediately
+  // ── AUTO-REFRESH SYSTEM ─────────────────────────────────────────────────
+  // Polls every 30 seconds while the app is in the foreground.
+  // When app goes to background → stops polling (saves battery).
+  // When app returns to foreground → immediate refresh + restart polling.
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startPolling = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      clearApiCache('/admin/public-settings');
+      load();
+    }, 30_000); // every 30 seconds
+  }, [load]);
+
+  const stopPolling = useCallback(() => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+  }, []);
+
+  // Start polling on mount
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
+    startPolling();
+    return () => stopPolling();
+  }, [startPolling, stopPolling]);
+
+  // Foreground → immediate refresh + restart polling
+  // Background → stop polling to save battery
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'active') {
         clearApiCache(); // wipes every cached endpoint — next fetch goes to server
         load();
+        startPolling();
+      } else {
+        stopPolling();
       }
     });
     return () => sub.remove();
-  }, [load]);
+  }, [load, startPolling, stopPolling]);
 
   return (
     <BrandingContext.Provider value={{ ...branding, reload: load }}>
