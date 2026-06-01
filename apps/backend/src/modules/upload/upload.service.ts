@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -7,7 +7,21 @@ import { Readable } from 'stream';
 
 @Injectable()
 export class UploadService {
+  private readonly logger = new Logger(UploadService.name);
+
   constructor(private config: ConfigService) {}
+
+  private isCloudinaryConfigured(): boolean {
+    const name = this.config.get('CLOUDINARY_CLOUD_NAME');
+    const key = this.config.get('CLOUDINARY_API_KEY');
+    const secret = this.config.get('CLOUDINARY_API_SECRET');
+    return !!(
+      name && key && secret &&
+      name !== 'your_cloud_name' &&
+      key !== 'your_api_key' &&
+      secret !== 'your_api_secret'
+    );
+  }
 
   async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
     // ── Development: save locally ────────────────────────────────────────────
@@ -22,7 +36,25 @@ export class UploadService {
       return `http://localhost:${port}/uploads/${key}`;
     }
 
-    // ── Production: Cloudinary ───────────────────────────────────────────────
+    // ── Production: try Cloudinary first, fallback to base64 data URL ───────
+    if (this.isCloudinaryConfigured()) {
+      try {
+        return await this.uploadToCloudinary(file, folder);
+      } catch (error) {
+        this.logger.error(`Cloudinary upload failed: ${error.message}`);
+        // Fall through to base64 fallback
+      }
+    } else {
+      this.logger.warn('Cloudinary not configured — using base64 data URL fallback');
+    }
+
+    // ── Fallback: base64 data URL (works in <img> and React Native <Image>) ─
+    const mime = file.mimetype || 'image/png';
+    const base64 = file.buffer.toString('base64');
+    return `data:${mime};base64,${base64}`;
+  }
+
+  private async uploadToCloudinary(file: Express.Multer.File, folder: string): Promise<string> {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { v2: cloudinary } = require('cloudinary');
     cloudinary.config({
@@ -45,7 +77,9 @@ export class UploadService {
 
   async deleteFile(url: string): Promise<void> {
     if (process.env.NODE_ENV !== 'production') return;
+    // Only delete from Cloudinary — base64 data URLs are stored inline, nothing to delete
     if (!url || !url.includes('cloudinary.com')) return;
+    if (!this.isCloudinaryConfigured()) return;
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { v2: cloudinary } = require('cloudinary');
