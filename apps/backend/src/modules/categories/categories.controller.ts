@@ -14,6 +14,10 @@ export class CategoriesController {
     return this.categoriesService.findAll(inc === 'true');
   }
 
+  @Get('flat-all')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles('ADMIN', 'SUPER_ADMIN') @ApiBearerAuth()
+  findAllFlat() { return this.categoriesService.findAllFlat(); }
+
   @Get(':id') findOne(@Param('id') id: string) { return this.categoriesService.findOne(id); }
 
   @Post()

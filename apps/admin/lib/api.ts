@@ -88,6 +88,7 @@ export const productsApi = {
 
 export const categoriesApi = {
   getAll: () => api.get('/categories?includeInactive=true'),
+  getAllFlat: () => api.get('/categories/flat-all'),   // all 3 levels flat, admin only
   create: (data: any) => api.post('/categories', data),
   update: (id: string, data: any) => api.put(`/categories/${id}`, data),
   delete: (id: string) => api.delete(`/categories/${id}`),

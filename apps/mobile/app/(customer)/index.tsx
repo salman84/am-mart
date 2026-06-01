@@ -87,7 +87,7 @@ export default function HomeScreen() {
   const featureTopup = useSelector((state: RootState) => (state.appSettings as any)?.featureTopup !== false);
   const featureSim = useSelector((state: RootState) => (state.appSettings as any)?.featureSim !== false);
   const { t } = useLanguage();
-  const { appName, appLogo, currency } = useBranding();
+  const { appName, appLogo, currency, iconTopup, iconSimCards, iconRateInquiry } = useBranding();
 
   const [banners, setBanners]       = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -299,13 +299,16 @@ export default function HomeScreen() {
         {/* ── Quick Services (TopUp, SIM, Rate Inquiry only) ── */}
         <View style={styles.servicesSection}>
           {[
-            featureTopup && { icon: 'flash',          label: t('topUp'),       sub: t('localIntl'),     color: '#F97316', bg: '#FFF7ED', route: '/(customer)/topup' },
-            featureSim   && { icon: 'phone-portrait', label: t('simCards'),    sub: t('browseNumbers'), color: '#3B82F6', bg: '#EFF6FF', route: '/(customer)/sim' },
-                             { icon: 'trending-up',   label: t('rateInquiry'), sub: t('bestRates'),     color: '#10B981', bg: '#ECFDF5', route: '/(customer)/exchange-rates' },
+            featureTopup && { icon: 'flash',          imageUrl: iconTopup,       label: t('topUp'),       sub: t('localIntl'),     color: '#F97316', bg: '#FFF7ED', route: '/(customer)/topup' },
+            featureSim   && { icon: 'phone-portrait', imageUrl: iconSimCards,    label: t('simCards'),    sub: t('browseNumbers'), color: '#3B82F6', bg: '#EFF6FF', route: '/(customer)/sim' },
+                             { icon: 'trending-up',   imageUrl: iconRateInquiry, label: t('rateInquiry'), sub: t('bestRates'),     color: '#10B981', bg: '#ECFDF5', route: '/(customer)/exchange-rates' },
           ].filter(Boolean).map((s: any) => (
             <TouchableOpacity key={s.label} style={styles.serviceCard} onPress={() => router.push(s.route as any)}>
               <View style={[styles.serviceIconBox, { backgroundColor: s.bg }]}>
-                <Ionicons name={s.icon as any} size={24} color={s.color} />
+                {s.imageUrl
+                  ? <Image source={{ uri: s.imageUrl }} style={{ width: 28, height: 28 }} resizeMode="contain" />
+                  : <Ionicons name={s.icon as any} size={24} color={s.color} />
+                }
               </View>
               <Text style={styles.serviceLabel}>{s.label}</Text>
               <Text style={styles.serviceDesc} numberOfLines={1}>{s.sub}</Text>

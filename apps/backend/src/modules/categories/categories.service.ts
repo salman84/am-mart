@@ -37,4 +37,11 @@ export class CategoriesService {
     await this.prisma.category.update({ where: { id }, data: { isActive: false } });
     return { message: 'Category deactivated' };
   }
+
+  /** Returns every category flat (all levels) — used by admin icons page */
+  async findAllFlat() {
+    return this.prisma.category.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
 }
