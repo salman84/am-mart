@@ -11,7 +11,7 @@ module.exports = {
   expo: {
     name: APP_NAME,
     slug: 'am-mart',
-    owner: 'ammarket',
+    owner: 'ammarket1',
     version: VERSION,
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -140,7 +140,7 @@ module.exports = {
 
     extra: {
       eas: {
-        projectId: '2e9ab6a3-77f8-4011-bd2c-1b6873d22031',
+        projectId: 'afdc9d1a-7bc8-42e1-b40d-cd8a57079f61',
       },
       apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api/v1',
       appEnv: process.env.APP_ENV || 'development',
@@ -150,7 +150,7 @@ module.exports = {
       enabled: true,
       checkAutomatically: 'ON_LOAD',
       fallbackToCacheTimeout: 0,
-      url: 'https://u.expo.dev/2e9ab6a3-77f8-4011-bd2c-1b6873d22031',
+      url: 'https://u.expo.dev/afdc9d1a-7bc8-42e1-b40d-cd8a57079f61',
     },
 
     runtimeVersion: '1.0.0',

@@ -9,7 +9,7 @@
       "distribution": "internal",
       "env": {
         "APP_ENV": "development",
-        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031"
+        "EAS_PROJECT_ID": "afdc9d1a-7bc8-42e1-b40d-cd8a57079f61"
       },
       "android": {
         "buildType": "apk"
@@ -23,7 +23,7 @@
       "channel": "preview",
       "env": {
         "APP_ENV": "preview",
-        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031"
+        "EAS_PROJECT_ID": "afdc9d1a-7bc8-42e1-b40d-cd8a57079f61"
       },
       "android": {
         "buildType": "apk"
@@ -38,7 +38,7 @@
       "channel": "production",
       "env": {
         "APP_ENV": "production",
-        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031",
+        "EAS_PROJECT_ID": "afdc9d1a-7bc8-42e1-b40d-cd8a57079f61",
         "EXPO_PUBLIC_API_URL": "https://api.ammart.com/api/v1"
       },
       "android": {
@@ -53,7 +53,7 @@
       "extends": "production",
       "env": {
         "APP_ENV": "production",
-        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031",
+        "EAS_PROJECT_ID": "afdc9d1a-7bc8-42e1-b40d-cd8a57079f61",
         "EXPO_PUBLIC_API_URL": "http://192.168.0.38:3001/api/v1"
       },
       "android": {
@@ -65,7 +65,7 @@
       "channel": "live",
       "env": {
         "APP_ENV": "production",
-        "EAS_PROJECT_ID": "2e9ab6a3-77f8-4011-bd2c-1b6873d22031",
+        "EAS_PROJECT_ID": "afdc9d1a-7bc8-42e1-b40d-cd8a57079f61",
         "EXPO_PUBLIC_API_URL": "https://ammart-api.onrender.com/api/v1"
       },
       "android": {
