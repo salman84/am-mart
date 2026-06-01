@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 interface PublicSettings {
   APP_LOGO?: string;
   APP_NAME?: string;
+  APP_TAGLINE?: string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
@@ -28,9 +29,10 @@ export default function LoginPage() {
           data.settings.forEach((s: { key: string; value: string }) => {
             if (s.key === 'APP_LOGO') map.APP_LOGO = s.value;
             if (s.key === 'APP_NAME') map.APP_NAME = s.value;
+            if (s.key === 'APP_TAGLINE') map.APP_TAGLINE = s.value;
           });
           setPublicSettings(map);
-        } else if (data?.APP_LOGO || data?.APP_NAME) {
+        } else if (data && typeof data === 'object') {
           setPublicSettings(data as PublicSettings);
         }
       })
@@ -39,7 +41,9 @@ export default function LoginPage() {
       });
   }, []);
 
-  const appName = publicSettings.APP_NAME || 'AM Mart Admin';
+  const appName = publicSettings.APP_NAME || 'AM Mart';
+  const tagline = publicSettings.APP_TAGLINE || 'Sign in to manage your store';
+  const initials = appName.slice(0, 2).toUpperCase();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,11 +81,11 @@ export default function LoginPage() {
               />
             ) : (
               <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-4">
-                <span className="text-white font-extrabold text-xl">AM</span>
+                <span className="text-white font-extrabold text-xl">{initials}</span>
               </div>
             )}
             <h1 className="text-xl font-bold text-gray-900">{appName}</h1>
-            <p className="text-sm text-gray-500 mt-1">Sign in to manage your store</p>
+            <p className="text-sm text-gray-500 mt-1">{tagline}</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">

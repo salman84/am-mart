@@ -9,7 +9,9 @@ import {
   LogOut, Store, ChevronDown, ChevronRight, Smartphone, BarChart3, Tag,
   Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal, KeyRound, Palette,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '../lib/api';
 
 const navGroups = [
   {
@@ -77,6 +79,24 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
+  // Fetch settings — shares the same React Query cache as the Settings page,
+  // so the sidebar updates immediately when admin saves a new logo or name
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => adminApi.getSettings().then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const settingsMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (settingsData?.settings || []).forEach((s: any) => { map[s.key] = s.value ?? ''; });
+    return map;
+  }, [settingsData]);
+
+  const appName = settingsMap['APP_NAME'] || 'AM Mart';
+  const appLogo = settingsMap['APP_LOGO'] || '';
+  const initials = appName.slice(0, 2).toUpperCase();
+
   const toggleGroup = (label: string) => {
     setCollapsed((c) => ({ ...c, [label]: !c[label] }));
   };
@@ -88,13 +108,17 @@ export function Sidebar() {
 
   return (
     <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-40">
-      {/* Logo */}
+      {/* Logo — dynamic: pulls APP_LOGO and APP_NAME from settings */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100">
-        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-          <span className="text-white font-bold text-sm">AM</span>
-        </div>
-        <div>
-          <div className="font-bold text-gray-900 text-sm">AM Mart</div>
+        {appLogo ? (
+          <img src={appLogo} alt={appName} className="w-9 h-9 object-contain rounded-xl" />
+        ) : (
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-sm">{initials}</span>
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="font-bold text-gray-900 text-sm truncate">{appName}</div>
           <div className="text-xs text-gray-500">Admin Panel</div>
         </div>
       </div>
