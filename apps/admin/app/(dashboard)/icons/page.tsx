@@ -291,21 +291,24 @@ function CategoryRow({
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function IconsPage() {
   const qc = useQueryClient();
-  const [settingsValues, setSettingsValues] = useState<Record<string, string>>({});
+  // localOverrides: values set/changed in this session — take priority over DB values
+  const [localOverrides, setLocalOverrides] = useState<Record<string, string>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [uploadingCatId, setUploadingCatId] = useState<string | null>(null);
 
-  // ── Load settings ──
-  const { isLoading: settingsLoading } = useQuery({
+  // ── Load settings (DB values only — no side effects in queryFn) ──
+  const { data: settingsData, isLoading: settingsLoading } = useQuery({
     queryKey: ['settings'],
-    queryFn: () =>
-      adminApi.getSettings().then((r) => {
-        const vals: Record<string, string> = {};
-        (r.data?.settings || []).forEach((s: any) => { vals[s.key] = s.value; });
-        setSettingsValues(vals);
-        return r.data;
-      }),
+    queryFn: () => adminApi.getSettings().then((r) => r.data),
   });
+
+  // Merge DB values with local overrides — local overrides win so preview
+  // shows instantly after upload without waiting for the refetch to finish
+  const settingsValues = useMemo(() => {
+    const vals: Record<string, string> = {};
+    (settingsData?.settings || []).forEach((s: any) => { vals[s.key] = s.value ?? ''; });
+    return { ...vals, ...localOverrides };
+  }, [settingsData, localOverrides]);
 
   // ── Load categories (flat all levels) ──
   const { data: flatCats, isLoading: catsLoading } = useQuery({
@@ -350,13 +353,16 @@ export default function IconsPage() {
     if (!file) return;
     if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
     if (file.size > 2 * 1024 * 1024) { toast.error('Icon must be under 2MB'); return; }
+    // Reset file input so same file can be re-selected if needed
+    e.target.value = '';
     setUploadingKey(key);
     try {
       const res = await uploadApi.uploadImage(file, 'icons');
       const url = res.data.url;
-      setSettingsValues((v) => ({ ...v, [key]: url }));
+      // Set local override immediately — preview shows without waiting for refetch
+      setLocalOverrides((v) => ({ ...v, [key]: url }));
       await adminApi.updateSetting(key, url);
-      toast.success('Icon uploaded — app will reflect instantly on next open');
+      toast.success('Icon saved — app will update when opened/resumed');
       qc.invalidateQueries({ queryKey: ['settings'] });
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Upload failed');
@@ -366,7 +372,8 @@ export default function IconsPage() {
   };
 
   const handleMainIconRemove = async (key: string) => {
-    setSettingsValues((v) => ({ ...v, [key]: '' }));
+    // Clear local override immediately so preview reverts to built-in icon
+    setLocalOverrides((v) => ({ ...v, [key]: '' }));
     await adminApi.updateSetting(key, '');
     toast.success('Icon removed — built-in icon restored');
     qc.invalidateQueries({ queryKey: ['settings'] });

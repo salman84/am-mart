@@ -5,7 +5,7 @@
  */
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { AppState } from 'react-native';
-import { appSettingsApi } from '../services/api';
+import { appSettingsApi, clearApiCache } from '../services/api';
 
 export interface Branding {
   appName: string;
@@ -86,10 +86,14 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   // Initial load
   useEffect(() => { load(); }, [load]);
 
-  // Re-fetch when app comes to foreground — instant icon updates from admin
+  // Re-fetch when app comes to foreground — clear cache first so we always
+  // get the latest icons/settings instead of the 10-min cached version
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') load();
+      if (state === 'active') {
+        clearApiCache('/admin/public-settings');
+        load();
+      }
     });
     return () => sub.remove();
   }, [load]);
