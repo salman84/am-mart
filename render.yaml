@@ -1,66 +1,50 @@
 services:
   - type: web
-    name: ammart-backend
+    name: ammart-api
     env: node
-    region: singapore        # closest free region to Myanmar
+    region: singapore
     plan: free
-    buildCommand: >
-      npm install -g pnpm@9.1.0 &&
-      pnpm install &&
-      cd apps/backend &&
-      npx prisma generate &&
-      npx prisma db push &&
-      pnpm build
-    startCommand: cd apps/backend && node dist/main.js
-    healthCheckPath: /health
+    rootDir: apps/backend
+    buildCommand: chmod +x ./render-build.sh && ./render-build.sh
+    startCommand: node dist/main.js
+    healthCheckPath: /api/v1/health
 
     envVars:
-      # ── Runtime ──────────────────────────────────────────────────────────────
       - key: NODE_ENV
         value: production
-
-      # ── Database (Neon) ───────────────────────────────────────────────────────
-      - key: DATABASE_URL
-        sync: false           # paste your Neon connection string in Render dashboard
-
-      # ── Auth ──────────────────────────────────────────────────────────────────
-      - key: JWT_SECRET
-        sync: false
-      - key: JWT_REFRESH_SECRET
-        sync: false
+      - key: PORT
+        value: 10000
+      - key: APP_URL
+        value: https://ammart-api.onrender.com
+      - key: FRONTEND_URL
+        value: https://ammart-admin-panel.vercel.app
       - key: JWT_EXPIRES_IN
         value: 15m
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
-
-      # ── File storage (Cloudinary) ─────────────────────────────────────────────
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
-        sync: false
-
-      # ── App URLs ──────────────────────────────────────────────────────────────
-      # Set APP_URL to your Render service URL after first deploy
-      # e.g. https://ammart-backend.onrender.com
-      - key: APP_URL
-        sync: false
-      # Set FRONTEND_URL to your Vercel admin URL after first deploy
-      # e.g. https://ammart-admin.vercel.app
-      - key: FRONTEND_URL
-        sync: false
-
-      # ── Admin seed account ────────────────────────────────────────────────────
+      - key: FIREBASE_WEB_API_KEY
+        value: AIzaSyDodj0NvApuNGGFmSwvBmVxsziEmqeucqk
+      - key: FIREBASE_PROJECT_ID
+        value: am-mart-267d8
+      - key: FIREBASE_CLIENT_EMAIL
+        value: firebase-adminsdk-fbsvc@am-mart-267d8.iam.gserviceaccount.com
       - key: ADMIN_EMAIL
+        value: admin@ammart.com
+      - key: THROTTLE_TTL
+        value: 60
+      - key: THROTTLE_LIMIT
+        value: 200
+
+      # ── Secrets: set once in Render dashboard, never in git ──────────────
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
-
-      # ── Rate limiting ─────────────────────────────────────────────────────────
-      - key: THROTTLE_TTL
-        value: 60
-      - key: THROTTLE_LIMIT
-        value: 200
