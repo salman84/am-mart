@@ -89,63 +89,70 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
       <svg viewBox="0 0 1440 800" fill="none" xmlns="http://www.w3.org/2000/svg"
-        className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice">
+        className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice"
+        style={{ opacity: 1 }}>
         <defs>
           {/* Road texture */}
           <pattern id="roadLines" patternUnits="userSpaceOnUse" width="20" height="4" patternTransform="rotate(0)">
             <rect width="12" height="2" y="1" fill="rgba(255,255,255,0.35)" rx="1"/>
           </pattern>
           {/* Tree gradient */}
-          <radialGradient id="treeGrad" cx="50%" cy="40%"><stop offset="0%" stopColor="#22c55e" stopOpacity="0.5"/><stop offset="100%" stopColor="#15803d" stopOpacity="0.3"/></radialGradient>
+          <radialGradient id="treeGrad" cx="50%" cy="40%"><stop offset="0%" stopColor="#22c55e" stopOpacity="0.7"/><stop offset="100%" stopColor="#15803d" stopOpacity="0.45"/></radialGradient>
           {/* Building gradient */}
-          <linearGradient id="bldg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={primaryColor} stopOpacity="0.12"/><stop offset="100%" stopColor={primaryColor} stopOpacity="0.04"/></linearGradient>
-          <linearGradient id="bldg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6366f1" stopOpacity="0.10"/><stop offset="100%" stopColor="#6366f1" stopOpacity="0.03"/></linearGradient>
-          <linearGradient id="bldg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f59e0b" stopOpacity="0.10"/><stop offset="100%" stopColor="#f59e0b" stopOpacity="0.03"/></linearGradient>
+          <linearGradient id="bldg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={primaryColor} stopOpacity="0.28"/><stop offset="100%" stopColor={primaryColor} stopOpacity="0.10"/></linearGradient>
+          <linearGradient id="bldg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6366f1" stopOpacity="0.24"/><stop offset="100%" stopColor="#6366f1" stopOpacity="0.08"/></linearGradient>
+          <linearGradient id="bldg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f59e0b" stopOpacity="0.24"/><stop offset="100%" stopColor="#f59e0b" stopOpacity="0.08"/></linearGradient>
           {/* Ground */}
-          <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f0fdf4" stopOpacity="0.5"/><stop offset="100%" stopColor="#ecfdf5" stopOpacity="0.2"/></linearGradient>
+          <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f0fdf4" stopOpacity="0.7"/><stop offset="100%" stopColor="#e8f5e9" stopOpacity="0.4"/></linearGradient>
         </defs>
 
         {/* Ground layer */}
         <rect width="1440" height="800" fill="url(#ground)"/>
 
-        {/* Grid streets — horizontal */}
-        <rect x="0" y="340" width="1440" height="28" rx="3" fill="#d1d5db" opacity="0.25"/>
-        <rect x="0" y="346" width="1440" height="16" rx="2" fill="#9ca3af" opacity="0.18"/>
-        <rect x="0" y="351" width="1440" height="6" fill="url(#roadLines)"/>
+        {/* Grid streets — horizontal (main roads) */}
+        <rect x="0" y="338" width="1440" height="32" rx="4" fill="#c9cdd3" opacity="0.55"/>
+        <rect x="0" y="345" width="1440" height="18" rx="3" fill="#9ca3af" opacity="0.45"/>
+        <rect x="0" y="350" width="1440" height="8" fill="url(#roadLines)"/>
 
-        <rect x="0" y="560" width="1440" height="22" rx="3" fill="#d1d5db" opacity="0.2"/>
-        <rect x="0" y="565" width="1440" height="12" rx="2" fill="#9ca3af" opacity="0.15"/>
-        <rect x="0" y="569" width="1440" height="4" fill="url(#roadLines)"/>
+        <rect x="0" y="558" width="1440" height="26" rx="4" fill="#c9cdd3" opacity="0.45"/>
+        <rect x="0" y="563" width="1440" height="14" rx="3" fill="#9ca3af" opacity="0.38"/>
+        <rect x="0" y="567" width="1440" height="6" fill="url(#roadLines)"/>
 
         {/* Grid streets — vertical */}
-        <rect x="350" y="0" width="22" height="800" rx="3" fill="#d1d5db" opacity="0.2"/>
-        <rect x="355" y="0" width="12" height="800" rx="2" fill="#9ca3af" opacity="0.15"/>
+        <rect x="348" y="0" width="26" height="800" rx="4" fill="#c9cdd3" opacity="0.45"/>
+        <rect x="354" y="0" width="14" height="800" rx="3" fill="#9ca3af" opacity="0.38"/>
 
-        <rect x="750" y="0" width="26" height="800" rx="3" fill="#d1d5db" opacity="0.22"/>
-        <rect x="756" y="0" width="14" height="800" rx="2" fill="#9ca3af" opacity="0.16"/>
+        <rect x="748" y="0" width="30" height="800" rx="4" fill="#c9cdd3" opacity="0.5"/>
+        <rect x="755" y="0" width="16" height="800" rx="3" fill="#9ca3af" opacity="0.4"/>
 
-        <rect x="1100" y="0" width="20" height="800" rx="3" fill="#d1d5db" opacity="0.18"/>
-        <rect x="1104" y="0" width="12" height="800" rx="2" fill="#9ca3af" opacity="0.13"/>
+        <rect x="1098" y="0" width="24" height="800" rx="4" fill="#c9cdd3" opacity="0.42"/>
+        <rect x="1103" y="0" width="14" height="800" rx="3" fill="#9ca3af" opacity="0.35"/>
 
         {/* Building blocks — city-like grid */}
         {/* Block 1 — top-left */}
-        <rect x="80" y="120" width="90" height="130" rx="6" fill="url(#bldg1)" stroke={primaryColor} strokeOpacity="0.08" strokeWidth="1"/>
-        <rect x="85" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.08"/>
-        <rect x="115" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.08"/>
-        <rect x="145" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.08"/>
-        <rect x="85" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.06"/>
-        <rect x="115" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.06"/>
-        <rect x="145" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.06"/>
+        <rect x="80" y="120" width="90" height="130" rx="6" fill="url(#bldg1)" stroke={primaryColor} strokeOpacity="0.18" strokeWidth="1.5"/>
+        <rect x="85" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.18"/>
+        <rect x="115" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.18"/>
+        <rect x="145" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.18"/>
+        <rect x="85" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.14"/>
+        <rect x="115" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.14"/>
+        <rect x="145" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.14"/>
+        <rect x="85" y="175" width="20" height="16" rx="2" fill={primaryColor} opacity="0.10"/>
+        <rect x="115" y="175" width="20" height="16" rx="2" fill={primaryColor} opacity="0.10"/>
+        <rect x="145" y="175" width="20" height="16" rx="2" fill={primaryColor} opacity="0.10"/>
 
-        <rect x="200" y="80" width="70" height="170" rx="6" fill="url(#bldg2)" stroke="#6366f1" strokeOpacity="0.06" strokeWidth="1"/>
-        <rect x="206" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.07"/>
-        <rect x="226" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.07"/>
-        <rect x="246" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.07"/>
+        <rect x="200" y="80" width="70" height="170" rx="6" fill="url(#bldg2)" stroke="#6366f1" strokeOpacity="0.15" strokeWidth="1.5"/>
+        <rect x="206" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.16"/>
+        <rect x="226" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.16"/>
+        <rect x="246" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.16"/>
+        <rect x="206" y="106" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.12"/>
+        <rect x="226" y="106" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.12"/>
+        <rect x="246" y="106" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.12"/>
 
         {/* Block 2 — top-center */}
-        <rect x="420" y="100" width="120" height="150" rx="8" fill="url(#bldg1)" stroke={primaryColor} strokeOpacity="0.06" strokeWidth="1"/>
-        <rect x="560" y="140" width="80" height="110" rx="6" fill="url(#bldg3)" stroke="#f59e0b" strokeOpacity="0.06" strokeWidth="1"/>
-        <rect x="660" y="110" width="60" height="140" rx="5" fill="url(#bldg2)" stroke="#6366f1" strokeOpacity="0.06" strokeWidth="1"/>
+        <rect x="420" y="100" width="120" height="150" rx="8" fill="url(#bldg1)" stroke={primaryColor} strokeOpacity="0.14" strokeWidth="1.5"/>
+        <rect x="560" y="140" width="80" height="110" rx="6" fill="url(#bldg3)" stroke="#f59e0b" strokeOpacity="0.14" strokeWidth="1.5"/>
+        <rect x="660" y="110" width="60" height="140" rx="5" fill="url(#bldg2)" stroke="#6366f1" strokeOpacity="0.14" strokeWidth="1.5"/>
 
         {/* Block 3 — right side */}
         <rect x="820" y="80" width="100" height="170" rx="6" fill="url(#bldg1)"/>
@@ -176,34 +183,44 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
         ))}
 
         {/* Location pins */}
-        {/* Pin at customer door — destination */}
+        {/* Pin at customer door — destination (red, pulsing) */}
         <g className="animate-bounce" style={{ animationDuration: '2s', animationDelay: '0.5s' }}>
-          <path d="M1220 310 c0-14 12-26 26-26 14 0 26 12 26 26 0 18-26 38-26 38s-26-20-26-38z"
-            fill="#ef4444" opacity="0.7"/>
-          <circle cx="1246" cy="310" r="8" fill="white" opacity="0.9"/>
+          <circle cx="1246" cy="310" r="20" fill="#ef4444" opacity="0.15">
+            <animate attributeName="r" values="18;28;18" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.2;0.05;0.2" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <path d="M1220 305 c0-16 12-28 26-28 14 0 26 12 26 28 0 20-26 42-26 42s-26-22-26-42z"
+            fill="#ef4444" opacity="0.9"/>
+          <circle cx="1246" cy="305" r="9" fill="white" opacity="0.95"/>
+          <circle cx="1246" cy="305" r="4" fill="#ef4444" opacity="0.7"/>
         </g>
-        {/* Pin at warehouse — origin */}
-        <g opacity="0.5">
-          <path d="M100 320 c0-12 10-22 22-22 12 0 22 10 22 22 0 16-22 32-22 32s-22-16-22-32z"
-            fill={primaryColor}/>
-          <circle cx="122" cy="320" r="7" fill="white" opacity="0.9"/>
+        {/* Pin at warehouse — origin (green) */}
+        <g>
+          <circle cx="122" cy="315" r="16" fill={primaryColor} opacity="0.12">
+            <animate attributeName="r" values="14;22;14" dur="2.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.15;0.04;0.15" dur="2.5s" repeatCount="indefinite"/>
+          </circle>
+          <path d="M100 310 c0-14 10-24 22-24 12 0 22 10 22 24 0 18-22 36-22 36s-22-18-22-36z"
+            fill={primaryColor} opacity="0.85"/>
+          <circle cx="122" cy="310" r="8" fill="white" opacity="0.95"/>
+          <circle cx="122" cy="310" r="3.5" fill={primaryColor} opacity="0.7"/>
         </g>
 
-        {/* Delivery route — dashed path showing the route */}
-        <path d="M140 354 L750 354" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
-          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        {/* Delivery route — animated dashed path */}
+        <path d="M140 354 L750 354" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
+          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
         </path>
-        <path d="M763 354 L763 200" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
-          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        <path d="M763 354 L763 200" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
+          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
         </path>
-        <path d="M763 200 L1100 200" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
-          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        <path d="M763 200 L1100 200" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
+          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
         </path>
-        <path d="M1110 200 L1110 320" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
-          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        <path d="M1110 200 L1110 320" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
+          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
         </path>
-        <path d="M1110 320 L1230 320" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
-          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        <path d="M1110 320 L1230 320" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
+          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
         </path>
 
         {/* ════ DELIVERY TRUCK ════ */}
@@ -212,23 +229,32 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
           <animateMotion dur="14s" repeatCount="indefinite"
             path="M140,348 L750,348 L755,348 L760,340 L760,200 L765,195 L1100,195 L1105,200 L1105,320 L1110,325 L1230,325"
             rotate="auto" keyPoints="0;0.45;0.45;0.55;0.55;0.7;0.7;0.85;0.85;1;1" keyTimes="0;0.35;0.36;0.48;0.49;0.65;0.66;0.78;0.79;0.92;1" calcMode="linear"/>
-          {/* Truck body */}
-          <rect x="-28" y="-12" width="36" height="22" rx="4" fill={primaryColor} opacity="0.85"/>
-          {/* Cargo area */}
-          <rect x="-28" y="-11" width="22" height="20" rx="3" fill="white" opacity="0.3"/>
+          {/* Shadow under truck */}
+          <ellipse cx="-6" cy="18" rx="22" ry="4" fill="#000" opacity="0.08"/>
+          {/* Truck body — cargo container */}
+          <rect x="-30" y="-14" width="40" height="26" rx="4" fill={primaryColor}/>
+          <rect x="-30" y="-14" width="40" height="26" rx="4" fill="white" opacity="0.15"/>
+          {/* Cargo area (white box) */}
+          <rect x="-29" y="-12" width="24" height="22" rx="3" fill="white" opacity="0.85"/>
+          <rect x="-29" y="-12" width="24" height="22" rx="3" stroke={primaryColor} strokeWidth="1" strokeOpacity="0.3" fill="none"/>
           {/* Cab */}
-          <rect x="-2" y="-8" width="14" height="16" rx="3" fill={primaryColor}/>
-          {/* Windshield */}
-          <rect x="0" y="-6" width="10" height="8" rx="2" fill="#bfdbfe" opacity="0.8"/>
-          {/* Wheels */}
-          <circle cx="-18" cy="12" r="5" fill="#374151" opacity="0.7"/>
-          <circle cx="-18" cy="12" r="2.5" fill="#6b7280" opacity="0.5"/>
-          <circle cx="4" cy="12" r="5" fill="#374151" opacity="0.7"/>
-          <circle cx="4" cy="12" r="2.5" fill="#6b7280" opacity="0.5"/>
-          {/* Package icon on truck */}
-          <rect x="-22" y="-5" width="10" height="8" rx="1.5" fill={primaryColor} opacity="0.4" stroke="white" strokeWidth="0.5" strokeOpacity="0.5"/>
-          <line x1="-17" y1="-5" x2="-17" y2="3" stroke="white" strokeWidth="0.5" opacity="0.4"/>
-          <line x1="-22" y1="-1" x2="-12" y2="-1" stroke="white" strokeWidth="0.5" opacity="0.4"/>
+          <rect x="-1" y="-9" width="16" height="18" rx="3" fill={primaryColor}/>
+          {/* Windshield — glass effect */}
+          <rect x="1" y="-7" width="12" height="9" rx="2" fill="#93c5fd"/>
+          <rect x="1" y="-7" width="12" height="4" rx="2" fill="white" opacity="0.3"/>
+          {/* Headlight */}
+          <rect x="14" y="2" width="3" height="4" rx="1" fill="#fbbf24" opacity="0.8"/>
+          {/* Wheels with detail */}
+          <circle cx="-19" cy="14" r="6" fill="#1f2937"/>
+          <circle cx="-19" cy="14" r="3" fill="#4b5563"/>
+          <circle cx="-19" cy="14" r="1.2" fill="#9ca3af"/>
+          <circle cx="5" cy="14" r="6" fill="#1f2937"/>
+          <circle cx="5" cy="14" r="3" fill="#4b5563"/>
+          <circle cx="5" cy="14" r="1.2" fill="#9ca3af"/>
+          {/* Package icons on cargo */}
+          <rect x="-24" y="-6" width="8" height="7" rx="1.5" fill={primaryColor} opacity="0.5" stroke={primaryColor} strokeWidth="0.7" strokeOpacity="0.3"/>
+          <rect x="-14" y="-6" width="8" height="7" rx="1.5" fill="#f59e0b" opacity="0.4" stroke="#f59e0b" strokeWidth="0.7" strokeOpacity="0.3"/>
+          <rect x="-20" y="2" width="7" height="6" rx="1.5" fill="#6366f1" opacity="0.35"/>
         </g>
 
         {/* ════ SECOND VEHICLE — smaller, different route ════ */}
@@ -266,8 +292,8 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
 
       </svg>
 
-      {/* Soft overlay to ensure text readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/40 to-white/70" />
+      {/* Soft overlay — left side lighter for text, right side shows more map */}
+      <div className="absolute inset-0 bg-gradient-to-r from-white/50 via-white/20 to-white/10" />
     </div>
   );
 }
@@ -432,7 +458,7 @@ export default function LandingPage() {
       {/* ═══════════════ HERO ═══════════════ */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
         {/* Dynamic background — admin can switch between animation/image/video/none */}
-        <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 z-0">
           {heroBgType === 'animation' && <DeliveryMapAnimation primaryColor={primaryColor} />}
           {heroBgType === 'image' && heroBgImage && (
             <div className="absolute inset-0">
@@ -458,11 +484,11 @@ export default function LandingPage() {
           )}
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <FadeIn>
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gray-100 text-sm font-medium text-gray-700 mb-6">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 backdrop-blur-sm text-sm font-medium text-gray-700 mb-6">
                   <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: primaryColor }} />
                   Available on Android &amp; iOS
                 </div>
@@ -546,8 +572,8 @@ export default function LandingPage() {
         </div>
 
         <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <ChevronDown className="w-6 h-6 text-gray-400" />
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10">
+          <ChevronDown className="w-6 h-6 text-gray-500" />
         </motion.div>
       </section>
 
