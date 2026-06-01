@@ -5,7 +5,10 @@
  */
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { appSettingsApi, clearApiCache } from '../services/api';
+
+const BRANDING_CACHE_KEY = '@ammart_branding_cache';
 
 export interface Branding {
   appName: string;
@@ -53,24 +56,43 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   });
   const retryCount = React.useRef(0);
 
+  // ── Helper: convert API data → branding object ──────────────────────────
+  const apiToBranding = useCallback((d: any): Omit<Branding, 'reload'> => ({
+    appName:        d.APP_NAME         || 'AM Mart',
+    appLogo:        d.APP_LOGO         || '',
+    appIconLogo:    d.APP_ICON_LOGO    || '',
+    splashLogo:     d.SPLASH_LOGO      || '',
+    splashBgColor:  d.SPLASH_BG_COLOR  || '#10B981',
+    iconTopup:      d.ICON_TOPUP       || '',
+    iconSimCards:   d.ICON_SIM_CARDS   || '',
+    iconRateInquiry:d.ICON_RATE_INQUIRY || '',
+    currency:       d.CURRENCY_SYMBOL  || d.CURRENCY || '₩',
+    loaded:         true,
+  }), []);
+
+  // ── On first mount: load cached branding from disk (instant, no API wait) ─
+  useEffect(() => {
+    (async () => {
+      try {
+        const cached = await AsyncStorage.getItem(BRANDING_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setBranding((prev) => prev.loaded ? prev : { ...parsed, loaded: true });
+        }
+      } catch {}
+    })();
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const res = await appSettingsApi.getPublic();
       const d = res.data;
       if (d) {
         retryCount.current = 0;
-        setBranding({
-          appName:        d.APP_NAME         || 'AM Mart',
-          appLogo:        d.APP_LOGO         || '',
-          appIconLogo:    d.APP_ICON_LOGO    || '',
-          splashLogo:     d.SPLASH_LOGO      || '',
-          splashBgColor:  d.SPLASH_BG_COLOR  || '#10B981',
-          iconTopup:      d.ICON_TOPUP       || '',
-          iconSimCards:   d.ICON_SIM_CARDS   || '',
-          iconRateInquiry:d.ICON_RATE_INQUIRY || '',
-          currency:       d.CURRENCY_SYMBOL  || d.CURRENCY || '₩',
-          loaded:         true,
-        });
+        const newBranding = apiToBranding(d);
+        setBranding(newBranding);
+        // Persist to disk so next app launch has instant splash data
+        AsyncStorage.setItem(BRANDING_CACHE_KEY, JSON.stringify(newBranding)).catch(() => {});
         return;
       }
     } catch {}
@@ -81,7 +103,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       retryCount.current += 1;
       setTimeout(load, delay);
     }
-  }, []);
+  }, [apiToBranding]);
 
   // Initial load
   useEffect(() => { load(); }, [load]);
