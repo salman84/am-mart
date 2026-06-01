@@ -39,7 +39,7 @@
       "env": {
         "APP_ENV": "production",
         "EAS_PROJECT_ID": "afdc9d1a-7bc8-42e1-b40d-cd8a57079f61",
-        "EXPO_PUBLIC_API_URL": "https://api.ammart.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://ammart-api.onrender.com/api/v1"
       },
       "android": {
         "buildType": "app-bundle"
@@ -54,7 +54,7 @@
       "env": {
         "APP_ENV": "production",
         "EAS_PROJECT_ID": "afdc9d1a-7bc8-42e1-b40d-cd8a57079f61",
-        "EXPO_PUBLIC_API_URL": "http://192.168.0.38:3001/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://ammart-api.onrender.com/api/v1"
       },
       "android": {
         "buildType": "apk"
