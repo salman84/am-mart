@@ -2,6 +2,9 @@ node_modules
 .env
 .env.local
 .env.production
+# Allow non-secret production env files for Vercel auto-deploy
+!apps/admin/.env.production
+!apps/seller/.env.production
 dist
 build
 .next
