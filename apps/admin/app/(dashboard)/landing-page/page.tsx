@@ -34,6 +34,21 @@ const SECTIONS = [
     ],
   },
   {
+    label: 'Hero Background',
+    icon: ImageIcon,
+    fields: [
+      { key: 'LP_HERO_BG_TYPE',  label: 'Background Type', placeholder: 'animation', type: 'select',
+        options: [
+          { value: 'animation', label: 'Delivery Map Animation (default)' },
+          { value: 'image',     label: 'Custom Background Image' },
+          { value: 'video',     label: 'Custom Background Video' },
+          { value: 'none',      label: 'Plain Gradient (no animation)' },
+        ] },
+      { key: 'LP_HERO_BG_IMAGE', label: 'Background Image (used when type = image)', type: 'image' },
+      { key: 'LP_HERO_BG_VIDEO', label: 'Background Video URL (used when type = video)', placeholder: 'https://example.com/video.mp4' },
+    ],
+  },
+  {
     label: 'Statistics',
     icon: BarChart3,
     fields: [
@@ -310,7 +325,23 @@ export default function LandingPageAdmin() {
                         <span className="text-xs text-gray-400 ml-2 font-mono">{field.key}</span>
                       </label>
 
-                      {field.type === 'image' ? (
+                      {field.type === 'select' ? (
+                        <div className="flex gap-2">
+                          <select
+                            value={getValue(field.key) || field.options?.[0]?.value || ''}
+                            onChange={(e) => { handleChange(field.key, e.target.value); }}
+                            className="flex-1 form-input text-sm">
+                            {(field.options || []).map((opt: any) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <button onClick={() => handleSave(field.key)}
+                            className="p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                            title="Save">
+                            <Save className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : field.type === 'image' ? (
                         <ImageUpload
                           settingKey={field.key}
                           currentValue={getValue(field.key)}

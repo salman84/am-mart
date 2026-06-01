@@ -84,6 +84,194 @@ const SERVICE_COLORS = [
   { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
 ];
 
+/* ─── Animated Map Background — realistic delivery scene ──────────────── */
+function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+      <svg viewBox="0 0 1440 800" fill="none" xmlns="http://www.w3.org/2000/svg"
+        className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          {/* Road texture */}
+          <pattern id="roadLines" patternUnits="userSpaceOnUse" width="20" height="4" patternTransform="rotate(0)">
+            <rect width="12" height="2" y="1" fill="rgba(255,255,255,0.35)" rx="1"/>
+          </pattern>
+          {/* Tree gradient */}
+          <radialGradient id="treeGrad" cx="50%" cy="40%"><stop offset="0%" stopColor="#22c55e" stopOpacity="0.5"/><stop offset="100%" stopColor="#15803d" stopOpacity="0.3"/></radialGradient>
+          {/* Building gradient */}
+          <linearGradient id="bldg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={primaryColor} stopOpacity="0.12"/><stop offset="100%" stopColor={primaryColor} stopOpacity="0.04"/></linearGradient>
+          <linearGradient id="bldg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6366f1" stopOpacity="0.10"/><stop offset="100%" stopColor="#6366f1" stopOpacity="0.03"/></linearGradient>
+          <linearGradient id="bldg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f59e0b" stopOpacity="0.10"/><stop offset="100%" stopColor="#f59e0b" stopOpacity="0.03"/></linearGradient>
+          {/* Ground */}
+          <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f0fdf4" stopOpacity="0.5"/><stop offset="100%" stopColor="#ecfdf5" stopOpacity="0.2"/></linearGradient>
+        </defs>
+
+        {/* Ground layer */}
+        <rect width="1440" height="800" fill="url(#ground)"/>
+
+        {/* Grid streets — horizontal */}
+        <rect x="0" y="340" width="1440" height="28" rx="3" fill="#d1d5db" opacity="0.25"/>
+        <rect x="0" y="346" width="1440" height="16" rx="2" fill="#9ca3af" opacity="0.18"/>
+        <rect x="0" y="351" width="1440" height="6" fill="url(#roadLines)"/>
+
+        <rect x="0" y="560" width="1440" height="22" rx="3" fill="#d1d5db" opacity="0.2"/>
+        <rect x="0" y="565" width="1440" height="12" rx="2" fill="#9ca3af" opacity="0.15"/>
+        <rect x="0" y="569" width="1440" height="4" fill="url(#roadLines)"/>
+
+        {/* Grid streets — vertical */}
+        <rect x="350" y="0" width="22" height="800" rx="3" fill="#d1d5db" opacity="0.2"/>
+        <rect x="355" y="0" width="12" height="800" rx="2" fill="#9ca3af" opacity="0.15"/>
+
+        <rect x="750" y="0" width="26" height="800" rx="3" fill="#d1d5db" opacity="0.22"/>
+        <rect x="756" y="0" width="14" height="800" rx="2" fill="#9ca3af" opacity="0.16"/>
+
+        <rect x="1100" y="0" width="20" height="800" rx="3" fill="#d1d5db" opacity="0.18"/>
+        <rect x="1104" y="0" width="12" height="800" rx="2" fill="#9ca3af" opacity="0.13"/>
+
+        {/* Building blocks — city-like grid */}
+        {/* Block 1 — top-left */}
+        <rect x="80" y="120" width="90" height="130" rx="6" fill="url(#bldg1)" stroke={primaryColor} strokeOpacity="0.08" strokeWidth="1"/>
+        <rect x="85" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.08"/>
+        <rect x="115" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.08"/>
+        <rect x="145" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.08"/>
+        <rect x="85" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.06"/>
+        <rect x="115" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.06"/>
+        <rect x="145" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.06"/>
+
+        <rect x="200" y="80" width="70" height="170" rx="6" fill="url(#bldg2)" stroke="#6366f1" strokeOpacity="0.06" strokeWidth="1"/>
+        <rect x="206" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.07"/>
+        <rect x="226" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.07"/>
+        <rect x="246" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.07"/>
+
+        {/* Block 2 — top-center */}
+        <rect x="420" y="100" width="120" height="150" rx="8" fill="url(#bldg1)" stroke={primaryColor} strokeOpacity="0.06" strokeWidth="1"/>
+        <rect x="560" y="140" width="80" height="110" rx="6" fill="url(#bldg3)" stroke="#f59e0b" strokeOpacity="0.06" strokeWidth="1"/>
+        <rect x="660" y="110" width="60" height="140" rx="5" fill="url(#bldg2)" stroke="#6366f1" strokeOpacity="0.06" strokeWidth="1"/>
+
+        {/* Block 3 — right side */}
+        <rect x="820" y="80" width="100" height="170" rx="6" fill="url(#bldg1)"/>
+        <rect x="940" y="120" width="70" height="130" rx="5" fill="url(#bldg3)"/>
+        <rect x="1030" y="90" width="50" height="160" rx="4" fill="url(#bldg2)"/>
+
+        {/* Block 4 — middle row between roads */}
+        <rect x="100" y="400" width="110" height="100" rx="6" fill="url(#bldg3)"/>
+        <rect x="240" y="420" width="80" height="80" rx="5" fill="url(#bldg1)"/>
+        <rect x="420" y="390" width="140" height="120" rx="7" fill="url(#bldg2)"/>
+        <rect x="600" y="410" width="100" height="90" rx="5" fill="url(#bldg3)"/>
+        <rect x="830" y="395" width="120" height="110" rx="6" fill="url(#bldg1)"/>
+        <rect x="980" y="415" width="90" height="90" rx="5" fill="url(#bldg2)"/>
+
+        {/* Block 5 — bottom */}
+        <rect x="60" y="620" width="130" height="100" rx="7" fill="url(#bldg1)"/>
+        <rect x="230" y="640" width="90" height="80" rx="5" fill="url(#bldg2)"/>
+        <rect x="420" y="610" width="100" height="110" rx="6" fill="url(#bldg3)"/>
+        <rect x="800" y="625" width="110" height="95" rx="6" fill="url(#bldg1)"/>
+        <rect x="1150" y="610" width="130" height="110" rx="7" fill="url(#bldg2)"/>
+
+        {/* Trees (scattered along roads) */}
+        {[140,310,500,680,900,1050,1200].map(x => (
+          <g key={`t1-${x}`}><circle cx={x} cy={310} r="14" fill="url(#treeGrad)"/><circle cx={x+8} cy={305} r="10" fill="url(#treeGrad)"/></g>
+        ))}
+        {[180,400,600,850,1000,1280].map(x => (
+          <g key={`t2-${x}`}><circle cx={x} cy={535} r="12" fill="url(#treeGrad)"/><circle cx={x+6} cy={530} r="9" fill="url(#treeGrad)"/></g>
+        ))}
+
+        {/* Location pins */}
+        {/* Pin at customer door — destination */}
+        <g className="animate-bounce" style={{ animationDuration: '2s', animationDelay: '0.5s' }}>
+          <path d="M1220 310 c0-14 12-26 26-26 14 0 26 12 26 26 0 18-26 38-26 38s-26-20-26-38z"
+            fill="#ef4444" opacity="0.7"/>
+          <circle cx="1246" cy="310" r="8" fill="white" opacity="0.9"/>
+        </g>
+        {/* Pin at warehouse — origin */}
+        <g opacity="0.5">
+          <path d="M100 320 c0-12 10-22 22-22 12 0 22 10 22 22 0 16-22 32-22 32s-22-16-22-32z"
+            fill={primaryColor}/>
+          <circle cx="122" cy="320" r="7" fill="white" opacity="0.9"/>
+        </g>
+
+        {/* Delivery route — dashed path showing the route */}
+        <path d="M140 354 L750 354" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
+          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        </path>
+        <path d="M763 354 L763 200" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
+          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        </path>
+        <path d="M763 200 L1100 200" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
+          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        </path>
+        <path d="M1110 200 L1110 320" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
+          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        </path>
+        <path d="M1110 320 L1230 320" stroke={primaryColor} strokeWidth="3" strokeDasharray="8 6" opacity="0.15">
+          <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.5s" repeatCount="indefinite"/>
+        </path>
+
+        {/* ════ DELIVERY TRUCK ════ */}
+        {/* Phase 1: go right on main road */}
+        <g>
+          <animateMotion dur="14s" repeatCount="indefinite"
+            path="M140,348 L750,348 L755,348 L760,340 L760,200 L765,195 L1100,195 L1105,200 L1105,320 L1110,325 L1230,325"
+            rotate="auto" keyPoints="0;0.45;0.45;0.55;0.55;0.7;0.7;0.85;0.85;1;1" keyTimes="0;0.35;0.36;0.48;0.49;0.65;0.66;0.78;0.79;0.92;1" calcMode="linear"/>
+          {/* Truck body */}
+          <rect x="-28" y="-12" width="36" height="22" rx="4" fill={primaryColor} opacity="0.85"/>
+          {/* Cargo area */}
+          <rect x="-28" y="-11" width="22" height="20" rx="3" fill="white" opacity="0.3"/>
+          {/* Cab */}
+          <rect x="-2" y="-8" width="14" height="16" rx="3" fill={primaryColor}/>
+          {/* Windshield */}
+          <rect x="0" y="-6" width="10" height="8" rx="2" fill="#bfdbfe" opacity="0.8"/>
+          {/* Wheels */}
+          <circle cx="-18" cy="12" r="5" fill="#374151" opacity="0.7"/>
+          <circle cx="-18" cy="12" r="2.5" fill="#6b7280" opacity="0.5"/>
+          <circle cx="4" cy="12" r="5" fill="#374151" opacity="0.7"/>
+          <circle cx="4" cy="12" r="2.5" fill="#6b7280" opacity="0.5"/>
+          {/* Package icon on truck */}
+          <rect x="-22" y="-5" width="10" height="8" rx="1.5" fill={primaryColor} opacity="0.4" stroke="white" strokeWidth="0.5" strokeOpacity="0.5"/>
+          <line x1="-17" y1="-5" x2="-17" y2="3" stroke="white" strokeWidth="0.5" opacity="0.4"/>
+          <line x1="-22" y1="-1" x2="-12" y2="-1" stroke="white" strokeWidth="0.5" opacity="0.4"/>
+        </g>
+
+        {/* ════ SECOND VEHICLE — smaller, different route ════ */}
+        <g opacity="0.5">
+          <animateMotion dur="18s" repeatCount="indefinite"
+            path="M1300,565 L400,565 L395,560 L390,420 L385,415 L100,415"
+            rotate="auto" keyPoints="0;0.55;0.56;0.75;0.76;1" keyTimes="0;0.5;0.51;0.72;0.73;1" calcMode="linear"/>
+          <rect x="-20" y="-9" width="28" height="17" rx="3" fill="#6366f1" opacity="0.7"/>
+          <rect x="-20" y="-8" width="16" height="15" rx="2" fill="white" opacity="0.25"/>
+          <rect x="0" y="-6" width="10" height="12" rx="2" fill="#6366f1" opacity="0.8"/>
+          <rect x="2" y="-4" width="6" height="6" rx="1.5" fill="#bfdbfe" opacity="0.7"/>
+          <circle cx="-12" cy="9" r="4" fill="#374151" opacity="0.6"/>
+          <circle cx="4" cy="9" r="4" fill="#374151" opacity="0.6"/>
+        </g>
+
+        {/* ════ THIRD VEHICLE — motorcycle/bike ════ */}
+        <g opacity="0.35">
+          <animateMotion dur="10s" repeatCount="indefinite"
+            path="M360,150 L360,330 L355,340 L355,550 L350,560 L350,750"
+            rotate="auto" calcMode="linear"/>
+          <circle cx="0" cy="0" r="6" fill="#f59e0b"/>
+          <circle cx="0" cy="8" r="4" fill="#374151" opacity="0.6"/>
+          <rect x="-3" y="-10" width="6" height="8" rx="2" fill="#f59e0b" opacity="0.8"/>
+        </g>
+
+        {/* Subtle package being delivered — pulsing at destination */}
+        <g>
+          <rect x="1236" y="360" width="20" height="16" rx="3" fill="#fbbf24" opacity="0.25">
+            <animate attributeName="opacity" values="0.15;0.35;0.15" dur="2.5s" repeatCount="indefinite"/>
+          </rect>
+          <rect x="1240" y="363" width="12" height="10" rx="2" fill="#f59e0b" opacity="0.2">
+            <animate attributeName="opacity" values="0.1;0.3;0.1" dur="2.5s" repeatCount="indefinite"/>
+          </rect>
+        </g>
+
+      </svg>
+
+      {/* Soft overlay to ensure text readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/40 to-white/70" />
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════ */
 /*  MAIN LANDING PAGE — all content from Admin Panel CMS                 */
 /* ═══════════════════════════════════════════════════════════════════════ */
@@ -189,6 +377,11 @@ export default function LandingPage() {
   const navTestimonials = g('LP_NAV_TESTIMONIALS', 'Reviews');
   const navContact = g('LP_NAV_CONTACT', 'Contact');
 
+  // ── Hero background ──
+  const heroBgType = g('LP_HERO_BG_TYPE', 'animation'); // 'animation' | 'image' | 'video' | 'none'
+  const heroBgImage = cms['LP_HERO_BG_IMAGE'] || '';
+  const heroBgVideo = cms['LP_HERO_BG_VIDEO'] || '';
+
   // ── Screenshots ──
   const screenshot1 = cms['LP_APP_SCREENSHOT_1'] || '';
 
@@ -238,11 +431,31 @@ export default function LandingPage() {
 
       {/* ═══════════════ HERO ═══════════════ */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
+        {/* Dynamic background — admin can switch between animation/image/video/none */}
         <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full opacity-15"
-            style={{ background: `radial-gradient(circle, ${primaryColor}, transparent 70%)` }} />
-          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-10"
-            style={{ background: `radial-gradient(circle, ${primaryColor}, transparent 70%)` }} />
+          {heroBgType === 'animation' && <DeliveryMapAnimation primaryColor={primaryColor} />}
+          {heroBgType === 'image' && heroBgImage && (
+            <div className="absolute inset-0">
+              <img src={heroBgImage} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-white/70" />
+            </div>
+          )}
+          {heroBgType === 'video' && heroBgVideo && (
+            <div className="absolute inset-0">
+              <video autoPlay muted loop playsInline className="w-full h-full object-cover">
+                <source src={heroBgVideo} type="video/mp4" />
+              </video>
+              <div className="absolute inset-0 bg-white/70" />
+            </div>
+          )}
+          {heroBgType === 'none' && (
+            <>
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full opacity-15"
+                style={{ background: `radial-gradient(circle, ${primaryColor}, transparent 70%)` }} />
+              <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-10"
+                style={{ background: `radial-gradient(circle, ${primaryColor}, transparent 70%)` }} />
+            </>
+          )}
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

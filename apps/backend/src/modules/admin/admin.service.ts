@@ -93,6 +93,8 @@ export class AdminService {
       'LP_SERVICE_4_TITLE', 'LP_SERVICE_4_DESC', 'LP_SERVICE_4_ICON',
       // Footer
       'LP_FOOTER_TEXT', 'LP_FOOTER_COPYRIGHT',
+      // Hero background
+      'LP_HERO_BG_TYPE', 'LP_HERO_BG_IMAGE', 'LP_HERO_BG_VIDEO',
       // App screenshots
       'LP_APP_SCREENSHOT_1', 'LP_APP_SCREENSHOT_2', 'LP_APP_SCREENSHOT_3',
     ];
