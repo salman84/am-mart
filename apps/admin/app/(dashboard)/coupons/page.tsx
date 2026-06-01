@@ -3,11 +3,20 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { couponsApi } from '../../../lib/api';
-import { Tag, Plus, Trash2, Pencil, Power, PowerOff, Gift, Users, Star, ShoppingBag } from 'lucide-react';
+import { Tag, Plus, Trash2, Pencil, Power, PowerOff, Gift, Users, Star, ShoppingBag, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+/** Generate a random alphanumeric coupon code — no hardcoded prefix */
+function generateCouponCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no confusing 0/O/1/I
+  const segments = [4, 4]; // e.g. XKJF-T9R2
+  return segments
+    .map((len) => Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join(''))
+    .join('-');
+}
+
 const EMPTY = {
-  code: '',
+  code: generateCouponCode(),
   title: '',
   description: '',
   type: 'PERCENTAGE',
@@ -95,7 +104,7 @@ export default function CouponsPage() {
         </div>
         <button
           className="btn-primary flex items-center gap-2"
-          onClick={() => { setShowForm(true); setForm(EMPTY); setEditingId(null); }}
+          onClick={() => { setShowForm(true); setForm({ ...EMPTY, code: generateCouponCode() }); setEditingId(null); }}
         >
           <Plus className="w-4 h-4" /> Add Coupon
         </button>
@@ -160,12 +169,23 @@ export default function CouponsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Coupon Code</label>
-                  <input
-                    className="form-input mt-1 uppercase"
-                    placeholder="e.g. SAVE20"
-                    value={form.code}
-                    onChange={(e) => setForm((f: any) => ({ ...f, code: e.target.value.toUpperCase() }))}
-                  />
+                  <div className="flex gap-1.5 mt-1">
+                    <input
+                      className="form-input flex-1 uppercase font-mono tracking-wider"
+                      placeholder="Auto-generated"
+                      value={form.code}
+                      onChange={(e) => setForm((f: any) => ({ ...f, code: e.target.value.toUpperCase() }))}
+                    />
+                    <button
+                      type="button"
+                      title="Generate new code"
+                      onClick={() => setForm((f: any) => ({ ...f, code: generateCouponCode() }))}
+                      className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors flex-shrink-0"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Auto-generated — edit if needed</p>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Title</label>

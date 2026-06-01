@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { productsApi, categoriesApi, uploadApi } from '../../../lib/api';
+import { productsApi, categoriesApi, uploadApi, adminApi } from '../../../lib/api';
 import api from '../../../lib/api';
 import {
   Package, Pencil, Trash2, X, Eye, EyeOff, Info,
@@ -124,6 +124,17 @@ export default function ProductsPage() {
     queryKey: ['categories-admin'],
     queryFn: () => categoriesApi.getAll().then((r) => r.data),
   });
+
+  // Dynamic app name for seller fallback
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => adminApi.getSettings().then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+  const appName = useMemo(() => {
+    const s = settingsData?.settings as any[] | undefined;
+    return s?.find((x: any) => x.key === 'APP_NAME')?.value || 'Store';
+  }, [settingsData]);
 
   // Backend returns a plain array of categories (each with .children[])
   const rawCats: any[] = Array.isArray(categoriesData) ? categoriesData : (categoriesData?.categories || []);
@@ -632,7 +643,7 @@ export default function ProductsPage() {
                         </div>
                       </td>
                       <td className="table-td text-sm text-gray-500">{p.category?.name || '—'}</td>
-                      <td className="table-td text-sm">{p.seller?.storeName || 'AM Mart'}</td>
+                      <td className="table-td text-sm">{p.seller?.storeName || appName}</td>
                       <td className="table-td">
                         <div className="font-bold text-sm">₩{p.price?.toLocaleString()}</div>
                         {p.discountPrice && (

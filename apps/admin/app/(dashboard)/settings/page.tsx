@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi, uploadApi, notificationsApi } from '../../../lib/api';
 import { Settings, Bell, Send, Upload, Image, X, ToggleLeft, Layout, Smartphone, Layers } from 'lucide-react';
@@ -60,7 +60,7 @@ const LANDING_SECTIONS = [
     group: 'Hero Section',
     fields: [
       { key: 'LP_HERO_TITLE', label: 'Hero Title (line 1)', placeholder: 'Sell to Korea with' },
-      { key: 'LP_HERO_TITLE_BRAND', label: 'Hero Title (brand name, highlighted)', placeholder: 'AM Mart' },
+      { key: 'LP_HERO_TITLE_BRAND', label: 'Hero Title (brand name, highlighted)', placeholder: 'Your Brand' },
       { key: 'LP_HERO_SUBTITLE', label: 'Hero Subtitle / Description', placeholder: 'Reach millions of customers...', textarea: true },
       { key: 'LP_HERO_CTA_PRIMARY', label: 'Primary CTA Button Text', placeholder: 'Start Selling Free' },
       { key: 'LP_HERO_CTA_SECONDARY', label: 'Secondary CTA Button Text', placeholder: 'Sign In' },
@@ -78,7 +78,7 @@ const LANDING_SECTIONS = [
   {
     group: '"Why Sell" Section',
     fields: [
-      { key: 'LP_WHY_TITLE', label: 'Section Title', placeholder: 'Why Sell on AM Mart?' },
+      { key: 'LP_WHY_TITLE', label: 'Section Title', placeholder: 'Why Sell With Us?' },
       { key: 'LP_WHY_SUBTITLE', label: 'Section Subtitle', placeholder: 'Join thousands of sellers...' },
       { key: 'LP_FEATURE_1_TITLE', label: 'Feature 1 Title', placeholder: 'We Support Our Sellers' },
       { key: 'LP_FEATURE_1_DESC', label: 'Feature 1 Description', placeholder: '...', textarea: true },
@@ -148,16 +148,19 @@ export default function SettingsPage() {
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
-  const { isLoading } = useQuery({
+  const { data: settingsData, isLoading } = useQuery({
     queryKey: ['settings'],
-    queryFn: () => adminApi.getSettings().then((r) => {
-      const settings: any[] = r.data?.settings || [];
-      const vals: Record<string, string> = {};
-      settings.forEach((s: any) => { vals[s.key] = s.value; });
-      setLocalValues(vals);
-      return r.data;
-    }),
+    queryFn: () => adminApi.getSettings().then((r) => r.data),
   });
+
+  // Sync local values whenever query data changes (initial load, refetch, cache)
+  useEffect(() => {
+    if (settingsData?.settings) {
+      const vals: Record<string, string> = {};
+      (settingsData.settings as any[]).forEach((s: any) => { vals[s.key] = s.value; });
+      setLocalValues(vals);
+    }
+  }, [settingsData]);
 
   const updateMutation = useMutation({
     mutationFn: ({ key, value }: any) => adminApi.updateSetting(key, value),
@@ -390,7 +393,7 @@ export default function SettingsPage() {
                     aria-label="App Name"
                     className="form-input flex-1 text-sm"
                     value={localValues['APP_NAME'] || ''}
-                    placeholder="AM Mart"
+                    placeholder="Your App Name"
                     onChange={(e) => setLocalValues((v) => ({ ...v, APP_NAME: e.target.value }))}
                     onKeyDown={(e) => e.key === 'Enter' && updateMutation.mutate({ key: 'APP_NAME', value: localValues['APP_NAME'] })}
                   />

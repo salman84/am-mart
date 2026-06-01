@@ -109,7 +109,7 @@ export default function MarketplaceConfigPage() {
         </div>
         <h1 className="text-2xl font-bold text-gray-900">Editable Marketplace Platform</h1>
         <p className="text-gray-500 mt-1">
-          Configure seller onboarding, document rules, homepage CMS, policies, translations, payments, shipping, and compliance without hard-coding AM Mart.
+          Configure seller onboarding, document rules, homepage CMS, policies, translations, payments, shipping, and compliance — fully dynamic, no hardcoded values.
         </p>
       </div>
 

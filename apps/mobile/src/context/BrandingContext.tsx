@@ -26,7 +26,7 @@ export interface Branding {
 }
 
 const DEFAULT: Branding = {
-  appName:        'AM Mart',
+  appName:        '',
   appLogo:        '',
   appIconLogo:    '',
   splashLogo:     '',
@@ -43,7 +43,7 @@ const BrandingContext = createContext<Branding>(DEFAULT);
 
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const [branding, setBranding] = useState<Omit<Branding, 'reload'>>({
-    appName:        'AM Mart',
+    appName:        '',
     appLogo:        '',
     appIconLogo:    '',
     splashLogo:     '',
@@ -58,7 +58,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
   // ── Helper: convert API data → branding object ──────────────────────────
   const apiToBranding = useCallback((d: any): Omit<Branding, 'reload'> => ({
-    appName:        d.APP_NAME         || 'AM Mart',
+    appName:        d.APP_NAME         || '',
     appLogo:        d.APP_LOGO         || '',
     appIconLogo:    d.APP_ICON_LOGO    || '',
     splashLogo:     d.SPLASH_LOGO      || '',

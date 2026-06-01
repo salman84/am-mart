@@ -84,216 +84,435 @@ const SERVICE_COLORS = [
   { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
 ];
 
-/* ─── Animated Map Background — realistic delivery scene ──────────────── */
+/* ─── 3D Isometric City Background — Canvas-based realistic delivery scene ── */
 function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let W = 0, H = 0, animId = 0;
+
+    /* ── Resize handling ── */
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = canvas.offsetWidth;
+      H = canvas.offsetHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    /* ── Isometric projection ── */
+    const TW = 56, TH = 28; // tile width / height
+    const iso = (gx: number, gy: number): [number, number] => [
+      (gx - gy) * TW / 2 + W * 0.52,
+      (gx + gy) * TH / 2 - 80,
+    ];
+
+    /* ── Seeded random for consistent city layout ── */
+    let _s = 54321;
+    const srand = () => { _s = (_s * 16807) % 2147483647; return (_s & 0x7fffffff) / 0x7fffffff; };
+
+    /* ── City grid: 20×20  (0=road, >0=building height, -1=tree, -2=park) ── */
+    const G = 20;
+    const grid: number[][] = [];
+    for (let y = 0; y < G; y++) {
+      grid[y] = [];
+      for (let x = 0; x < G; x++) {
+        if (x % 5 === 0 || y % 5 === 0) { grid[y][x] = 0; }
+        else {
+          const r = srand();
+          if (r < 0.07) grid[y][x] = -1;
+          else if (r < 0.12) grid[y][x] = -2;
+          else grid[y][x] = 2 + Math.floor(srand() * 7);
+        }
+      }
+    }
+
+    /* ── Building colour palettes ── */
+    const hexAlpha = (hex: string, a: string) => hex.length >= 7 ? hex + a : hex;
+    const pals = [
+      { top: '#d2e6f5', left: '#7aacd4', right: '#5088b4', win: 'rgba(170,215,255,0.6)', edge: 'rgba(60,110,160,0.12)' },
+      { top: '#dde2e8', left: '#9ba8b8', right: '#6e7f94', win: 'rgba(255,255,255,0.35)', edge: 'rgba(0,0,0,0.08)' },
+      { top: '#f2e8d4', left: '#ccb490', right: '#a89070', win: 'rgba(255,240,200,0.4)', edge: 'rgba(120,90,50,0.1)' },
+      { top: hexAlpha(primaryColor, '50'), left: hexAlpha(primaryColor, 'a0'), right: hexAlpha(primaryColor, 'c8'), win: 'rgba(255,255,255,0.35)', edge: hexAlpha(primaryColor, '20') },
+      { top: '#b0c4cc', left: '#556670', right: '#3c4c58', win: 'rgba(160,200,240,0.55)', edge: 'rgba(0,0,0,0.1)' },
+    ];
+    const pal = (gx: number, gy: number) => pals[(gx * 7 + gy * 13) % pals.length];
+
+    /* ── Drawing helpers ── */
+
+    /* Flat isometric diamond */
+    const drawDiamond = (sx: number, sy: number, col: string) => {
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + TW / 2, sy + TH / 2);
+      ctx.lineTo(sx, sy + TH);
+      ctx.lineTo(sx - TW / 2, sy + TH / 2);
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.fill();
+    };
+
+    /* 3D building with top / left / right faces, windows, edge highlights */
+    const drawBuilding = (sx: number, sy: number, h: number, p: typeof pals[0]) => {
+      const pH = h * 10; // pixel height
+      const hw = TW / 2, hh = TH / 2;
+
+      /* — Ground shadow — */
+      ctx.save();
+      ctx.globalAlpha = 0.07;
+      ctx.beginPath();
+      ctx.moveTo(sx + 4, sy + hh + 4);
+      ctx.lineTo(sx + hw + 4, sy + TH + 4);
+      ctx.lineTo(sx + hw + pH * 0.28, sy + TH + pH * 0.16);
+      ctx.lineTo(sx + pH * 0.28, sy + hh + pH * 0.16);
+      ctx.closePath();
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      ctx.restore();
+
+      /* — Left face — */
+      ctx.beginPath();
+      ctx.moveTo(sx - hw, sy + hh);
+      ctx.lineTo(sx, sy + TH);
+      ctx.lineTo(sx, sy + TH - pH);
+      ctx.lineTo(sx - hw, sy + hh - pH);
+      ctx.closePath();
+      ctx.fillStyle = p.left;
+      ctx.fill();
+      ctx.strokeStyle = p.edge;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      /* Windows — left face */
+      const floors = Math.min(h - 1, 7);
+      const fH = pH / h;
+      for (let f = 0; f < floors; f++) {
+        for (let w = 0; w < 2; w++) {
+          const wy = sy + hh - pH + 4 + f * fH;
+          const wx = sx - hw + 5 + w * (hw - 8);
+          ctx.fillStyle = p.win;
+          ctx.fillRect(wx, wy, 8, Math.min(5, fH - 3));
+          /* Glass highlight */
+          ctx.fillStyle = 'rgba(255,255,255,0.15)';
+          ctx.fillRect(wx, wy, 8, 2);
+        }
+      }
+
+      /* — Right face — */
+      ctx.beginPath();
+      ctx.moveTo(sx, sy + TH);
+      ctx.lineTo(sx + hw, sy + hh);
+      ctx.lineTo(sx + hw, sy + hh - pH);
+      ctx.lineTo(sx, sy + TH - pH);
+      ctx.closePath();
+      ctx.fillStyle = p.right;
+      ctx.fill();
+      ctx.strokeStyle = p.edge;
+      ctx.stroke();
+
+      /* Windows — right face */
+      for (let f = 0; f < floors; f++) {
+        for (let w = 0; w < 2; w++) {
+          const wy = sy + hh - pH + 4 + f * fH;
+          const wx = sx + 4 + w * (hw - 8);
+          ctx.fillStyle = p.win;
+          ctx.fillRect(wx, wy, 8, Math.min(5, fH - 3));
+          ctx.fillStyle = 'rgba(255,255,255,0.12)';
+          ctx.fillRect(wx, wy, 8, 2);
+        }
+      }
+
+      /* — Top face — */
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - pH);
+      ctx.lineTo(sx + hw, sy + hh - pH);
+      ctx.lineTo(sx, sy + TH - pH);
+      ctx.lineTo(sx - hw, sy + hh - pH);
+      ctx.closePath();
+      ctx.fillStyle = p.top;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+
+      /* Roof AC unit on taller buildings */
+      if (h >= 6) {
+        ctx.fillStyle = 'rgba(120,130,140,0.35)';
+        ctx.fillRect(sx - 5, sy - pH + hh - 3, 10, 4);
+      }
+    };
+
+    /* 3D tree */
+    const drawTree = (sx: number, sy: number) => {
+      ctx.save();
+      ctx.globalAlpha = 0.06;
+      ctx.beginPath();
+      ctx.ellipse(sx + 4, sy + TH / 2 + 3, 10, 5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = '#7c6a50';
+      ctx.fillRect(sx - 1.5, sy - 4, 3, 12);
+
+      const layers: [number, number, number, string][] = [
+        [0, -16, 11, 'rgba(22,163,74,0.75)'],
+        [-5, -12, 8, 'rgba(34,197,94,0.65)'],
+        [5, -13, 7, 'rgba(74,222,128,0.55)'],
+        [0, -20, 6, 'rgba(34,197,94,0.5)'],
+      ];
+      for (const [dx, dy, r, c] of layers) {
+        ctx.beginPath();
+        ctx.arc(sx + dx, sy + dy, r, 0, Math.PI * 2);
+        ctx.fillStyle = c;
+        ctx.fill();
+      }
+    };
+
+    /* Road lane markings */
+    const drawRoadTile = (sx: number, sy: number, gx: number, gy: number) => {
+      drawDiamond(sx, sy, '#b8bec6');
+      /* Center dashes */
+      if (gx % 5 === 0 && gy % 2 === 1) {
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillRect(sx - 1, sy + TH / 2 - 1, 3, 3);
+      }
+      if (gy % 5 === 0 && gx % 2 === 1) {
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillRect(sx - 1, sy + TH / 2 - 1, 3, 3);
+      }
+      /* Intersection crosswalk */
+      if (gx % 5 === 0 && gy % 5 === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fillRect(sx - 4, sy + TH / 2 - 2, 8, 4);
+      }
+    };
+
+    /* ── Vehicles ── */
+    type VehicleData = { path: number[][]; progress: number; speed: number; color: string; size: number };
+    const vehicles: VehicleData[] = [
+      { path: [[0,5],[5,5],[10,5],[15,5],[19,5],[19,10],[19,15],[15,15],[10,15],[5,15],[0,15]], progress: 0, speed: 0.00035, color: primaryColor, size: 1 },
+      { path: [[5,0],[5,5],[5,10],[5,15],[5,19],[10,19],[15,19],[15,15],[15,10],[15,5],[15,0]], progress: 0.45, speed: 0.00028, color: '#6366f1', size: 0.85 },
+      { path: [[10,0],[10,5],[10,10],[10,15],[10,19]], progress: 0.15, speed: 0.0005, color: '#f59e0b', size: 0.7 },
+    ];
+
+    const vehiclePos = (v: VehicleData): [number, number] => {
+      const n = v.path.length - 1;
+      const e = v.progress * n;
+      const i = Math.min(Math.floor(e), n - 1);
+      const f = e - i;
+      const a = v.path[i], b = v.path[i + 1];
+      return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+    };
+
+    const drawVehicle = (gx: number, gy: number, v: VehicleData) => {
+      const [sx, sy] = iso(gx, gy);
+      const s = v.size;
+
+      /* Shadow */
+      ctx.save();
+      ctx.globalAlpha = 0.1;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 6 * s, 14 * s, 6 * s, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      ctx.restore();
+
+      /* Cargo — left face */
+      ctx.beginPath();
+      ctx.moveTo(sx - 13 * s, sy - 2 * s);
+      ctx.lineTo(sx, sy + 5 * s);
+      ctx.lineTo(sx, sy + 5 * s - 14 * s);
+      ctx.lineTo(sx - 13 * s, sy - 2 * s - 14 * s);
+      ctx.closePath();
+      ctx.fillStyle = v.color;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+
+      /* Cargo — right face */
+      ctx.beginPath();
+      ctx.moveTo(sx, sy + 5 * s);
+      ctx.lineTo(sx + 10 * s, sy - 1 * s);
+      ctx.lineTo(sx + 10 * s, sy - 1 * s - 14 * s);
+      ctx.lineTo(sx, sy + 5 * s - 14 * s);
+      ctx.closePath();
+      ctx.fillStyle = v.color + 'bb';
+      ctx.fill();
+      ctx.stroke();
+
+      /* Cargo — top face */
+      ctx.beginPath();
+      ctx.moveTo(sx - 3 * s, sy - 12 * s);
+      ctx.lineTo(sx + 10 * s, sy - 1 * s - 14 * s);
+      ctx.lineTo(sx, sy + 5 * s - 14 * s);
+      ctx.lineTo(sx - 13 * s, sy - 2 * s - 14 * s);
+      ctx.closePath();
+      ctx.fillStyle = v.color + '88';
+      ctx.fill();
+
+      /* Cab windshield */
+      ctx.fillStyle = '#93c5fd';
+      ctx.fillRect(sx + 5 * s, sy - 12 * s, 6 * s, 7 * s);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(sx + 5 * s, sy - 12 * s, 6 * s, 3 * s);
+
+      /* Headlight */
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(sx + 11 * s, sy - 3 * s, 2 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      /* Wheels */
+      [[-8, 3], [5, 0]].forEach(([dx, dy]) => {
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(sx + dx * s, sy + dy * s, 3.5 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#64748b';
+        ctx.beginPath();
+        ctx.arc(sx + dx * s, sy + dy * s, 1.8 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.arc(sx + dx * s, sy + dy * s, 0.7 * s, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    };
+
+    /* ── Location pin ── */
+    let pulse = 0;
+    const drawPin = (gx: number, gy: number, color: string) => {
+      const [sx, sy] = iso(gx, gy);
+      const r = 14 + Math.sin(pulse) * 5;
+      ctx.save();
+      ctx.globalAlpha = 0.18 + Math.sin(pulse) * 0.06;
+      ctx.beginPath();
+      ctx.arc(sx, sy - 10, r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.moveTo(sx, sy + 4);
+      ctx.bezierCurveTo(sx - 10, sy - 10, sx - 10, sy - 26, sx, sy - 28);
+      ctx.bezierCurveTo(sx + 10, sy - 26, sx + 10, sy - 10, sx, sy + 4);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(sx, sy - 16, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+    };
+
+    /* ── Delivery route dashes (drawn on road surface) ── */
+    const drawRoute = (from: number[], to: number[], t: number) => {
+      const [x1, y1] = iso(from[0], from[1]);
+      const [x2, y2] = iso(to[0], to[1]);
+      ctx.save();
+      ctx.setLineDash([6, 5]);
+      ctx.lineDashOffset = -t * 30;
+      ctx.strokeStyle = primaryColor;
+      ctx.globalAlpha = 0.4;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1 + TH / 2);
+      ctx.lineTo(x2, y2 + TH / 2);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    /* ══════════════════════════════════════════════════════════════════════
+       RENDER LOOP
+    ══════════════════════════════════════════════════════════════════════ */
+    let time = 0;
+    const render = () => {
+      ctx.clearRect(0, 0, W, H);
+
+      /* Sky / ground gradient */
+      const sky = ctx.createLinearGradient(0, 0, W * 0.3, H);
+      sky.addColorStop(0, '#f4f7fa');
+      sky.addColorStop(1, '#e8eef4');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H);
+
+      /* Collect all drawables and sort by depth (gx+gy) for painter's algorithm */
+      type Drawable = { depth: number; draw: () => void };
+      const drawables: Drawable[] = [];
+
+      for (let y = 0; y < G; y++) {
+        for (let x = 0; x < G; x++) {
+          const [sx, sy] = iso(x, y);
+          if (sx < -60 || sx > W + 60 || sy < -120 || sy > H + 120) continue;
+
+          const v = grid[y][x];
+          const d = x + y;
+
+          if (v === 0) {
+            drawables.push({ depth: d, draw: () => drawRoadTile(sx, sy, x, y) });
+          } else if (v === -1) {
+            drawables.push({ depth: d, draw: () => { drawDiamond(sx, sy, '#c8e8c8'); drawTree(sx, sy); } });
+          } else if (v === -2) {
+            drawables.push({ depth: d, draw: () => drawDiamond(sx, sy, '#bce0b8') });
+          } else {
+            drawables.push({ depth: d + v * 0.1, draw: () => { drawDiamond(sx, sy, '#d0d4d8'); drawBuilding(sx, sy, v, pal(x, y)); } });
+          }
+        }
+      }
+
+      /* Insert vehicles into draw order */
+      for (const v of vehicles) {
+        const [vx, vy] = vehiclePos(v);
+        drawables.push({ depth: vx + vy + 0.05, draw: () => drawVehicle(vx, vy, v) });
+      }
+
+      /* Sort and draw */
+      drawables.sort((a, b) => a.depth - b.depth);
+      for (const d of drawables) d.draw();
+
+      /* Delivery route (animated dashes along road surface) */
+      const routeWaypoints = [[1, 5], [5, 5], [10, 5], [15, 5], [15, 10], [15, 15]];
+      for (let i = 0; i < routeWaypoints.length - 1; i++) {
+        drawRoute(routeWaypoints[i], routeWaypoints[i + 1], time);
+      }
+
+      /* Location pins (drawn last — always on top) */
+      drawPin(1, 15, primaryColor);
+      drawPin(17, 3, '#ef4444');
+
+      /* Update state */
+      for (const v of vehicles) {
+        v.progress += v.speed;
+        if (v.progress >= 1) v.progress = 0;
+      }
+      pulse += 0.045;
+      time += 0.016;
+
+      animId = requestAnimationFrame(render);
+    };
+
+    render();
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
+  }, [primaryColor]);
+
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
-      <svg viewBox="0 0 1440 800" fill="none" xmlns="http://www.w3.org/2000/svg"
-        className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice"
-        style={{ opacity: 1 }}>
-        <defs>
-          {/* Road texture */}
-          <pattern id="roadLines" patternUnits="userSpaceOnUse" width="20" height="4" patternTransform="rotate(0)">
-            <rect width="12" height="2" y="1" fill="rgba(255,255,255,0.35)" rx="1"/>
-          </pattern>
-          {/* Tree gradient */}
-          <radialGradient id="treeGrad" cx="50%" cy="40%"><stop offset="0%" stopColor="#22c55e" stopOpacity="0.7"/><stop offset="100%" stopColor="#15803d" stopOpacity="0.45"/></radialGradient>
-          {/* Building gradient */}
-          <linearGradient id="bldg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={primaryColor} stopOpacity="0.28"/><stop offset="100%" stopColor={primaryColor} stopOpacity="0.10"/></linearGradient>
-          <linearGradient id="bldg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6366f1" stopOpacity="0.24"/><stop offset="100%" stopColor="#6366f1" stopOpacity="0.08"/></linearGradient>
-          <linearGradient id="bldg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f59e0b" stopOpacity="0.24"/><stop offset="100%" stopColor="#f59e0b" stopOpacity="0.08"/></linearGradient>
-          {/* Ground */}
-          <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f0fdf4" stopOpacity="0.7"/><stop offset="100%" stopColor="#e8f5e9" stopOpacity="0.4"/></linearGradient>
-        </defs>
-
-        {/* Ground layer */}
-        <rect width="1440" height="800" fill="url(#ground)"/>
-
-        {/* Grid streets — horizontal (main roads) */}
-        <rect x="0" y="338" width="1440" height="32" rx="4" fill="#c9cdd3" opacity="0.55"/>
-        <rect x="0" y="345" width="1440" height="18" rx="3" fill="#9ca3af" opacity="0.45"/>
-        <rect x="0" y="350" width="1440" height="8" fill="url(#roadLines)"/>
-
-        <rect x="0" y="558" width="1440" height="26" rx="4" fill="#c9cdd3" opacity="0.45"/>
-        <rect x="0" y="563" width="1440" height="14" rx="3" fill="#9ca3af" opacity="0.38"/>
-        <rect x="0" y="567" width="1440" height="6" fill="url(#roadLines)"/>
-
-        {/* Grid streets — vertical */}
-        <rect x="348" y="0" width="26" height="800" rx="4" fill="#c9cdd3" opacity="0.45"/>
-        <rect x="354" y="0" width="14" height="800" rx="3" fill="#9ca3af" opacity="0.38"/>
-
-        <rect x="748" y="0" width="30" height="800" rx="4" fill="#c9cdd3" opacity="0.5"/>
-        <rect x="755" y="0" width="16" height="800" rx="3" fill="#9ca3af" opacity="0.4"/>
-
-        <rect x="1098" y="0" width="24" height="800" rx="4" fill="#c9cdd3" opacity="0.42"/>
-        <rect x="1103" y="0" width="14" height="800" rx="3" fill="#9ca3af" opacity="0.35"/>
-
-        {/* Building blocks — city-like grid */}
-        {/* Block 1 — top-left */}
-        <rect x="80" y="120" width="90" height="130" rx="6" fill="url(#bldg1)" stroke={primaryColor} strokeOpacity="0.18" strokeWidth="1.5"/>
-        <rect x="85" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.18"/>
-        <rect x="115" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.18"/>
-        <rect x="145" y="125" width="20" height="16" rx="2" fill={primaryColor} opacity="0.18"/>
-        <rect x="85" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.14"/>
-        <rect x="115" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.14"/>
-        <rect x="145" y="150" width="20" height="16" rx="2" fill={primaryColor} opacity="0.14"/>
-        <rect x="85" y="175" width="20" height="16" rx="2" fill={primaryColor} opacity="0.10"/>
-        <rect x="115" y="175" width="20" height="16" rx="2" fill={primaryColor} opacity="0.10"/>
-        <rect x="145" y="175" width="20" height="16" rx="2" fill={primaryColor} opacity="0.10"/>
-
-        <rect x="200" y="80" width="70" height="170" rx="6" fill="url(#bldg2)" stroke="#6366f1" strokeOpacity="0.15" strokeWidth="1.5"/>
-        <rect x="206" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.16"/>
-        <rect x="226" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.16"/>
-        <rect x="246" y="86" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.16"/>
-        <rect x="206" y="106" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.12"/>
-        <rect x="226" y="106" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.12"/>
-        <rect x="246" y="106" width="14" height="12" rx="1.5" fill="#6366f1" opacity="0.12"/>
-
-        {/* Block 2 — top-center */}
-        <rect x="420" y="100" width="120" height="150" rx="8" fill="url(#bldg1)" stroke={primaryColor} strokeOpacity="0.14" strokeWidth="1.5"/>
-        <rect x="560" y="140" width="80" height="110" rx="6" fill="url(#bldg3)" stroke="#f59e0b" strokeOpacity="0.14" strokeWidth="1.5"/>
-        <rect x="660" y="110" width="60" height="140" rx="5" fill="url(#bldg2)" stroke="#6366f1" strokeOpacity="0.14" strokeWidth="1.5"/>
-
-        {/* Block 3 — right side */}
-        <rect x="820" y="80" width="100" height="170" rx="6" fill="url(#bldg1)"/>
-        <rect x="940" y="120" width="70" height="130" rx="5" fill="url(#bldg3)"/>
-        <rect x="1030" y="90" width="50" height="160" rx="4" fill="url(#bldg2)"/>
-
-        {/* Block 4 — middle row between roads */}
-        <rect x="100" y="400" width="110" height="100" rx="6" fill="url(#bldg3)"/>
-        <rect x="240" y="420" width="80" height="80" rx="5" fill="url(#bldg1)"/>
-        <rect x="420" y="390" width="140" height="120" rx="7" fill="url(#bldg2)"/>
-        <rect x="600" y="410" width="100" height="90" rx="5" fill="url(#bldg3)"/>
-        <rect x="830" y="395" width="120" height="110" rx="6" fill="url(#bldg1)"/>
-        <rect x="980" y="415" width="90" height="90" rx="5" fill="url(#bldg2)"/>
-
-        {/* Block 5 — bottom */}
-        <rect x="60" y="620" width="130" height="100" rx="7" fill="url(#bldg1)"/>
-        <rect x="230" y="640" width="90" height="80" rx="5" fill="url(#bldg2)"/>
-        <rect x="420" y="610" width="100" height="110" rx="6" fill="url(#bldg3)"/>
-        <rect x="800" y="625" width="110" height="95" rx="6" fill="url(#bldg1)"/>
-        <rect x="1150" y="610" width="130" height="110" rx="7" fill="url(#bldg2)"/>
-
-        {/* Trees (scattered along roads) */}
-        {[140,310,500,680,900,1050,1200].map(x => (
-          <g key={`t1-${x}`}><circle cx={x} cy={310} r="14" fill="url(#treeGrad)"/><circle cx={x+8} cy={305} r="10" fill="url(#treeGrad)"/></g>
-        ))}
-        {[180,400,600,850,1000,1280].map(x => (
-          <g key={`t2-${x}`}><circle cx={x} cy={535} r="12" fill="url(#treeGrad)"/><circle cx={x+6} cy={530} r="9" fill="url(#treeGrad)"/></g>
-        ))}
-
-        {/* Location pins */}
-        {/* Pin at customer door — destination (red, pulsing) */}
-        <g className="animate-bounce" style={{ animationDuration: '2s', animationDelay: '0.5s' }}>
-          <circle cx="1246" cy="310" r="20" fill="#ef4444" opacity="0.15">
-            <animate attributeName="r" values="18;28;18" dur="2s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" values="0.2;0.05;0.2" dur="2s" repeatCount="indefinite"/>
-          </circle>
-          <path d="M1220 305 c0-16 12-28 26-28 14 0 26 12 26 28 0 20-26 42-26 42s-26-22-26-42z"
-            fill="#ef4444" opacity="0.9"/>
-          <circle cx="1246" cy="305" r="9" fill="white" opacity="0.95"/>
-          <circle cx="1246" cy="305" r="4" fill="#ef4444" opacity="0.7"/>
-        </g>
-        {/* Pin at warehouse — origin (green) */}
-        <g>
-          <circle cx="122" cy="315" r="16" fill={primaryColor} opacity="0.12">
-            <animate attributeName="r" values="14;22;14" dur="2.5s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" values="0.15;0.04;0.15" dur="2.5s" repeatCount="indefinite"/>
-          </circle>
-          <path d="M100 310 c0-14 10-24 22-24 12 0 22 10 22 24 0 18-22 36-22 36s-22-18-22-36z"
-            fill={primaryColor} opacity="0.85"/>
-          <circle cx="122" cy="310" r="8" fill="white" opacity="0.95"/>
-          <circle cx="122" cy="310" r="3.5" fill={primaryColor} opacity="0.7"/>
-        </g>
-
-        {/* Delivery route — animated dashed path */}
-        <path d="M140 354 L750 354" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
-          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
-        </path>
-        <path d="M763 354 L763 200" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
-          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
-        </path>
-        <path d="M763 200 L1100 200" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
-          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
-        </path>
-        <path d="M1110 200 L1110 320" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
-          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
-        </path>
-        <path d="M1110 320 L1230 320" stroke={primaryColor} strokeWidth="3.5" strokeDasharray="10 7" opacity="0.35">
-          <animate attributeName="stroke-dashoffset" from="0" to="-34" dur="1.2s" repeatCount="indefinite"/>
-        </path>
-
-        {/* ════ DELIVERY TRUCK ════ */}
-        {/* Phase 1: go right on main road */}
-        <g>
-          <animateMotion dur="14s" repeatCount="indefinite"
-            path="M140,348 L750,348 L755,348 L760,340 L760,200 L765,195 L1100,195 L1105,200 L1105,320 L1110,325 L1230,325"
-            rotate="auto" keyPoints="0;0.45;0.45;0.55;0.55;0.7;0.7;0.85;0.85;1;1" keyTimes="0;0.35;0.36;0.48;0.49;0.65;0.66;0.78;0.79;0.92;1" calcMode="linear"/>
-          {/* Shadow under truck */}
-          <ellipse cx="-6" cy="18" rx="22" ry="4" fill="#000" opacity="0.08"/>
-          {/* Truck body — cargo container */}
-          <rect x="-30" y="-14" width="40" height="26" rx="4" fill={primaryColor}/>
-          <rect x="-30" y="-14" width="40" height="26" rx="4" fill="white" opacity="0.15"/>
-          {/* Cargo area (white box) */}
-          <rect x="-29" y="-12" width="24" height="22" rx="3" fill="white" opacity="0.85"/>
-          <rect x="-29" y="-12" width="24" height="22" rx="3" stroke={primaryColor} strokeWidth="1" strokeOpacity="0.3" fill="none"/>
-          {/* Cab */}
-          <rect x="-1" y="-9" width="16" height="18" rx="3" fill={primaryColor}/>
-          {/* Windshield — glass effect */}
-          <rect x="1" y="-7" width="12" height="9" rx="2" fill="#93c5fd"/>
-          <rect x="1" y="-7" width="12" height="4" rx="2" fill="white" opacity="0.3"/>
-          {/* Headlight */}
-          <rect x="14" y="2" width="3" height="4" rx="1" fill="#fbbf24" opacity="0.8"/>
-          {/* Wheels with detail */}
-          <circle cx="-19" cy="14" r="6" fill="#1f2937"/>
-          <circle cx="-19" cy="14" r="3" fill="#4b5563"/>
-          <circle cx="-19" cy="14" r="1.2" fill="#9ca3af"/>
-          <circle cx="5" cy="14" r="6" fill="#1f2937"/>
-          <circle cx="5" cy="14" r="3" fill="#4b5563"/>
-          <circle cx="5" cy="14" r="1.2" fill="#9ca3af"/>
-          {/* Package icons on cargo */}
-          <rect x="-24" y="-6" width="8" height="7" rx="1.5" fill={primaryColor} opacity="0.5" stroke={primaryColor} strokeWidth="0.7" strokeOpacity="0.3"/>
-          <rect x="-14" y="-6" width="8" height="7" rx="1.5" fill="#f59e0b" opacity="0.4" stroke="#f59e0b" strokeWidth="0.7" strokeOpacity="0.3"/>
-          <rect x="-20" y="2" width="7" height="6" rx="1.5" fill="#6366f1" opacity="0.35"/>
-        </g>
-
-        {/* ════ SECOND VEHICLE — smaller, different route ════ */}
-        <g opacity="0.5">
-          <animateMotion dur="18s" repeatCount="indefinite"
-            path="M1300,565 L400,565 L395,560 L390,420 L385,415 L100,415"
-            rotate="auto" keyPoints="0;0.55;0.56;0.75;0.76;1" keyTimes="0;0.5;0.51;0.72;0.73;1" calcMode="linear"/>
-          <rect x="-20" y="-9" width="28" height="17" rx="3" fill="#6366f1" opacity="0.7"/>
-          <rect x="-20" y="-8" width="16" height="15" rx="2" fill="white" opacity="0.25"/>
-          <rect x="0" y="-6" width="10" height="12" rx="2" fill="#6366f1" opacity="0.8"/>
-          <rect x="2" y="-4" width="6" height="6" rx="1.5" fill="#bfdbfe" opacity="0.7"/>
-          <circle cx="-12" cy="9" r="4" fill="#374151" opacity="0.6"/>
-          <circle cx="4" cy="9" r="4" fill="#374151" opacity="0.6"/>
-        </g>
-
-        {/* ════ THIRD VEHICLE — motorcycle/bike ════ */}
-        <g opacity="0.35">
-          <animateMotion dur="10s" repeatCount="indefinite"
-            path="M360,150 L360,330 L355,340 L355,550 L350,560 L350,750"
-            rotate="auto" calcMode="linear"/>
-          <circle cx="0" cy="0" r="6" fill="#f59e0b"/>
-          <circle cx="0" cy="8" r="4" fill="#374151" opacity="0.6"/>
-          <rect x="-3" y="-10" width="6" height="8" rx="2" fill="#f59e0b" opacity="0.8"/>
-        </g>
-
-        {/* Subtle package being delivered — pulsing at destination */}
-        <g>
-          <rect x="1236" y="360" width="20" height="16" rx="3" fill="#fbbf24" opacity="0.25">
-            <animate attributeName="opacity" values="0.15;0.35;0.15" dur="2.5s" repeatCount="indefinite"/>
-          </rect>
-          <rect x="1240" y="363" width="12" height="10" rx="2" fill="#f59e0b" opacity="0.2">
-            <animate attributeName="opacity" values="0.1;0.3;0.1" dur="2.5s" repeatCount="indefinite"/>
-          </rect>
-        </g>
-
-      </svg>
-
-      {/* Soft overlay — left side lighter for text, right side shows more map */}
-      <div className="absolute inset-0 bg-gradient-to-r from-white/50 via-white/20 to-white/10" />
+      <canvas ref={canvasRef} className="w-full h-full" />
+      <div className="absolute inset-0 bg-gradient-to-r from-white/55 via-white/20 to-white/10" />
     </div>
   );
 }
@@ -316,7 +535,7 @@ export default function LandingPage() {
 
   // CMS getter with default
   const g = (key: string, fallback: string) => cms[key] || fallback;
-  const appName = g('APP_NAME', 'AM Mart');
+  const appName = g('APP_NAME', 'Our App');
   const appLogo = cms['APP_LOGO'] || '';
   const primaryColor = g('PRIMARY_COLOR', '#10B981');
 
@@ -392,8 +611,8 @@ export default function LandingPage() {
   // ── Support / Footer ──
   const supportTitle = g('LP_SUPPORT_TITLE', 'Need Help?');
   const supportDesc = g('LP_SUPPORT_DESC', 'Our support team is available around the clock to assist you.');
-  const supportEmail = g('SUPPORT_EMAIL', 'support@ammart.com');
-  const supportPhone = g('SUPPORT_PHONE', '+82-2-1234-5678');
+  const supportEmail = g('SUPPORT_EMAIL', 'support@example.com');
+  const supportPhone = g('SUPPORT_PHONE', '');
   const footerText = g('LP_FOOTER_TEXT', appName + ' — Your trusted marketplace for groceries, mobile services, and more.');
   const footerCopyright = g('LP_FOOTER_COPYRIGHT', `© ${new Date().getFullYear()} ${appName}. All rights reserved.`);
 

@@ -94,7 +94,7 @@ export function Sidebar() {
     return map;
   }, [settingsData]);
 
-  const appName = settingsMap['APP_NAME'] || 'AM Mart';
+  const appName = settingsMap['APP_NAME'] || 'Admin';
   const appLogo = settingsMap['APP_LOGO'] || '';
   const initials = appName.slice(0, 2).toUpperCase();
 

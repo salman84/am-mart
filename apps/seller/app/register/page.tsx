@@ -323,7 +323,7 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [appName, setAppName] = useState('AM Mart');
+  const [appName, setAppName] = useState('');
   const [appLogo, setAppLogo] = useState('');
   const [selectedScope, setSelectedScope] = useState<SellerScope | null>(null);
   const [documentUploads, setDocumentUploads] = useState<Record<string, DocumentUpload>>({});

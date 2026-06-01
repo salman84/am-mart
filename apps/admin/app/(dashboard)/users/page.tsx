@@ -113,7 +113,7 @@ export default function UsersPage() {
               </div>
               <div>
                 <label className="form-label">Email Optional</label>
-                <input className="form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="admin@ammart.com" />
+                <input className="form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="user@example.com" />
               </div>
               <button className="btn-primary w-full py-3" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Creating...' : 'Create User'}

@@ -303,7 +303,7 @@ export default function LandingPage() {
     { label: c('LP_NAV_CONTACT', t.navContact), href: '#support' },
   ];
 
-  const appName = c('APP_NAME', 'AM Mart');
+  const appName = c('APP_NAME', '');
   const appLogo = c('APP_LOGO', '');
 
   return (

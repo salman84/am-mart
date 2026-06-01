@@ -41,7 +41,7 @@ export default function LoginPage() {
       });
   }, []);
 
-  const appName = publicSettings.APP_NAME || 'AM Mart';
+  const appName = publicSettings.APP_NAME || 'Admin Panel';
   const tagline = publicSettings.APP_TAGLINE || 'Sign in to manage your store';
   const initials = appName.slice(0, 2).toUpperCase();
 
@@ -94,7 +94,7 @@ export default function LoginPage() {
               <input
                 type="text"
                 className="form-input"
-                placeholder="admin@ammart.com"
+                placeholder="admin@example.com"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"

@@ -36,8 +36,8 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('AM Mart API')
-    .setDescription('AM Mart — Grocery, SIM Card & Top-Up Platform API')
+    .setTitle('Marketplace API')
+    .setDescription('Marketplace — Grocery, SIM Card & Top-Up Platform API')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -50,7 +50,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
-  console.log(`AM Mart API running on http://localhost:${port}`);
+  console.log(`API running on http://localhost:${port}`);
   console.log(`Swagger docs at http://localhost:${port}/docs`);
 }
 

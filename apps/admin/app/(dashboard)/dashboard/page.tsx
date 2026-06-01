@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '../../../lib/api';
 import { Users, ShoppingBag, DollarSign, Smartphone, Package, MessageSquare, Store, Truck } from 'lucide-react';
@@ -10,6 +11,17 @@ export default function DashboardPage() {
     queryKey: ['dashboard'],
     queryFn: () => adminApi.getDashboard().then((r) => r.data),
   });
+
+  // Pull dynamic app name from shared settings cache
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => adminApi.getSettings().then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+  const appName = useMemo(() => {
+    const s = settingsData?.settings as any[] | undefined;
+    return s?.find((x: any) => x.key === 'APP_NAME')?.value || 'your store';
+  }, [settingsData]);
 
   if (isLoading) {
     return (
@@ -103,7 +115,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-        <p className="text-gray-500 mt-1">Welcome back! Here's what's happening with AM Mart.</p>
+        <p className="text-gray-500 mt-1">Welcome back! Here&apos;s what&apos;s happening with {appName}.</p>
       </div>
 
       {/* Stats Grid */}

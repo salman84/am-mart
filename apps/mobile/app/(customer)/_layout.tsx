@@ -40,7 +40,7 @@ export default function CustomerLayout() {
       if (!s) return;
       const sym = s.CURRENCY_SYMBOL || s.CURRENCY || '₩';
       dispatch(setSettings({
-        appName:               s.APP_NAME             || 'AM Mart',
+        appName:               s.APP_NAME             || '',
         appLogo:               s.APP_LOGO             || '',
         appTagline:            s.APP_TAGLINE          || '',
         currencySymbol:        sym,

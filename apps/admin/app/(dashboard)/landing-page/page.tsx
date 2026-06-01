@@ -145,7 +145,7 @@ const SECTIONS = [
       { key: 'LP_SUPPORT_TITLE', label: 'Support Title',     placeholder: 'Need Help?' },
       { key: 'LP_SUPPORT_DESC',  label: 'Support Description', placeholder: 'Our support team...', multiline: true },
       { key: 'LP_FOOTER_TEXT',   label: 'Footer Text',       placeholder: 'Your trusted marketplace...' },
-      { key: 'LP_FOOTER_COPYRIGHT', label: 'Copyright Text', placeholder: '© 2026 AM Mart. All rights reserved.' },
+      { key: 'LP_FOOTER_COPYRIGHT', label: 'Copyright Text', placeholder: '© 2026 Your Brand. All rights reserved.' },
     ],
   },
   {

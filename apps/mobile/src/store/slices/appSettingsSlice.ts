@@ -24,7 +24,7 @@ export interface AppSettings {
 }
 
 const initialState: AppSettings = {
-  appName: 'AM Mart',
+  appName: '',
   appLogo: '',
   appTagline: '',
   currencySymbol: '₩',

@@ -13,7 +13,7 @@ export const translations = {
     // Landing page — Hero
     heroBadge: "Korea's #1 Marketplace",
     heroTitle: 'Sell to Korea with',
-    heroTitleBrand: 'AM Mart',
+    heroTitleBrand: '',
     heroSubtitle: 'Reach millions of customers on Korea\'s fastest-growing e-commerce platform. No Korean entity required — start selling today.',
     heroCtaPrimary: 'Start Selling Free',
     heroCtaSecondary: 'Sign In',
@@ -30,7 +30,7 @@ export const translations = {
     statsDeliveriesLabel: 'Deliveries Made',
 
     // Landing page — Why Sell
-    whySellTitle: 'Why Sell on AM Mart?',
+    whySellTitle: 'Why Sell With Us?',
     whySellSubtitle: 'Join thousands of sellers already growing their business with us.',
     feature1Title: 'We Support Our Sellers',
     feature1Desc: 'From dedicated account managers to our Seller University — we have everything you need to grow your store.',
@@ -51,10 +51,10 @@ export const translations = {
 
     // Landing page — Testimonials
     testimonialsTitle: 'What Our Sellers Say',
-    testimonial1Quote: 'AM Mart\'s market reach has been a keystone for our success in Korea.',
+    testimonial1Quote: 'The platform\'s market reach has been a keystone for our success in Korea.',
     testimonial1Name: 'Kim Ji-yeon',
     testimonial1Company: 'CEO, Seoul Fresh Goods',
-    testimonial2Quote: 'We achieved 100% of our sales target in just 3 months of joining AM Mart.',
+    testimonial2Quote: 'We achieved 100% of our sales target in just 3 months of joining the platform.',
     testimonial2Name: 'Park Soo-hyun',
     testimonial2Company: 'Founder, K-Beauty Direct',
     testimonial3Quote: 'The seller dashboard is incredibly easy to use. Our team was up and running in one day.',
@@ -81,7 +81,7 @@ export const translations = {
     footerTagline: "Korea's trusted marketplace for sellers.",
     footerLinks: 'Quick Links',
     footerContact: 'Contact',
-    footerCopyright: '© 2024 AM Mart. All rights reserved.',
+    footerCopyright: '',
 
     // Auth
     sellerPortal: 'Seller Portal',
@@ -221,7 +221,7 @@ export const translations = {
     // Landing page — Hero
     heroBadge: '한국 1위 마켓플레이스',
     heroTitle: '한국에서 판매하세요,',
-    heroTitleBrand: 'AM Mart와 함께',
+    heroTitleBrand: '',
     heroSubtitle: '한국에서 가장 빠르게 성장하는 이커머스 플랫폼에서 수백만 고객에게 도달하세요. 한국 사업체 없이도 지금 바로 시작하세요.',
     heroCtaPrimary: '무료로 판매 시작',
     heroCtaSecondary: '로그인',
@@ -238,8 +238,8 @@ export const translations = {
     statsDeliveriesLabel: '배달 완료',
 
     // Landing page — Why Sell
-    whySellTitle: 'AM Mart에서 판매해야 하는 이유',
-    whySellSubtitle: '이미 수천 명의 판매자가 AM Mart와 함께 성장하고 있습니다.',
+    whySellTitle: '저희와 함께 판매해야 하는 이유',
+    whySellSubtitle: '이미 수천 명의 판매자가 저희와 함께 성장하고 있습니다.',
     feature1Title: '판매자 지원',
     feature1Desc: '전담 계정 매니저부터 판매자 유니버시티까지 — 스토어 성장에 필요한 모든 것을 제공합니다.',
     feature2Title: '글로벌 사고',
@@ -259,10 +259,10 @@ export const translations = {
 
     // Landing page — Testimonials
     testimonialsTitle: '판매자들의 이야기',
-    testimonial1Quote: 'AM Mart의 시장 도달성은 한국에서의 성공을 위한 핵심이었습니다.',
+    testimonial1Quote: '플랫폼의 시장 도달성은 한국에서의 성공을 위한 핵심이었습니다.',
     testimonial1Name: '김지연',
     testimonial1Company: '대표, 서울 프레시 굿즈',
-    testimonial2Quote: 'AM Mart에 입점한 지 3개월 만에 판매 목표의 100%를 달성했습니다.',
+    testimonial2Quote: '입점한 지 3개월 만에 판매 목표의 100%를 달성했습니다.',
     testimonial2Name: '박수현',
     testimonial2Company: '창업자, K-뷰티 다이렉트',
     testimonial3Quote: '판매자 대시보드가 너무 사용하기 쉬워요. 우리 팀이 하루 만에 운영을 시작했습니다.',
@@ -289,7 +289,7 @@ export const translations = {
     footerTagline: '판매자를 위한 한국의 신뢰받는 마켓플레이스.',
     footerLinks: '빠른 링크',
     footerContact: '연락처',
-    footerCopyright: '© 2024 AM Mart. 모든 권리 보유.',
+    footerCopyright: '',
 
     // Auth
     sellerPortal: '판매자 포털',

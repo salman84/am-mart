@@ -6,8 +6,8 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'AM Mart Admin',
-  description: 'AM Mart Administration Panel',
+  title: 'Admin Panel',
+  description: 'Administration Dashboard',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

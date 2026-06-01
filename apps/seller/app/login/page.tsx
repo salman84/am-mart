@@ -25,7 +25,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [gateStatus, setGateStatus] = useState<GateStatus>(null);
   const [gateMessage, setGateMessage] = useState('');
-  const [appName, setAppName] = useState('AM Mart');
+  const [appName, setAppName] = useState('');
   const [appLogo, setAppLogo] = useState('');
 
   useEffect(() => {
