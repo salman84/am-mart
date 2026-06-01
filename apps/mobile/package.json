@@ -2,6 +2,7 @@
   "name": "mobile",
   "version": "1.0.0",
   "main": "expo-router/entry",
+  "packageManager": "pnpm@9.1.0",
   "scripts": {
     "start": "expo start",
     "start:tunnel": "expo start --tunnel",
