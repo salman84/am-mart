@@ -117,7 +117,7 @@ module.exports = {
             compileSdkVersion: 34,
             targetSdkVersion: 34,
             minSdkVersion: 24,
-            kotlinVersion: '1.8.10',
+            kotlinVersion: '1.9.25',
           },
           ios: {
             deploymentTarget: '15.1',
