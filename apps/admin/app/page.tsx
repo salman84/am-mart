@@ -96,7 +96,6 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
 
     let W = 0, H = 0, animId = 0;
 
-    /* ── Resize handling ── */
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = canvas.offsetWidth;
@@ -108,398 +107,602 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
     resize();
     window.addEventListener('resize', resize);
 
-    /* ── Isometric projection ── */
-    const TW = 56, TH = 28; // tile width / height
-    const iso = (gx: number, gy: number): [number, number] => [
-      (gx - gy) * TW / 2 + W * 0.52,
-      (gx + gy) * TH / 2 - 80,
-    ];
-
-    /* ── Seeded random for consistent city layout ── */
-    let _s = 54321;
-    const srand = () => { _s = (_s * 16807) % 2147483647; return (_s & 0x7fffffff) / 0x7fffffff; };
-
-    /* ── City grid: 20×20  (0=road, >0=building height, -1=tree, -2=park) ── */
-    const G = 20;
-    const grid: number[][] = [];
-    for (let y = 0; y < G; y++) {
-      grid[y] = [];
-      for (let x = 0; x < G; x++) {
-        if (x % 5 === 0 || y % 5 === 0) { grid[y][x] = 0; }
-        else {
-          const r = srand();
-          if (r < 0.07) grid[y][x] = -1;
-          else if (r < 0.12) grid[y][x] = -2;
-          else grid[y][x] = 2 + Math.floor(srand() * 7);
-        }
-      }
-    }
-
-    /* ── Building colour palettes ── */
-    const hexAlpha = (hex: string, a: string) => hex.length >= 7 ? hex + a : hex;
-    const pals = [
-      { top: '#d2e6f5', left: '#7aacd4', right: '#5088b4', win: 'rgba(170,215,255,0.6)', edge: 'rgba(60,110,160,0.12)' },
-      { top: '#dde2e8', left: '#9ba8b8', right: '#6e7f94', win: 'rgba(255,255,255,0.35)', edge: 'rgba(0,0,0,0.08)' },
-      { top: '#f2e8d4', left: '#ccb490', right: '#a89070', win: 'rgba(255,240,200,0.4)', edge: 'rgba(120,90,50,0.1)' },
-      { top: hexAlpha(primaryColor, '50'), left: hexAlpha(primaryColor, 'a0'), right: hexAlpha(primaryColor, 'c8'), win: 'rgba(255,255,255,0.35)', edge: hexAlpha(primaryColor, '20') },
-      { top: '#b0c4cc', left: '#556670', right: '#3c4c58', win: 'rgba(160,200,240,0.55)', edge: 'rgba(0,0,0,0.1)' },
-    ];
-    const pal = (gx: number, gy: number) => pals[(gx * 7 + gy * 13) % pals.length];
-
-    /* ── Drawing helpers ── */
-
-    /* Flat isometric diamond */
-    const drawDiamond = (sx: number, sy: number, col: string) => {
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(sx + TW / 2, sy + TH / 2);
-      ctx.lineTo(sx, sy + TH);
-      ctx.lineTo(sx - TW / 2, sy + TH / 2);
-      ctx.closePath();
-      ctx.fillStyle = col;
-      ctx.fill();
+    /* ═══ Colour helpers ═══ */
+    const hexRgb = (hex: string): [number, number, number] => {
+      const h = hex.replace('#', '').substring(0, 6);
+      return [
+        parseInt(h.substring(0, 2), 16) || 0,
+        parseInt(h.substring(2, 4), 16) || 0,
+        parseInt(h.substring(4, 6), 16) || 0,
+      ];
+    };
+    const shade = (hex: string, f: number) => {
+      const [r, g, b] = hexRgb(hex);
+      return `rgb(${Math.min(255, Math.round(r * f))},${Math.min(255, Math.round(g * f))},${Math.min(255, Math.round(b * f))})`;
     };
 
-    /* 3D building with top / left / right faces, windows, edge highlights */
-    const drawBuilding = (sx: number, sy: number, h: number, p: typeof pals[0]) => {
-      const pH = h * 10; // pixel height
-      const hw = TW / 2, hh = TH / 2;
+    /* ═══ TRUE 3D Perspective Projection ═══ */
+    const FOV = 5;
+    let vpX = 0, vpY = 0, groundMax = 0;
+    const recalcVP = () => { vpX = W * 0.50; vpY = H * 0.22; groundMax = H * 0.62; };
+    recalcVP();
 
-      /* — Ground shadow — */
+    /* wx = world horizontal offset, wz = depth (0=near, bigger=far) */
+    const proj = (wx: number, wz: number): { x: number; y: number; s: number } => {
+      const s = FOV / (wz + FOV);
+      return { x: vpX + wx * s, y: vpY + (groundMax - vpY) * s, s };
+    };
+
+    /* ═══ SKY ═══ */
+    const drawSky = () => {
+      const g = ctx.createLinearGradient(0, 0, 0, vpY + 40);
+      g.addColorStop(0, '#dbeafe');
+      g.addColorStop(0.6, '#e0f2fe');
+      g.addColorStop(1, '#d1fae5');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, vpY + 40);
+    };
+
+    /* ═══ CLOUDS ═══ */
+    const cloudData = [
+      { bx: 0.10, by: 0.06, r: 52 },
+      { bx: 0.35, by: 0.10, r: 40 },
+      { bx: 0.58, by: 0.04, r: 58 },
+      { bx: 0.78, by: 0.12, r: 34 },
+      { bx: 0.93, by: 0.07, r: 44 },
+    ];
+    const drawClouds = (t: number) => {
+      ctx.save();
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = '#fff';
+      for (const c of cloudData) {
+        const cx = ((c.bx * W + t * 6) % (W + 300)) - 150;
+        const cy = c.by * H;
+        const r = c.r;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+        ctx.arc(cx - r * 0.45, cy + 4, r * 0.38, 0, Math.PI * 2);
+        ctx.arc(cx + r * 0.45, cy + 2, r * 0.42, 0, Math.PI * 2);
+        ctx.arc(cx + r * 0.15, cy - r * 0.28, r * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    };
+
+    /* ═══ GROUND (green landscape) ═══ */
+    const drawGround = () => {
+      const g = ctx.createLinearGradient(0, vpY, 0, H);
+      g.addColorStop(0, '#86c06e');
+      g.addColorStop(0.5, '#6db356');
+      g.addColorStop(1, '#5ca844');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, vpY - 2, W, H - vpY + 4);
+    };
+
+    /* ═══ PERSPECTIVE ROAD ═══ */
+    const ROAD_HW = 140;
+    const drawRoad = (t: number) => {
+      const minZ = -3;
+      const maxZ = 30;
+      const N = 55;
+
+      /* Road surface */
+      ctx.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const z = minZ + (i / N) * (maxZ - minZ);
+        const p = proj(-ROAD_HW, z);
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      }
+      for (let i = N; i >= 0; i--) {
+        const z = minZ + (i / N) * (maxZ - minZ);
+        const p = proj(ROAD_HW, z);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      const rg = ctx.createLinearGradient(0, vpY, 0, H);
+      rg.addColorStop(0, '#71787f');
+      rg.addColorStop(1, '#4b5563');
+      ctx.fillStyle = rg;
+      ctx.fill();
+
+      /* Edge lines */
+      for (const sign of [-1, 1]) {
+        ctx.beginPath();
+        for (let i = 0; i <= N; i++) {
+          const z = minZ + (i / N) * (maxZ - minZ);
+          const p = proj(ROAD_HW * sign * 0.96, z);
+          if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+        }
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      /* Animated center lane dashes */
+      const dashW = 0.35, gapW = 0.35;
+      const off = (t * 5) % (dashW + gapW);
+      for (let z = -off; z < maxZ; z += dashW + gapW) {
+        const z1 = Math.max(z, 0);
+        const z2 = Math.min(z + dashW, maxZ);
+        if (z2 <= z1) continue;
+        const p1 = proj(0, z1);
+        const p2 = proj(0, z2);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = `rgba(255,255,200,${Math.min(0.7 * p1.s, 0.7)})`;
+        ctx.lineWidth = Math.max(3.5 * p1.s, 0.5);
+        ctx.stroke();
+      }
+
+      /* Sidewalk strips */
+      for (const sign of [-1, 1]) {
+        ctx.beginPath();
+        const sw = ROAD_HW * 1.15;
+        for (let i = 0; i <= N; i++) {
+          const z = minZ + (i / N) * (maxZ - minZ);
+          const p1 = proj(ROAD_HW * sign, z);
+          if (i === 0) { ctx.moveTo(p1.x, p1.y); } else { ctx.lineTo(p1.x, p1.y); }
+        }
+        for (let i = N; i >= 0; i--) {
+          const z = minZ + (i / N) * (maxZ - minZ);
+          const p2 = proj(sw * sign, z);
+          ctx.lineTo(p2.x, p2.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = '#94a3b0';
+        ctx.fill();
+      }
+    };
+
+    /* ═══ 3D DELIVERY TRUCK (hero element) ═══ */
+    const drawTruck = (wx: number, wz: number, color: string, sz: number) => {
+      const { x, y, s } = proj(wx, wz);
+      const sc = s * sz;
+      if (sc < 0.04) return;
+
+      const bw = 145 * sc;   /* cargo length */
+      const bh = 88 * sc;    /* cargo height */
+      const d3 = 22 * sc;    /* 3D depth offset */
+      const cw = 48 * sc;    /* cab width */
+      const ch = bh * 0.68;  /* cab height */
+      const wR = 14 * sc;    /* wheel radius */
+
+      /* ── Ground shadow ── */
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.beginPath();
+      ctx.ellipse(x, y + 5 * sc, (bw + cw) * 0.52, 12 * sc, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      ctx.restore();
+
+      const bx = x - bw * 0.55;
+      const by = y - bh;
+
+      /* ── Cargo: SIDE face (main) ── */
+      const sideGrad = ctx.createLinearGradient(bx, by, bx, by + bh);
+      sideGrad.addColorStop(0, shade(color, 1.05));
+      sideGrad.addColorStop(1, color);
+      ctx.fillStyle = sideGrad;
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, by, bw, bh);
+
+      /* ── Cargo: TOP face (3D) ── */
+      ctx.fillStyle = shade(color, 1.2);
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + d3, by - d3);
+      ctx.lineTo(bx + bw + d3, by - d3);
+      ctx.lineTo(bx + bw, by);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+      ctx.stroke();
+
+      /* ── Cargo: DEPTH face (3D right side) ── */
+      ctx.fillStyle = shade(color, 0.7);
+      ctx.beginPath();
+      ctx.moveTo(bx + bw, by);
+      ctx.lineTo(bx + bw + d3, by - d3);
+      ctx.lineTo(bx + bw + d3, by + bh - d3);
+      ctx.lineTo(bx + bw, by + bh);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+      ctx.stroke();
+
+      /* ── Brand stripe on cargo ── */
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(bx, by + bh * 0.75, bw, bh * 0.08);
+
+      /* ── Package icon on cargo side ── */
+      const iS = 24 * sc;
+      const iX = bx + bw * 0.5;
+      const iY = by + bh * 0.4;
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = Math.max(2 * sc, 0.5);
+      ctx.strokeRect(iX - iS / 2, iY - iS / 2, iS, iS);
+      ctx.beginPath();
+      ctx.moveTo(iX, iY - iS / 2); ctx.lineTo(iX, iY + iS / 2);
+      ctx.moveTo(iX - iS / 2, iY); ctx.lineTo(iX + iS / 2, iY);
+      ctx.stroke();
+      /* small arrow on package */
+      ctx.beginPath();
+      ctx.moveTo(iX, iY - iS * 0.35);
+      ctx.lineTo(iX - iS * 0.15, iY - iS * 0.15);
+      ctx.moveTo(iX, iY - iS * 0.35);
+      ctx.lineTo(iX + iS * 0.15, iY - iS * 0.15);
+      ctx.stroke();
+
+      /* ── Cab: SIDE ── */
+      const cx = bx + bw + 3 * sc;
+      const cy = y - ch;
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fillRect(cx, cy, cw, ch);
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+      ctx.strokeRect(cx, cy, cw, ch);
+
+      /* ── Cab: TOP (3D) ── */
+      ctx.fillStyle = '#d1d5db';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + d3 * 0.55, cy - d3 * 0.55);
+      ctx.lineTo(cx + cw + d3 * 0.55, cy - d3 * 0.55);
+      ctx.lineTo(cx + cw, cy);
+      ctx.closePath();
+      ctx.fill();
+
+      /* ── Cab: DEPTH face (3D) ── */
+      ctx.fillStyle = '#bfc5cc';
+      ctx.beginPath();
+      ctx.moveTo(cx + cw, cy);
+      ctx.lineTo(cx + cw + d3 * 0.55, cy - d3 * 0.55);
+      ctx.lineTo(cx + cw + d3 * 0.55, cy + ch - d3 * 0.55);
+      ctx.lineTo(cx + cw, cy + ch);
+      ctx.closePath();
+      ctx.fill();
+
+      /* ── Windshield ── */
+      const wsX = cx + cw * 0.1;
+      const wsY = cy + ch * 0.08;
+      const wsW = cw * 0.8;
+      const wsH = ch * 0.5;
+      const gl = ctx.createLinearGradient(wsX, wsY, wsX, wsY + wsH);
+      gl.addColorStop(0, '#93c5fd');
+      gl.addColorStop(0.5, '#60a5fa');
+      gl.addColorStop(1, '#3b82f6');
+      ctx.fillStyle = gl;
+      ctx.fillRect(wsX, wsY, wsW, wsH);
+      /* Glass highlight */
+      ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.fillRect(wsX, wsY, wsW, wsH * 0.28);
+      /* Window divider */
+      ctx.fillStyle = '#d1d5db';
+      ctx.fillRect(wsX + wsW * 0.48, wsY, wsW * 0.04, wsH);
+
+      /* ── Headlights ── */
+      const hlX = cx + cw - 2 * sc;
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath(); ctx.arc(hlX, cy + ch * 0.56, 4.5 * sc, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fcd34d';
+      ctx.beginPath(); ctx.arc(hlX, cy + ch * 0.76, 3.5 * sc, 0, Math.PI * 2); ctx.fill();
+
+      /* ── Headlight glow ── */
+      ctx.save();
+      ctx.globalAlpha = 0.1;
+      const glow = ctx.createRadialGradient(hlX + 4 * sc, cy + ch * 0.66, 0, hlX + 4 * sc, cy + ch * 0.66, 22 * sc);
+      glow.addColorStop(0, '#fef08a');
+      glow.addColorStop(1, 'rgba(254,240,138,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(hlX - 20 * sc, cy + ch * 0.35, 50 * sc, ch * 0.55);
+      ctx.restore();
+
+      /* ── Side mirror ── */
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillRect(cx + cw + 1 * sc, cy + ch * 0.2, 4 * sc, 6 * sc);
+
+      /* ── Bumper ── */
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillRect(cx + cw - 3 * sc, y - 8 * sc, 6 * sc, 8 * sc);
+
+      /* ── Exhaust pipe ── */
+      ctx.fillStyle = '#6b7280';
+      ctx.fillRect(bx + 2 * sc, y - 4 * sc, 5 * sc, 4 * sc);
+
+      /* ── Wheels (detailed) ── */
+      const wheelXs = [bx + bw * 0.15, bx + bw * 0.42, bx + bw * 0.72, cx + cw * 0.5];
+      for (const wx2 of wheelXs) {
+        /* tire */
+        ctx.fillStyle = '#1f2937';
+        ctx.beginPath(); ctx.arc(wx2, y, wR, 0, Math.PI * 2); ctx.fill();
+        /* rim */
+        ctx.fillStyle = '#4b5563';
+        ctx.beginPath(); ctx.arc(wx2, y, wR * 0.6, 0, Math.PI * 2); ctx.fill();
+        /* hub cap */
+        ctx.fillStyle = '#9ca3af';
+        ctx.beginPath(); ctx.arc(wx2, y, wR * 0.25, 0, Math.PI * 2); ctx.fill();
+        /* tire tread highlight */
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(wx2, y, wR * 0.85, -0.5, 0.5); ctx.stroke();
+      }
+
+      /* ── Wheel fender ── */
+      ctx.fillStyle = shade(color, 0.6);
+      for (const wx2 of [bx + bw * 0.15, bx + bw * 0.72]) {
+        ctx.beginPath();
+        ctx.arc(wx2, y - wR * 0.3, wR * 1.2, Math.PI, 0);
+        ctx.lineTo(wx2 + wR * 1.2, y);
+        ctx.lineTo(wx2 - wR * 1.2, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+    };
+
+    /* ═══ TREE ═══ */
+    const drawTree = (wx: number, wz: number, ts: number) => {
+      const { x, y, s } = proj(wx, wz);
+      if (s < 0.04) return;
+      const sc = s * ts;
+
+      /* shadow */
       ctx.save();
       ctx.globalAlpha = 0.07;
       ctx.beginPath();
-      ctx.moveTo(sx + 4, sy + hh + 4);
-      ctx.lineTo(sx + hw + 4, sy + TH + 4);
-      ctx.lineTo(sx + hw + pH * 0.28, sy + TH + pH * 0.16);
-      ctx.lineTo(sx + pH * 0.28, sy + hh + pH * 0.16);
-      ctx.closePath();
-      ctx.fillStyle = '#000';
-      ctx.fill();
+      ctx.ellipse(x + 5 * sc, y + 2 * sc, 16 * sc, 5 * sc, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#000'; ctx.fill();
       ctx.restore();
 
-      /* — Left face — */
-      ctx.beginPath();
-      ctx.moveTo(sx - hw, sy + hh);
-      ctx.lineTo(sx, sy + TH);
-      ctx.lineTo(sx, sy + TH - pH);
-      ctx.lineTo(sx - hw, sy + hh - pH);
-      ctx.closePath();
-      ctx.fillStyle = p.left;
-      ctx.fill();
-      ctx.strokeStyle = p.edge;
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
+      /* trunk */
+      ctx.fillStyle = '#78604a';
+      ctx.fillRect(x - 3 * sc, y - 24 * sc, 6 * sc, 26 * sc);
 
-      /* Windows — left face */
-      const floors = Math.min(h - 1, 7);
-      const fH = pH / h;
-      for (let f = 0; f < floors; f++) {
-        for (let w = 0; w < 2; w++) {
-          const wy = sy + hh - pH + 4 + f * fH;
-          const wx = sx - hw + 5 + w * (hw - 8);
-          ctx.fillStyle = p.win;
-          ctx.fillRect(wx, wy, 8, Math.min(5, fH - 3));
-          /* Glass highlight */
-          ctx.fillStyle = 'rgba(255,255,255,0.15)';
-          ctx.fillRect(wx, wy, 8, 2);
-        }
-      }
-
-      /* — Right face — */
-      ctx.beginPath();
-      ctx.moveTo(sx, sy + TH);
-      ctx.lineTo(sx + hw, sy + hh);
-      ctx.lineTo(sx + hw, sy + hh - pH);
-      ctx.lineTo(sx, sy + TH - pH);
-      ctx.closePath();
-      ctx.fillStyle = p.right;
-      ctx.fill();
-      ctx.strokeStyle = p.edge;
-      ctx.stroke();
-
-      /* Windows — right face */
-      for (let f = 0; f < floors; f++) {
-        for (let w = 0; w < 2; w++) {
-          const wy = sy + hh - pH + 4 + f * fH;
-          const wx = sx + 4 + w * (hw - 8);
-          ctx.fillStyle = p.win;
-          ctx.fillRect(wx, wy, 8, Math.min(5, fH - 3));
-          ctx.fillStyle = 'rgba(255,255,255,0.12)';
-          ctx.fillRect(wx, wy, 8, 2);
-        }
-      }
-
-      /* — Top face — */
-      ctx.beginPath();
-      ctx.moveTo(sx, sy - pH);
-      ctx.lineTo(sx + hw, sy + hh - pH);
-      ctx.lineTo(sx, sy + TH - pH);
-      ctx.lineTo(sx - hw, sy + hh - pH);
-      ctx.closePath();
-      ctx.fillStyle = p.top;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.04)';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-
-      /* Roof AC unit on taller buildings */
-      if (h >= 6) {
-        ctx.fillStyle = 'rgba(120,130,140,0.35)';
-        ctx.fillRect(sx - 5, sy - pH + hh - 3, 10, 4);
-      }
-    };
-
-    /* 3D tree */
-    const drawTree = (sx: number, sy: number) => {
-      ctx.save();
-      ctx.globalAlpha = 0.06;
-      ctx.beginPath();
-      ctx.ellipse(sx + 4, sy + TH / 2 + 3, 10, 5, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#000';
-      ctx.fill();
-      ctx.restore();
-
-      ctx.fillStyle = '#7c6a50';
-      ctx.fillRect(sx - 1.5, sy - 4, 3, 12);
-
+      /* foliage */
       const layers: [number, number, number, string][] = [
-        [0, -16, 11, 'rgba(22,163,74,0.75)'],
-        [-5, -12, 8, 'rgba(34,197,94,0.65)'],
-        [5, -13, 7, 'rgba(74,222,128,0.55)'],
-        [0, -20, 6, 'rgba(34,197,94,0.5)'],
+        [0, -32, 20, 'rgba(22,163,74,0.8)'],
+        [-9, -26, 14, 'rgba(34,197,94,0.7)'],
+        [8, -28, 13, 'rgba(74,222,128,0.6)'],
+        [0, -40, 12, 'rgba(34,197,94,0.55)'],
       ];
       for (const [dx, dy, r, c] of layers) {
         ctx.beginPath();
-        ctx.arc(sx + dx, sy + dy, r, 0, Math.PI * 2);
+        ctx.arc(x + dx * sc, y + dy * sc, r * sc, 0, Math.PI * 2);
         ctx.fillStyle = c;
         ctx.fill();
       }
     };
 
-    /* Road lane markings */
-    const drawRoadTile = (sx: number, sy: number, gx: number, gy: number) => {
-      drawDiamond(sx, sy, '#b8bec6');
-      /* Center dashes */
-      if (gx % 5 === 0 && gy % 2 === 1) {
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.fillRect(sx - 1, sy + TH / 2 - 1, 3, 3);
-      }
-      if (gy % 5 === 0 && gx % 2 === 1) {
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.fillRect(sx - 1, sy + TH / 2 - 1, 3, 3);
-      }
-      /* Intersection crosswalk */
-      if (gx % 5 === 0 && gy % 5 === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.25)';
-        ctx.fillRect(sx - 4, sy + TH / 2 - 2, 8, 4);
-      }
+    /* ═══ SMALL HOUSE (just context — NOT the focus) ═══ */
+    const drawHouse = (wx: number, wz: number, roofCol: string) => {
+      const { x, y, s } = proj(wx, wz);
+      if (s < 0.06) return;
+      const hw = 32 * s, hh = 26 * s, rh = 15 * s, d = 8 * s;
+
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillRect(x - hw / 2, y - hh, hw, hh);
+      ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+      ctx.strokeRect(x - hw / 2, y - hh, hw, hh);
+
+      /* side (3D) */
+      ctx.fillStyle = '#fde68a';
+      ctx.beginPath();
+      ctx.moveTo(x + hw / 2, y - hh); ctx.lineTo(x + hw / 2 + d, y - hh - d * 0.4);
+      ctx.lineTo(x + hw / 2 + d, y - d * 0.4); ctx.lineTo(x + hw / 2, y);
+      ctx.closePath(); ctx.fill();
+
+      /* roof */
+      ctx.fillStyle = roofCol;
+      ctx.beginPath();
+      ctx.moveTo(x - hw / 2 - 4 * s, y - hh);
+      ctx.lineTo(x, y - hh - rh);
+      ctx.lineTo(x + hw / 2 + 4 * s, y - hh);
+      ctx.closePath(); ctx.fill();
+
+      /* roof side (3D) */
+      ctx.fillStyle = shade(roofCol, 0.65);
+      ctx.beginPath();
+      ctx.moveTo(x + hw / 2 + 4 * s, y - hh);
+      ctx.lineTo(x, y - hh - rh);
+      ctx.lineTo(x + d * 0.5, y - hh - rh - d * 0.3);
+      ctx.lineTo(x + hw / 2 + 4 * s + d, y - hh - d * 0.4);
+      ctx.closePath(); ctx.fill();
+
+      /* door */
+      ctx.fillStyle = '#92400e';
+      ctx.fillRect(x - 4 * s, y - 14 * s, 8 * s, 14 * s);
+      /* window */
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillRect(x + 6 * s, y - hh + 5 * s, 9 * s, 7 * s);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(x + 6 * s, y - hh + 5 * s, 9 * s, 2.5 * s);
     };
 
-    /* ── Vehicles ── */
-    type VehicleData = { path: number[][]; progress: number; speed: number; color: string; size: number };
-    const vehicles: VehicleData[] = [
-      { path: [[0,5],[5,5],[10,5],[15,5],[19,5],[19,10],[19,15],[15,15],[10,15],[5,15],[0,15]], progress: 0, speed: 0.00035, color: primaryColor, size: 1 },
-      { path: [[5,0],[5,5],[5,10],[5,15],[5,19],[10,19],[15,19],[15,15],[15,10],[15,5],[15,0]], progress: 0.45, speed: 0.00028, color: '#6366f1', size: 0.85 },
-      { path: [[10,0],[10,5],[10,10],[10,15],[10,19]], progress: 0.15, speed: 0.0005, color: '#f59e0b', size: 0.7 },
-    ];
+    /* ═══ 3D PACKAGE ═══ */
+    const drawPackage = (wx: number, wz: number, wy: number) => {
+      const { x, y: gy, s } = proj(wx, wz);
+      if (s < 0.06) return;
+      const py = gy - wy * 65 * s;
+      const ps = 20 * s;
+      const d = 6 * s;
 
-    const vehiclePos = (v: VehicleData): [number, number] => {
-      const n = v.path.length - 1;
-      const e = v.progress * n;
-      const i = Math.min(Math.floor(e), n - 1);
-      const f = e - i;
-      const a = v.path[i], b = v.path[i + 1];
-      return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-    };
-
-    const drawVehicle = (gx: number, gy: number, v: VehicleData) => {
-      const [sx, sy] = iso(gx, gy);
-      const s = v.size;
-
-      /* Shadow */
-      ctx.save();
-      ctx.globalAlpha = 0.1;
+      /* shadow */
+      ctx.save(); ctx.globalAlpha = 0.1;
       ctx.beginPath();
-      ctx.ellipse(sx, sy + 6 * s, 14 * s, 6 * s, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#000';
-      ctx.fill();
-      ctx.restore();
+      ctx.ellipse(x, gy + 2 * s, ps * 0.6, 3 * s, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
 
-      /* Cargo — left face */
+      /* front */
+      ctx.fillStyle = '#d4a574';
+      ctx.fillRect(x - ps / 2, py - ps / 2, ps, ps);
+      ctx.strokeStyle = 'rgba(140,90,40,0.25)';
+      ctx.lineWidth = 0.8;
+      ctx.strokeRect(x - ps / 2, py - ps / 2, ps, ps);
+
+      /* top (3D) */
+      ctx.fillStyle = '#e8c49a';
       ctx.beginPath();
-      ctx.moveTo(sx - 13 * s, sy - 2 * s);
-      ctx.lineTo(sx, sy + 5 * s);
-      ctx.lineTo(sx, sy + 5 * s - 14 * s);
-      ctx.lineTo(sx - 13 * s, sy - 2 * s - 14 * s);
-      ctx.closePath();
-      ctx.fillStyle = v.color;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-      ctx.lineWidth = 0.5;
+      ctx.moveTo(x - ps / 2, py - ps / 2);
+      ctx.lineTo(x - ps / 2 + d, py - ps / 2 - d);
+      ctx.lineTo(x + ps / 2 + d, py - ps / 2 - d);
+      ctx.lineTo(x + ps / 2, py - ps / 2);
+      ctx.closePath(); ctx.fill();
+
+      /* right (3D) */
+      ctx.fillStyle = '#c09060';
+      ctx.beginPath();
+      ctx.moveTo(x + ps / 2, py - ps / 2);
+      ctx.lineTo(x + ps / 2 + d, py - ps / 2 - d);
+      ctx.lineTo(x + ps / 2 + d, py + ps / 2 - d);
+      ctx.lineTo(x + ps / 2, py + ps / 2);
+      ctx.closePath(); ctx.fill();
+
+      /* tape */
+      ctx.strokeStyle = 'rgba(180,140,80,0.5)';
+      ctx.lineWidth = Math.max(1.5 * s, 0.5);
+      ctx.beginPath();
+      ctx.moveTo(x, py - ps / 2); ctx.lineTo(x, py + ps / 2);
+      ctx.moveTo(x - ps / 2, py); ctx.lineTo(x + ps / 2, py);
       ctx.stroke();
-
-      /* Cargo — right face */
-      ctx.beginPath();
-      ctx.moveTo(sx, sy + 5 * s);
-      ctx.lineTo(sx + 10 * s, sy - 1 * s);
-      ctx.lineTo(sx + 10 * s, sy - 1 * s - 14 * s);
-      ctx.lineTo(sx, sy + 5 * s - 14 * s);
-      ctx.closePath();
-      ctx.fillStyle = v.color + 'bb';
-      ctx.fill();
-      ctx.stroke();
-
-      /* Cargo — top face */
-      ctx.beginPath();
-      ctx.moveTo(sx - 3 * s, sy - 12 * s);
-      ctx.lineTo(sx + 10 * s, sy - 1 * s - 14 * s);
-      ctx.lineTo(sx, sy + 5 * s - 14 * s);
-      ctx.lineTo(sx - 13 * s, sy - 2 * s - 14 * s);
-      ctx.closePath();
-      ctx.fillStyle = v.color + '88';
-      ctx.fill();
-
-      /* Cab windshield */
-      ctx.fillStyle = '#93c5fd';
-      ctx.fillRect(sx + 5 * s, sy - 12 * s, 6 * s, 7 * s);
-      ctx.fillStyle = 'rgba(255,255,255,0.25)';
-      ctx.fillRect(sx + 5 * s, sy - 12 * s, 6 * s, 3 * s);
-
-      /* Headlight */
-      ctx.fillStyle = '#fbbf24';
-      ctx.beginPath();
-      ctx.arc(sx + 11 * s, sy - 3 * s, 2 * s, 0, Math.PI * 2);
-      ctx.fill();
-
-      /* Wheels */
-      [[-8, 3], [5, 0]].forEach(([dx, dy]) => {
-        ctx.fillStyle = '#1e293b';
-        ctx.beginPath();
-        ctx.arc(sx + dx * s, sy + dy * s, 3.5 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#64748b';
-        ctx.beginPath();
-        ctx.arc(sx + dx * s, sy + dy * s, 1.8 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#94a3b8';
-        ctx.beginPath();
-        ctx.arc(sx + dx * s, sy + dy * s, 0.7 * s, 0, Math.PI * 2);
-        ctx.fill();
-      });
     };
 
-    /* ── Location pin ── */
+    /* ═══ PULSING LOCATION PIN ═══ */
     let pulse = 0;
-    const drawPin = (gx: number, gy: number, color: string) => {
-      const [sx, sy] = iso(gx, gy);
-      const r = 14 + Math.sin(pulse) * 5;
+    const drawPin = (wx: number, wz: number, color: string) => {
+      const { x, y, s } = proj(wx, wz);
+      if (s < 0.06) return;
+
+      /* pulse ring */
+      const r = (20 + Math.sin(pulse) * 7) * s;
       ctx.save();
-      ctx.globalAlpha = 0.18 + Math.sin(pulse) * 0.06;
+      ctx.globalAlpha = 0.2 + Math.sin(pulse) * 0.08;
       ctx.beginPath();
-      ctx.arc(sx, sy - 10, r, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
+      ctx.arc(x, y - 24 * s, r, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
       ctx.restore();
 
+      /* pin body */
       ctx.beginPath();
-      ctx.moveTo(sx, sy + 4);
-      ctx.bezierCurveTo(sx - 10, sy - 10, sx - 10, sy - 26, sx, sy - 28);
-      ctx.bezierCurveTo(sx + 10, sy - 26, sx + 10, sy - 10, sx, sy + 4);
+      ctx.moveTo(x, y);
+      ctx.bezierCurveTo(x - 15 * s, y - 20 * s, x - 15 * s, y - 44 * s, x, y - 48 * s);
+      ctx.bezierCurveTo(x + 15 * s, y - 44 * s, x + 15 * s, y - 20 * s, x, y);
       ctx.closePath();
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
       ctx.lineWidth = 1;
       ctx.stroke();
 
+      /* white dot */
       ctx.beginPath();
-      ctx.arc(sx, sy - 16, 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff';
-      ctx.fill();
+      ctx.arc(x, y - 30 * s, 6 * s, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff'; ctx.fill();
     };
 
-    /* ── Delivery route dashes (drawn on road surface) ── */
-    const drawRoute = (from: number[], to: number[], t: number) => {
-      const [x1, y1] = iso(from[0], from[1]);
-      const [x2, y2] = iso(to[0], to[1]);
+    /* ═══ GPS DELIVERY ROUTE ═══ */
+    const drawRoute = (pts: [number, number][], t: number) => {
+      if (pts.length < 2) return;
       ctx.save();
-      ctx.setLineDash([6, 5]);
-      ctx.lineDashOffset = -t * 30;
+      ctx.setLineDash([10, 7]);
+      ctx.lineDashOffset = -t * 50;
+      ctx.lineWidth = 3.5;
       ctx.strokeStyle = primaryColor;
       ctx.globalAlpha = 0.4;
-      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
       ctx.beginPath();
-      ctx.moveTo(x1, y1 + TH / 2);
-      ctx.lineTo(x2, y2 + TH / 2);
+      for (let i = 0; i < pts.length; i++) {
+        const p = proj(pts[i][0], pts[i][1]);
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      }
       ctx.stroke();
       ctx.restore();
     };
 
-    /* ══════════════════════════════════════════════════════════════════════
+    /* ══════════════════════════════════════════════════
+       SCENE OBJECTS — trucks are THE STAR
+    ══════════════════════════════════════════════════ */
+    type TruckData = { wx: number; wz: number; color: string; sz: number; speed: number };
+    const truckList: TruckData[] = [
+      { wx: 55, wz: 2, color: primaryColor, sz: 1.35, speed: 2.2 },
+      { wx: -60, wz: 7, color: '#6366f1', sz: 1.15, speed: 1.6 },
+      { wx: 45, wz: 12, color: '#f59e0b', sz: 1.05, speed: 2.5 },
+      { wx: -50, wz: 18, color: primaryColor, sz: 1.0, speed: 1.8 },
+      { wx: 52, wz: 24, color: '#ef4444', sz: 0.95, speed: 2.0 },
+    ];
+
+    const houseList = [
+      { wx: -300, wz: 5, roof: '#dc2626' },
+      { wx: 310, wz: 14, roof: '#2563eb' },
+    ];
+
+    const treeList = [
+      { wx: -210, wz: 2.5, sz: 1.0 },
+      { wx: 230, wz: 4, sz: 0.9 },
+      { wx: -250, wz: 8, sz: 0.85 },
+      { wx: 260, wz: 7, sz: 0.95 },
+      { wx: -200, wz: 13, sz: 0.8 },
+      { wx: 220, wz: 16, sz: 0.85 },
+      { wx: -240, wz: 20, sz: 0.7 },
+      { wx: 250, wz: 19, sz: 0.75 },
+      { wx: -220, wz: 25, sz: 0.65 },
+      { wx: 235, wz: 24, sz: 0.7 },
+    ];
+
+    const pkgList = [
+      { wx: -290, wz: 5.5, wy: 0 },
+      { wx: 320, wz: 14.5, wy: 0 },
+      { wx: 70, wz: 4.5, wy: 0.4 },
+      { wx: -60, wz: 15, wy: 0.35 },
+      { wx: 55, wz: 20, wy: 0.3 },
+    ];
+
+    const pinList = [
+      { wx: -300, wz: 5, color: primaryColor },
+      { wx: 310, wz: 14, color: '#ef4444' },
+    ];
+
+    const routePts: [number, number][] = [
+      [55, 0], [55, 5], [-60, 9], [45, 13], [-50, 18], [52, 24],
+    ];
+
+    /* ══════════════════════════════════════════════════
        RENDER LOOP
-    ══════════════════════════════════════════════════════════════════════ */
+    ══════════════════════════════════════════════════ */
     let time = 0;
     const render = () => {
+      recalcVP();
       ctx.clearRect(0, 0, W, H);
 
-      /* Sky / ground gradient */
-      const sky = ctx.createLinearGradient(0, 0, W * 0.3, H);
-      sky.addColorStop(0, '#f4f7fa');
-      sky.addColorStop(1, '#e8eef4');
-      ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, W, H);
+      drawSky();
+      drawClouds(time);
+      drawGround();
+      drawRoad(time);
+      drawRoute(routePts, time);
 
-      /* Collect all drawables and sort by depth (gx+gy) for painter's algorithm */
-      type Drawable = { depth: number; draw: () => void };
-      const drawables: Drawable[] = [];
+      /* Depth-sort all objects (farthest first = painter's algorithm) */
+      type SceneObj = { wz: number; draw: () => void };
+      const scene: SceneObj[] = [];
+      for (const h of houseList) scene.push({ wz: h.wz, draw: () => drawHouse(h.wx, h.wz, h.roof) });
+      for (const tr of treeList) scene.push({ wz: tr.wz, draw: () => drawTree(tr.wx, tr.wz, tr.sz) });
+      for (const p of pkgList) scene.push({ wz: p.wz, draw: () => drawPackage(p.wx, p.wz, p.wy) });
+      for (const tk of truckList) scene.push({ wz: tk.wz, draw: () => drawTruck(tk.wx, tk.wz, tk.color, tk.sz) });
+      scene.sort((a, b) => b.wz - a.wz);
+      for (const o of scene) o.draw();
 
-      for (let y = 0; y < G; y++) {
-        for (let x = 0; x < G; x++) {
-          const [sx, sy] = iso(x, y);
-          if (sx < -60 || sx > W + 60 || sy < -120 || sy > H + 120) continue;
+      /* Pins always on top */
+      for (const pin of pinList) drawPin(pin.wx, pin.wz, pin.color);
 
-          const v = grid[y][x];
-          const d = x + y;
-
-          if (v === 0) {
-            drawables.push({ depth: d, draw: () => drawRoadTile(sx, sy, x, y) });
-          } else if (v === -1) {
-            drawables.push({ depth: d, draw: () => { drawDiamond(sx, sy, '#c8e8c8'); drawTree(sx, sy); } });
-          } else if (v === -2) {
-            drawables.push({ depth: d, draw: () => drawDiamond(sx, sy, '#bce0b8') });
-          } else {
-            drawables.push({ depth: d + v * 0.1, draw: () => { drawDiamond(sx, sy, '#d0d4d8'); drawBuilding(sx, sy, v, pal(x, y)); } });
-          }
-        }
+      /* ── Animate trucks driving toward viewer ── */
+      for (const tk of truckList) {
+        tk.wz -= tk.speed * 0.016;
+        if (tk.wz < -3) tk.wz = 28;
       }
-
-      /* Insert vehicles into draw order */
-      for (const v of vehicles) {
-        const [vx, vy] = vehiclePos(v);
-        drawables.push({ depth: vx + vy + 0.05, draw: () => drawVehicle(vx, vy, v) });
+      /* floating packages bob */
+      for (const p of pkgList) {
+        if (p.wy > 0) p.wy = 0.35 + Math.sin(time * 2 + p.wx) * 0.12;
       }
-
-      /* Sort and draw */
-      drawables.sort((a, b) => a.depth - b.depth);
-      for (const d of drawables) d.draw();
-
-      /* Delivery route (animated dashes along road surface) */
-      const routeWaypoints = [[1, 5], [5, 5], [10, 5], [15, 5], [15, 10], [15, 15]];
-      for (let i = 0; i < routeWaypoints.length - 1; i++) {
-        drawRoute(routeWaypoints[i], routeWaypoints[i + 1], time);
-      }
-
-      /* Location pins (drawn last — always on top) */
-      drawPin(1, 15, primaryColor);
-      drawPin(17, 3, '#ef4444');
-
-      /* Update state */
-      for (const v of vehicles) {
-        v.progress += v.speed;
-        if (v.progress >= 1) v.progress = 0;
-      }
-      pulse += 0.045;
+      pulse += 0.04;
       time += 0.016;
 
       animId = requestAnimationFrame(render);
@@ -512,7 +715,7 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
       <canvas ref={canvasRef} className="w-full h-full" />
-      <div className="absolute inset-0 bg-gradient-to-r from-white/55 via-white/20 to-white/10" />
+      <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-white/8 to-transparent" />
     </div>
   );
 }
