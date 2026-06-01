@@ -1,0 +1,8 @@
+<resources>
+  <string name="app_name">AM Mart</string>
+  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
+  <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
+  <string name="expo_runtime_version">1.0.0</string>
+  <string name="expo_update_url" translatable="false">https://u.expo.dev/2e9ab6a3-77f8-4011-bd2c-1b6873d22031</string>
+  <string name="expo_channel_name" translatable="false">live</string>
+</resources>
