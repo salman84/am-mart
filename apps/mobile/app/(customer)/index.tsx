@@ -260,9 +260,14 @@ export default function HomeScreen() {
                   router.push({ pathname: '/(customer)/products' as any, params: { categoryId: currentBanner.linkUrl } });
                 } else if (currentBanner.linkType === 'PRODUCT' && currentBanner.linkUrl) {
                   router.push({ pathname: '/(customer)/product/[id]' as any, params: { id: currentBanner.linkUrl } });
-                } else {
-                  // Default: go to products page
-                  router.push('/(customer)/products' as any);
+                } else if (currentBanner.linkType === 'URL' && currentBanner.linkUrl) {
+                  router.push({ pathname: '/(customer)/products' as any });
+                } else if (currentBanner.linkType === 'PAGE' && currentBanner.linkUrl) {
+                  router.push(currentBanner.linkUrl as any);
+                } else if (currentBanner.linkType === 'SIM') {
+                  router.push('/(customer)/sim' as any);
+                } else if (currentBanner.linkType === 'TOPUP') {
+                  router.push('/(customer)/topup' as any);
                 }
               }}
             >

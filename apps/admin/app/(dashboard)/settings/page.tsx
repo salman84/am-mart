@@ -3,10 +3,32 @@
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi, uploadApi, notificationsApi } from '../../../lib/api';
-import { Settings, Bell, Send, Upload, Image, X, ToggleLeft, Layout } from 'lucide-react';
+import { Settings, Bell, Send, Upload, Image, X, ToggleLeft, Layout, Smartphone, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 type SettingsTab = 'general' | 'landing';
+
+// Keys that use image upload
+const LOGO_FIELDS = [
+  {
+    key: 'APP_LOGO',
+    label: 'Header Logo',
+    description: 'Shown in the app top navigation bar. Transparent PNG recommended.',
+    folder: 'logos',
+  },
+  {
+    key: 'APP_ICON_LOGO',
+    label: 'App Icon Logo',
+    description: 'Reference image for the app launcher icon. Used in next build.',
+    folder: 'logos',
+  },
+  {
+    key: 'SPLASH_LOGO',
+    label: 'Splash Screen Logo',
+    description: 'Logo displayed on the app loading / splash screen.',
+    folder: 'logos',
+  },
+];
 
 const TEXT_SETTINGS = [
   { label: 'App Name', key: 'APP_NAME' },
@@ -120,10 +142,10 @@ const LANDING_SECTIONS = [
 
 export default function SettingsPage() {
   const qc = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [notification, setNotification] = useState({ title: '', body: '', role: 'ALL' });
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
   const { isLoading } = useQuery({
@@ -149,32 +171,33 @@ export default function SettingsPage() {
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
   });
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (key: string, folder: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
 
-    setUploading(true);
+    setUploading((u) => ({ ...u, [key]: true }));
     try {
-      const res = await uploadApi.uploadImage(file, 'logos');
+      const res = await uploadApi.uploadImage(file, folder);
       const url = res.data.url;
-      setLocalValues((v) => ({ ...v, APP_LOGO: url }));
-      await adminApi.updateSetting('APP_LOGO', url);
-      toast.success('Logo uploaded and saved!');
+      setLocalValues((v) => ({ ...v, [key]: url }));
+      await adminApi.updateSetting(key, url);
+      toast.success('Image uploaded and saved!');
       qc.invalidateQueries({ queryKey: ['settings'] });
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Upload failed');
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setUploading((u) => ({ ...u, [key]: false }));
+      const ref = fileRefs.current[key];
+      if (ref) ref.value = '';
     }
   };
 
-  const removeLogo = async () => {
-    setLocalValues((v) => ({ ...v, APP_LOGO: '' }));
-    await adminApi.updateSetting('APP_LOGO', '');
-    toast.success('Logo removed');
+  const removeImage = async (key: string) => {
+    setLocalValues((v) => ({ ...v, [key]: '' }));
+    await adminApi.updateSetting(key, '');
+    toast.success('Image removed');
     qc.invalidateQueries({ queryKey: ['settings'] });
   };
 
@@ -270,11 +293,11 @@ export default function SettingsPage() {
       {/* ── General Settings Tab ── */}
       {activeTab === 'general' && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Logo & Branding */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Image className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold">App Logo & Branding</h2>
+        {/* ── App Logos & Splash ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-5">
+            <Layers className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold">App Logos & Splash Screen</h2>
           </div>
 
           {isLoading ? (
@@ -282,66 +305,90 @@ export default function SettingsPage() {
               <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full" />
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Logo Preview */}
-              <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-2">App Logo</label>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center gap-3 bg-gray-50 min-h-32">
-                  {localValues['APP_LOGO'] ? (
-                    <div className="relative">
-                      <img
-                        src={localValues['APP_LOGO']}
-                        alt="App Logo"
-                        className="h-24 w-auto object-contain rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        aria-label="Remove logo"
-                        onClick={removeLogo}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-gray-200 rounded-xl flex items-center justify-center mx-auto mb-2">
-                        <Image className="w-8 h-8 text-gray-400" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Header Logo | App Icon Logo | Splash Logo */}
+              {LOGO_FIELDS.map((field) => (
+                <div key={field.key}>
+                  <p className="text-sm font-bold text-gray-800 mb-0.5">{field.label}</p>
+                  <p className="text-xs text-gray-400 mb-2">{field.description}</p>
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-3 flex flex-col items-center gap-2 bg-gray-50 min-h-28">
+                    {localValues[field.key] ? (
+                      <div className="relative">
+                        <img
+                          src={localValues[field.key]}
+                          alt={field.label}
+                          className="h-20 w-auto object-contain rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          aria-label={`Remove ${field.label}`}
+                          onClick={() => removeImage(field.key)}
+                          className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
                       </div>
-                      <p className="text-sm text-gray-400">No logo uploaded</p>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="text-center py-2">
+                        <Image className="w-8 h-8 text-gray-300 mx-auto mb-1" />
+                        <p className="text-xs text-gray-400">No image</p>
+                      </div>
+                    )}
+                    <input
+                      ref={(el) => { fileRefs.current[field.key] = el; }}
+                      type="file"
+                      accept="image/*"
+                      aria-label={`Upload ${field.label}`}
+                      title={`Upload ${field.label}`}
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(field.key, field.folder, e)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileRefs.current[field.key]?.click()}
+                      disabled={!!uploading[field.key]}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      <Upload className="w-3 h-3" />
+                      {uploading[field.key] ? 'Uploading...' : localValues[field.key] ? 'Change' : 'Upload'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
+          {/* Splash Background Color + App Name + Brand Color */}
+          {!isLoading && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t border-gray-100">
+              {/* Splash BG Color */}
+              <div>
+                <p className="text-sm font-bold text-gray-800 mb-0.5">Splash Screen Background</p>
+                <p className="text-xs text-gray-400 mb-2">Background color shown on the loading screen.</p>
+                <div className="flex items-center gap-3">
                   <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    aria-label="Upload logo image"
-                    title="Upload logo image"
-                    className="hidden"
-                    onChange={handleLogoUpload}
+                    type="color"
+                    aria-label="Splash Background Color"
+                    className="w-12 h-10 rounded-lg cursor-pointer border border-gray-200 p-0.5"
+                    value={localValues['SPLASH_BG_COLOR'] || '#10B981'}
+                    onChange={(e) => {
+                      setLocalValues((v) => ({ ...v, SPLASH_BG_COLOR: e.target.value }));
+                      updateMutation.mutate({ key: 'SPLASH_BG_COLOR', value: e.target.value });
+                    }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 disabled:opacity-60"
-                  >
-                    <Upload className="w-4 h-4" />
-                    {uploading ? 'Uploading...' : localValues['APP_LOGO'] ? 'Change Logo' : 'Upload Logo'}
-                  </button>
-                  <p className="text-xs text-gray-400">PNG, JPG up to 5MB. Transparent PNG recommended.</p>
+                  <span className="text-sm text-gray-500 font-mono">{localValues['SPLASH_BG_COLOR'] || '#10B981'}</span>
                 </div>
               </div>
 
               {/* App Name */}
               <div>
-                <label className="text-sm font-semibold text-gray-700">App Name</label>
-                <div className="flex gap-2 mt-1">
+                <p className="text-sm font-bold text-gray-800 mb-0.5">App Name</p>
+                <p className="text-xs text-gray-400 mb-2">Shown in notifications and fallback text.</p>
+                <div className="flex gap-2">
                   <input
                     id="app-name"
                     aria-label="App Name"
-                    className="form-input flex-1"
+                    className="form-input flex-1 text-sm"
                     value={localValues['APP_NAME'] || ''}
                     placeholder="AM Mart"
                     onChange={(e) => setLocalValues((v) => ({ ...v, APP_NAME: e.target.value }))}
@@ -349,7 +396,7 @@ export default function SettingsPage() {
                   />
                   <button
                     type="button"
-                    className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90"
+                    className="px-3 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90"
                     onClick={() => updateMutation.mutate({ key: 'APP_NAME', value: localValues['APP_NAME'] })}
                   >
                     Save
@@ -359,19 +406,20 @@ export default function SettingsPage() {
 
               {/* Brand Primary Color */}
               <div>
-                <label className="text-sm font-semibold text-gray-700">Brand Primary Color</label>
-                <div className="flex items-center gap-3 mt-1">
+                <p className="text-sm font-bold text-gray-800 mb-0.5">Brand Primary Color</p>
+                <p className="text-xs text-gray-400 mb-2">Main color used in buttons and accents.</p>
+                <div className="flex items-center gap-3">
                   <input
                     type="color"
                     aria-label="Brand Primary Color"
-                    className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200 p-0.5"
-                    value={localValues['PRIMARY_COLOR'] || '#6366f1'}
+                    className="w-12 h-10 rounded-lg cursor-pointer border border-gray-200 p-0.5"
+                    value={localValues['PRIMARY_COLOR'] || '#10B981'}
                     onChange={(e) => {
                       setLocalValues((v) => ({ ...v, PRIMARY_COLOR: e.target.value }));
                       updateMutation.mutate({ key: 'PRIMARY_COLOR', value: e.target.value });
                     }}
                   />
-                  <span className="text-sm text-gray-500 font-mono">{localValues['PRIMARY_COLOR'] || '#6366f1'}</span>
+                  <span className="text-sm text-gray-500 font-mono">{localValues['PRIMARY_COLOR'] || '#10B981'}</span>
                 </div>
               </div>
             </div>

@@ -695,7 +695,7 @@ model Banner {
   subtitle  String?
   imageUrl  String
   linkType  BannerLink @default(NONE)
-  linkValue String?
+  linkUrl   String?    @map("linkValue")
   isActive  Boolean    @default(true)
   sortOrder Int        @default(0)
   startDate DateTime?
@@ -1736,6 +1736,7 @@ enum BannerLink {
   URL
   SIM
   TOPUP
+  PAGE
 }
 
 enum NotificationType {
