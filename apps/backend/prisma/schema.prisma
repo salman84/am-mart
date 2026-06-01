@@ -7,35 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Users & Auth ────────────────────────────────────────────────────────────
-
 model User {
-  id                String     @id @default(uuid())
-  email             String?    @unique
-  phone             String     @unique
-  passwordHash      String
-  fullName          String
-  avatar            String?
-  role              UserRole   @default(CUSTOMER)
-  status            UserStatus @default(PENDING_VERIFICATION)
-  isPhoneVerified   Boolean    @default(false)
-  isEmailVerified   Boolean    @default(false)
-  fcmToken          String?
-  lastLoginAt       DateTime?
-  referralCode      String?    @unique
-  referredBy        String?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-
-  customer          Customer?
-  seller            Seller?
-  rider             Rider?
-  wallet            Wallet?
-  otpVerifications  OtpVerification[]
-  notifications     Notification[]
-  supportTickets    SupportTicket[]
-  adminLogs         AdminLog[]
-  userCoupons       UserCoupon[]
+  id               String            @id @default(uuid())
+  email            String?           @unique
+  phone            String            @unique
+  passwordHash     String
+  fullName         String
+  avatar           String?
+  role             UserRole          @default(CUSTOMER)
+  status           UserStatus        @default(PENDING_VERIFICATION)
+  isPhoneVerified  Boolean           @default(false)
+  isEmailVerified  Boolean           @default(false)
+  fcmToken         String?
+  lastLoginAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  referralCode     String?           @unique
+  referredBy       String?
+  adminLogs        AdminLog[]
+  customer         Customer?
+  notifications    Notification[]
+  otpVerifications OtpVerification[]
+  rider            Rider?
+  seller           Seller?
+  supportTickets   SupportTicket[]
+  userCoupons      UserCoupon[]
+  wallet           Wallet?
 
   @@index([phone])
   @@index([email])
@@ -45,18 +42,17 @@ model User {
 }
 
 model OtpVerification {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   userId      String
   phone       String
   otp         String
-  sessionInfo String?  // Firebase sessionInfo for phone auth
   purpose     OtpPurpose
-  isUsed      Boolean  @default(false)
-  attempts    Int      @default(0)
+  isUsed      Boolean    @default(false)
+  attempts    Int        @default(0)
   expiresAt   DateTime
-  createdAt   DateTime @default(now())
-
-  user       User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime   @default(now())
+  sessionInfo String?
+  user        User       @relation(fields: [userId], references: [id])
 
   @@index([phone, purpose])
   @@map("otp_verifications")
@@ -74,235 +70,216 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-// ─── Customer ────────────────────────────────────────────────────────────────
-
 model Customer {
-  id              String    @id @default(uuid())
-  userId          String    @unique
-  dateOfBirth     DateTime?
-  gender          String?
-  preferredLang   String    @default("en")
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  user            User      @relation(fields: [userId], references: [id])
-  addresses       Address[]
-  orders          Order[]
-  simOrders       SimOrder[]
-  topupOrders     TopupOrder[]
-  wishlistItems   WishlistItem[]
-  reviews         Review[]
-  cartItems       CartItem[]
+  id            String         @id @default(uuid())
+  userId        String         @unique
+  dateOfBirth   DateTime?
+  gender        String?
+  preferredLang String         @default("en")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  addresses     Address[]
+  cartItems     CartItem[]
+  user          User           @relation(fields: [userId], references: [id])
+  orders        Order[]
+  reviews       Review[]
+  simOrders     SimOrder[]
+  topupOrders   TopupOrder[]
+  wishlistItems WishlistItem[]
 
   @@map("customers")
 }
 
 model Address {
-  id           String   @id @default(uuid())
-  customerId   String
-  label        String   @default("Home")
-  fullName     String?
-  phone        String?
-  addressLine1 String   @default("")
-  addressLine2 String?
-  city         String   @default("")
-  district     String?
-  postalCode   String?
-  lat          Float?
-  lng          Float?
+  id                    String   @id @default(uuid())
+  customerId            String
+  label                 String   @default("Home")
+  fullName              String?
+  phone                 String?
+  addressLine1          String   @default("")
+  addressLine2          String?
+  city                  String   @default("")
+  district              String?
+  postalCode            String?
+  lat                   Float?
+  lng                   Float?
   isDefault             Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  deliveryDawn          String?
+  deliveryDawnCode      String?
+  deliveryDawnNotify    String?
+  deliveryDawnOtherNote String?
+  deliveryDawnSub       String?
   deliveryGeneral       String?
   deliveryLockerCode    String?
   deliveryOtherNote     String?
   gateCode              String?
-  deliveryDawn          String?
-  deliveryDawnSub       String?
-  deliveryDawnCode      String?
-  deliveryDawnNotify    String?
-  deliveryDawnOtherNote String?
-  createdAt             DateTime @default(now())
-
-  customer     Customer @relation(fields: [customerId], references: [id])
-  orders       Order[]
+  customer              Customer @relation(fields: [customerId], references: [id])
+  orders                Order[]
 
   @@map("addresses")
 }
 
 model Wallet {
-  id           String          @id @default(uuid())
-  userId       String          @unique
-  balance      Float           @default(0)
-  currency     String          @default("KRW")
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-
-  user         User            @relation(fields: [userId], references: [id])
+  id           String              @id @default(uuid())
+  userId       String              @unique
+  balance      Float               @default(0)
+  currency     String              @default("KRW")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
   transactions WalletTransaction[]
+  user         User                @relation(fields: [userId], references: [id])
 
   @@map("wallets")
 }
 
 model WalletTransaction {
-  id          String              @id @default(uuid())
+  id          String       @id @default(uuid())
   walletId    String
   type        WalletTxType
   amount      Float
   balance     Float
   reference   String?
   description String?
-  createdAt   DateTime            @default(now())
-
-  wallet      Wallet              @relation(fields: [walletId], references: [id])
+  createdAt   DateTime     @default(now())
+  wallet      Wallet       @relation(fields: [walletId], references: [id])
 
   @@index([walletId])
   @@map("wallet_transactions")
 }
 
-// ─── Seller ──────────────────────────────────────────────────────────────────
-
 model Seller {
-  id                  String       @id @default(uuid())
-  userId              String       @unique
-  storeName           String
-  storeSlug           String       @unique
-  storeDescription    String?
-  storeLogo           String?
-  storeBanner         String?
-  businessRegNumber   String?
-  address             String?
-  detailAddress       String?
-  businessDocUrl      String?
-  idDocUrl            String?
-  bankName            String?
-  accountNumber       String?
-  accountHolderName   String?
-  commissionRate      Float        @default(10)
-  sellerStatus        SellerStatus @default(PENDING)
-  totalEarnings       Float        @default(0)
-  pendingPayout       Float        @default(0)
-  rating              Float        @default(0)
-  totalSales          Int          @default(0)
-  rejectionReason     String?
-  approvedAt          DateTime?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
-
-  user                User         @relation(fields: [userId], references: [id])
-  products            Product[]
-  orderItems          OrderItem[]
-  payouts             SellerPayout[]
-  commissions         Commission[]
+  id                String         @id @default(uuid())
+  userId            String         @unique
+  storeName         String
+  storeSlug         String         @unique
+  storeDescription  String?
+  storeLogo         String?
+  storeBanner       String?
+  businessRegNumber String?
+  businessDocUrl    String?
+  idDocUrl          String?
+  bankName          String?
+  accountNumber     String?
+  accountHolderName String?
+  commissionRate    Float          @default(10)
+  sellerStatus      SellerStatus   @default(PENDING)
+  totalEarnings     Float          @default(0)
+  pendingPayout     Float          @default(0)
+  rating            Float          @default(0)
+  totalSales        Int            @default(0)
+  rejectionReason   String?
+  approvedAt        DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  address           String?
+  detailAddress     String?
+  commissions       Commission[]
+  orderItems        OrderItem[]
+  products          Product[]
+  payouts           SellerPayout[]
+  user              User           @relation(fields: [userId], references: [id])
 
   @@index([storeSlug])
   @@map("sellers")
 }
 
 model SellerPayout {
-  id              String       @id @default(uuid())
-  sellerId        String
-  amount          Float
-  commission      Float
-  netAmount       Float
-  bankName        String
-  accountNumber   String
-  accountHolder   String
-  status          PayoutStatus @default(PENDING)
-  processedAt     DateTime?
-  notes           String?
-  createdAt       DateTime     @default(now())
-
-  seller          Seller       @relation(fields: [sellerId], references: [id])
+  id            String       @id @default(uuid())
+  sellerId      String
+  amount        Float
+  commission    Float
+  netAmount     Float
+  bankName      String
+  accountNumber String
+  accountHolder String
+  status        PayoutStatus @default(PENDING)
+  processedAt   DateTime?
+  notes         String?
+  createdAt     DateTime     @default(now())
+  seller        Seller       @relation(fields: [sellerId], references: [id])
 
   @@map("seller_payouts")
 }
 
-// ─── Rider ───────────────────────────────────────────────────────────────────
-
 model Rider {
-  id                String      @id @default(uuid())
-  userId            String      @unique
-  vehicleType       String
-  vehicleNumber     String
-  licenseNumber     String
-  licenseDocUrl     String?
-  idDocUrl          String?
-  riderStatus       RiderStatus @default(OFFLINE)
-  currentLat        Float?
-  currentLng        Float?
-  totalDeliveries   Int         @default(0)
-  totalEarnings     Float       @default(0)
-  rating            Float       @default(0)
-  isOnline          Boolean     @default(false)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-
-  user              User        @relation(fields: [userId], references: [id])
-  deliveries        DeliveryAssignment[]
-  trackingPoints    DeliveryTracking[]
+  id              String               @id @default(uuid())
+  userId          String               @unique
+  vehicleType     String
+  vehicleNumber   String
+  licenseNumber   String
+  licenseDocUrl   String?
+  idDocUrl        String?
+  riderStatus     RiderStatus          @default(OFFLINE)
+  currentLat      Float?
+  currentLng      Float?
+  totalDeliveries Int                  @default(0)
+  totalEarnings   Float                @default(0)
+  rating          Float                @default(0)
+  isOnline        Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  deliveries      DeliveryAssignment[]
+  trackingPoints  DeliveryTracking[]
+  user            User                 @relation(fields: [userId], references: [id])
 
   @@map("riders")
 }
 
-// ─── Categories ──────────────────────────────────────────────────────────────
-
 model Category {
-  id          String     @id @default(uuid())
-  name        String
-  nameKr      String?
-  slug        String     @unique
-  icon        String?
-  image       String?
-  parentId    String?
-  sortOrder   Int        @default(0)
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-
-  parent      Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
-  children    Category[] @relation("CategoryChildren")
-  products    Product[]
+  id        String     @id @default(uuid())
+  name      String
+  nameKr    String?
+  slug      String     @unique
+  icon      String?
+  image     String?
+  parentId  String?
+  sortOrder Int        @default(0)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  parent    Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryChildren")
+  products  Product[]
 
   @@index([slug])
   @@map("categories")
 }
 
-// ─── Products ────────────────────────────────────────────────────────────────
-
 model Product {
-  id                   String        @id @default(uuid())
-  sellerId             String
-  categoryId           String
-  name                 String
-  nameKr               String?
-  description          String
-  price                Float
-  discountPrice        Float?
-  discountPercent      Float?
-  stock                Int           @default(0)
-  unit                 String        @default("pc")
-  sku                  String?       @unique
-  weight               String?
-  brand                String?
-  countryOfOrigin      String?
-  status               ProductStatus @default(ACTIVE)
-  rating               Float         @default(0)
-  reviewCount          Int           @default(0)
-  isDeliveryAvailable  Boolean       @default(true)
-  deliveryFee          Float         @default(0)
-  minOrderQty          Int           @default(1)
-  maxOrderQty          Int?
-  tags                 String[]
-  isFeatured           Boolean       @default(false)
-  viewCount            Int           @default(0)
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-
-  seller               Seller        @relation(fields: [sellerId], references: [id])
-  category             Category      @relation(fields: [categoryId], references: [id])
-  images               ProductImage[]
-  orderItems           OrderItem[]
-  wishlistItems        WishlistItem[]
-  reviews              Review[]
-  cartItems            CartItem[]
+  id                  String         @id @default(uuid())
+  sellerId            String
+  categoryId          String
+  name                String
+  nameKr              String?
+  description         String
+  price               Float
+  discountPrice       Float?
+  discountPercent     Float?
+  stock               Int            @default(0)
+  unit                String         @default("pc")
+  sku                 String?        @unique
+  status              ProductStatus  @default(ACTIVE)
+  rating              Float          @default(0)
+  reviewCount         Int            @default(0)
+  isDeliveryAvailable Boolean        @default(true)
+  deliveryFee         Float          @default(0)
+  minOrderQty         Int            @default(1)
+  maxOrderQty         Int?
+  tags                String[]
+  isFeatured          Boolean        @default(false)
+  viewCount           Int            @default(0)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  brand               String?
+  countryOfOrigin     String?
+  weight              String?
+  cartItems           CartItem[]
+  orderItems          OrderItem[]
+  images              ProductImage[]
+  category            Category       @relation(fields: [categoryId], references: [id])
+  seller              Seller         @relation(fields: [sellerId], references: [id])
+  reviews             Review[]
+  wishlistItems       WishlistItem[]
 
   @@index([categoryId])
   @@index([sellerId])
@@ -317,7 +294,6 @@ model ProductImage {
   alt       String?
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
-
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("product_images")
@@ -328,7 +304,6 @@ model WishlistItem {
   customerId String
   productId  String
   createdAt  DateTime @default(now())
-
   customer   Customer @relation(fields: [customerId], references: [id])
   product    Product  @relation(fields: [productId], references: [id])
 
@@ -343,7 +318,6 @@ model CartItem {
   quantity   Int      @default(1)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
   customer   Customer @relation(fields: [customerId], references: [id])
   product    Product  @relation(fields: [productId], references: [id])
 
@@ -351,40 +325,37 @@ model CartItem {
   @@map("carts")
 }
 
-// ─── Orders ──────────────────────────────────────────────────────────────────
-
 model Order {
-  id              String        @id @default(uuid())
-  orderNumber     String        @unique
-  customerId      String
-  addressId       String?
-  couponId        String?
-  status          OrderStatus   @default(PENDING)
-  subtotal        Float
-  deliveryFee     Float         @default(0)
-  discount        Float         @default(0)
-  tax             Float         @default(0)
-  total           Float
-  paymentMethod   PaymentMethod
-  paymentStatus   PaymentStatus @default(PENDING)
-  notes           String?
-  estimatedAt     DateTime?
-  deliveredAt     DateTime?
-  cancelledAt     DateTime?
-  cancelReason    String?
-  isAdminTest     Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  customer        Customer      @relation(fields: [customerId], references: [id])
-  address         Address?      @relation(fields: [addressId], references: [id])
-  coupon          Coupon?       @relation(fields: [couponId], references: [id])
-  items           OrderItem[]
-  payments        Payment[]
-  refunds         Refund[]
-  delivery        DeliveryAssignment?
-  commissions     Commission[]
-  statusHistory   OrderStatusHistory[]
+  id            String               @id @default(uuid())
+  orderNumber   String               @unique
+  customerId    String
+  addressId     String?
+  couponId      String?
+  status        OrderStatus          @default(PENDING)
+  subtotal      Float
+  deliveryFee   Float                @default(0)
+  discount      Float                @default(0)
+  tax           Float                @default(0)
+  total         Float
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus        @default(PENDING)
+  notes         String?
+  estimatedAt   DateTime?
+  deliveredAt   DateTime?
+  cancelledAt   DateTime?
+  cancelReason  String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  isAdminTest   Boolean              @default(false)
+  commissions   Commission[]
+  delivery      DeliveryAssignment?
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+  address       Address?             @relation(fields: [addressId], references: [id])
+  coupon        Coupon?              @relation(fields: [couponId], references: [id])
+  customer      Customer             @relation(fields: [customerId], references: [id])
+  payments      Payment[]
+  refunds       Refund[]
 
   @@index([customerId])
   @@index([status])
@@ -393,7 +364,7 @@ model Order {
 }
 
 model OrderItem {
-  id             String   @id @default(uuid())
+  id             String  @id @default(uuid())
   orderId        String
   productId      String
   sellerId       String
@@ -402,12 +373,11 @@ model OrderItem {
   quantity       Int
   unitPrice      Float
   totalPrice     Float
-  discountAmount Float    @default(0)
+  discountAmount Float   @default(0)
   notes          String?
-
-  order          Order    @relation(fields: [orderId], references: [id])
-  product        Product  @relation(fields: [productId], references: [id])
-  seller         Seller   @relation(fields: [sellerId], references: [id])
+  order          Order   @relation(fields: [orderId], references: [id])
+  product        Product @relation(fields: [productId], references: [id])
+  seller         Seller  @relation(fields: [sellerId], references: [id])
 
   @@map("order_items")
 }
@@ -419,7 +389,6 @@ model OrderStatusHistory {
   notes     String?
   createdBy String?
   createdAt DateTime    @default(now())
-
   order     Order       @relation(fields: [orderId], references: [id])
 
   @@map("order_status_history")
@@ -435,7 +404,6 @@ model Review {
   images     String[]
   isApproved Boolean  @default(true)
   createdAt  DateTime @default(now())
-
   customer   Customer @relation(fields: [customerId], references: [id])
   product    Product  @relation(fields: [productId], references: [id])
 
@@ -443,29 +411,26 @@ model Review {
   @@map("reviews")
 }
 
-// ─── SIM Cards ───────────────────────────────────────────────────────────────
-
 model SimNumber {
-  id                    String     @id @default(uuid())
-  fullNumber            String     @unique
-  maskedNumber          String
-  lastFourDigits        String
-  carrier               SimCarrier
-  simType               SimType
-  price                 Float
-  status                SimStatus  @default(AVAILABLE)
-  activationRequired    Boolean    @default(true)
-  requiresIdVerification Boolean   @default(true)
-  customerChoosesLastFour Boolean  @default(false)
-  numberPrefix          String?
-  notes                 String?
-  addedBy               String?
-  batchId               String?
-  reservedUntil         DateTime?
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
-
-  simOrders             SimOrder[]
+  id                      String     @id @default(uuid())
+  fullNumber              String     @unique
+  maskedNumber            String
+  lastFourDigits          String
+  carrier                 SimCarrier
+  simType                 SimType
+  price                   Float
+  status                  SimStatus  @default(AVAILABLE)
+  activationRequired      Boolean    @default(true)
+  requiresIdVerification  Boolean    @default(true)
+  notes                   String?
+  addedBy                 String?
+  batchId                 String?
+  reservedUntil           DateTime?
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+  customerChoosesLastFour Boolean    @default(false)
+  numberPrefix            String?
+  simOrders               SimOrder[]
 
   @@index([lastFourDigits])
   @@index([status])
@@ -475,34 +440,33 @@ model SimNumber {
 }
 
 model SimOrder {
-  id               String     @id @default(uuid())
-  orderNumber      String     @unique
-  customerId       String
-  simNumberId      String
-  status           SimStatus  @default(PENDING)
-  idDocumentUrl    String?
-  idDocumentType   String?
-  idVerified       Boolean    @default(false)
+  id                String                  @id @default(uuid())
+  orderNumber       String                  @unique
+  customerId        String
+  simNumberId       String
+  status            SimStatus               @default(PENDING)
+  idDocumentUrl     String?
+  idDocumentType    String?
+  idVerified        Boolean                 @default(false)
   deliveryAddressId String?
-  riderId          String?
-  reservedAt       DateTime?
-  confirmedAt      DateTime?
-  processingAt     DateTime?
-  deliveredAt      DateTime?
-  cancelledAt      DateTime?
-  cancelReason     String?
-  adminNotes       String?
-  price            Float
-  paymentStatus    PaymentStatus @default(PENDING)
-  isAdminTest      Boolean       @default(false)
-  chosenLastFour   String?       // for prefix-mode numbers: the last 4 digits customer chose
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-
-  customer         Customer   @relation(fields: [customerId], references: [id])
-  simNumber        SimNumber  @relation(fields: [simNumberId], references: [id])
-  payment          Payment[]
-  statusHistory    SimOrderStatusHistory[]
+  riderId           String?
+  reservedAt        DateTime?
+  confirmedAt       DateTime?
+  processingAt      DateTime?
+  deliveredAt       DateTime?
+  cancelledAt       DateTime?
+  cancelReason      String?
+  adminNotes        String?
+  price             Float
+  paymentStatus     PaymentStatus           @default(PENDING)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  isAdminTest       Boolean                 @default(false)
+  chosenLastFour    String?
+  payment           Payment[]
+  statusHistory     SimOrderStatusHistory[]
+  customer          Customer                @relation(fields: [customerId], references: [id])
+  simNumber         SimNumber               @relation(fields: [simNumberId], references: [id])
 
   @@index([customerId])
   @@index([status])
@@ -516,17 +480,14 @@ model SimOrderStatusHistory {
   notes      String?
   createdBy  String?
   createdAt  DateTime  @default(now())
-
   simOrder   SimOrder  @relation(fields: [simOrderId], references: [id])
 
   @@map("sim_order_status_history")
 }
 
-// ─── Top-Up ──────────────────────────────────────────────────────────────────
-
 model TopupOrder {
-  id                String       @id @default(uuid())
-  orderNumber       String       @unique
+  id                String         @id @default(uuid())
+  orderNumber       String         @unique
   customerId        String
   providerId        String?
   topupType         TopupType
@@ -535,22 +496,21 @@ model TopupOrder {
   phoneNumber       String
   operator          String?
   amount            Float
-  currency          String       @default("KRW")
+  currency          String         @default("KRW")
   exchangeRate      Float?
-  serviceFee        Float        @default(0)
+  serviceFee        Float          @default(0)
   totalAmount       Float
-  status            TopupStatus  @default(PENDING)
+  status            TopupStatus    @default(PENDING)
   providerReference String?
   failureReason     String?
   paymentMethod     PaymentMethod
-  paymentStatus     PaymentStatus @default(PENDING)
+  paymentStatus     PaymentStatus  @default(PENDING)
   completedAt       DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-
-  customer          Customer     @relation(fields: [customerId], references: [id])
-  provider          TopupProvider? @relation(fields: [providerId], references: [id])
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
   payments          Payment[]
+  customer          Customer       @relation(fields: [customerId], references: [id])
+  provider          TopupProvider? @relation(fields: [providerId], references: [id])
 
   @@index([customerId])
   @@index([status])
@@ -558,25 +518,22 @@ model TopupOrder {
 }
 
 model TopupProvider {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   name        String
-  code        String   @unique
+  code        String       @unique
   countries   String[]
   apiEndpoint String?
   apiKey      String?
-  isActive    Boolean  @default(true)
-  minAmount   Float    @default(1000)
-  maxAmount   Float    @default(100000)
-  serviceFee  Float    @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  isActive    Boolean      @default(true)
+  minAmount   Float        @default(1000)
+  maxAmount   Float        @default(100000)
+  serviceFee  Float        @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   topupOrders TopupOrder[]
 
   @@map("topup_providers")
 }
-
-// ─── Payments ────────────────────────────────────────────────────────────────
 
 model Payment {
   id               String        @id @default(uuid())
@@ -594,7 +551,6 @@ model Payment {
   failureReason    String?
   paidAt           DateTime?
   createdAt        DateTime      @default(now())
-
   order            Order?        @relation(fields: [orderId], references: [id])
   simOrder         SimOrder?     @relation(fields: [simOrderId], references: [id])
   topupOrder       TopupOrder?   @relation(fields: [topupOrderId], references: [id])
@@ -616,7 +572,6 @@ model Refund {
   adminNotes  String?
   processedAt DateTime?
   createdAt   DateTime     @default(now())
-
   order       Order?       @relation(fields: [orderId], references: [id])
   payment     Payment?     @relation(fields: [paymentId], references: [id])
 
@@ -624,57 +579,53 @@ model Refund {
 }
 
 model Commission {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   orderId     String
   sellerId    String
   orderAmount Float
   rate        Float
   amount      Float
-  isPaid      Boolean  @default(false)
+  isPaid      Boolean   @default(false)
   paidAt      DateTime?
-  createdAt   DateTime @default(now())
-
-  order       Order    @relation(fields: [orderId], references: [id])
-  seller      Seller   @relation(fields: [sellerId], references: [id])
+  createdAt   DateTime  @default(now())
+  order       Order     @relation(fields: [orderId], references: [id])
+  seller      Seller    @relation(fields: [sellerId], references: [id])
 
   @@index([sellerId])
   @@map("commissions")
 }
 
-// ─── Delivery ────────────────────────────────────────────────────────────────
-
 model DeliveryAssignment {
-  id                 String         @id @default(uuid())
-  orderId            String         @unique
-  riderId            String
-  status             DeliveryStatus @default(ASSIGNED)
-  pickupLat          Float?
-  pickupLng          Float?
-  pickupAddress      String?
-  dropoffLat         Float?
-  dropoffLng         Float?
-  dropoffAddress     String?
-  estimatedPickup    DateTime?
-  estimatedDelivery  DateTime?
-  actualDelivery     DateTime?
-  deliveryProofUrl   String?
-  deliveryOtp        String?
-  riderNotes         String?
-  distance           Float?
-  deliveryFee        Float          @default(0)
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-
-  order              Order          @relation(fields: [orderId], references: [id])
-  rider              Rider          @relation(fields: [riderId], references: [id])
-  trackingPoints     DeliveryTracking[]
+  id                String             @id @default(uuid())
+  orderId           String             @unique
+  riderId           String
+  status            DeliveryStatus     @default(ASSIGNED)
+  pickupLat         Float?
+  pickupLng         Float?
+  pickupAddress     String?
+  dropoffLat        Float?
+  dropoffLng        Float?
+  dropoffAddress    String?
+  estimatedPickup   DateTime?
+  estimatedDelivery DateTime?
+  actualDelivery    DateTime?
+  deliveryProofUrl  String?
+  deliveryOtp       String?
+  riderNotes        String?
+  distance          Float?
+  deliveryFee       Float              @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  order             Order              @relation(fields: [orderId], references: [id])
+  rider             Rider              @relation(fields: [riderId], references: [id])
+  trackingPoints    DeliveryTracking[]
 
   @@index([riderId])
   @@map("delivery_assignments")
 }
 
 model DeliveryTracking {
-  id           String   @id @default(uuid())
+  id           String             @id @default(uuid())
   assignmentId String
   riderId      String
   lat          Float
@@ -682,8 +633,7 @@ model DeliveryTracking {
   speed        Float?
   heading      Float?
   accuracy     Float?
-  recordedAt   DateTime @default(now())
-
+  recordedAt   DateTime           @default(now())
   assignment   DeliveryAssignment @relation(fields: [assignmentId], references: [id])
   rider        Rider              @relation(fields: [riderId], references: [id])
 
@@ -692,30 +642,27 @@ model DeliveryTracking {
   @@map("delivery_tracking")
 }
 
-// ─── Promotions ──────────────────────────────────────────────────────────────
-
 model Coupon {
-  id              String          @id @default(uuid())
-  code            String          @unique
-  title           String
-  description     String?
-  type            CouponType
-  category        CouponCategory  @default(MANUAL)
-  value           Float
-  minOrderAmount  Float           @default(0)
-  maxDiscount     Float?
-  usageLimit      Int?
-  usedCount       Int             @default(0)
-  perUserLimit    Int             @default(1)
-  isActive        Boolean         @default(true)
-  autoAssign      Boolean         @default(false)
-  startDate       DateTime
-  endDate         DateTime
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  orders          Order[]
-  userCoupons     UserCoupon[]
+  id             String         @id @default(uuid())
+  code           String         @unique
+  title          String
+  description    String?
+  type           CouponType
+  value          Float
+  minOrderAmount Float          @default(0)
+  maxDiscount    Float?
+  usageLimit     Int?
+  usedCount      Int            @default(0)
+  perUserLimit   Int            @default(1)
+  isActive       Boolean        @default(true)
+  startDate      DateTime
+  endDate        DateTime
+  createdAt      DateTime       @default(now())
+  autoAssign     Boolean        @default(false)
+  category       CouponCategory @default(MANUAL)
+  updatedAt      DateTime       @updatedAt
+  orders         Order[]
+  userCoupons    UserCoupon[]
 
   @@index([code])
   @@index([category])
@@ -723,19 +670,17 @@ model Coupon {
   @@map("coupons")
 }
 
-// Per-user coupon wallet: links a Coupon to a specific User
 model UserCoupon {
-  id          String          @id @default(uuid())
+  id          String         @id @default(uuid())
   userId      String
   couponId    String
-  isUsed      Boolean         @default(false)
+  isUsed      Boolean        @default(false)
   usedAt      DateTime?
   usedOrderId String?
-  source      CouponCategory  @default(MANUAL)
-  createdAt   DateTime        @default(now())
-
-  user        User            @relation(fields: [userId], references: [id])
-  coupon      Coupon          @relation(fields: [couponId], references: [id])
+  source      CouponCategory @default(MANUAL)
+  createdAt   DateTime       @default(now())
+  coupon      Coupon         @relation(fields: [couponId], references: [id])
+  user        User           @relation(fields: [userId], references: [id])
 
   @@unique([userId, couponId])
   @@index([userId])
@@ -744,22 +689,20 @@ model UserCoupon {
 }
 
 model Banner {
-  id         String      @id @default(uuid())
-  title      String
-  subtitle   String?
-  imageUrl   String
-  linkType   BannerLink  @default(NONE)
-  linkValue  String?
-  isActive   Boolean     @default(true)
-  sortOrder  Int         @default(0)
-  startDate  DateTime?
-  endDate    DateTime?
-  createdAt  DateTime    @default(now())
+  id        String     @id @default(uuid())
+  title     String
+  subtitle  String?
+  imageUrl  String
+  linkType  BannerLink @default(NONE)
+  linkValue String?
+  isActive  Boolean    @default(true)
+  sortOrder Int        @default(0)
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime   @default(now())
 
   @@map("banners")
 }
-
-// ─── Notifications ───────────────────────────────────────────────────────────
 
 model Notification {
   id        String           @id @default(uuid())
@@ -771,30 +714,26 @@ model Notification {
   isRead    Boolean          @default(false)
   sentAt    DateTime?
   createdAt DateTime         @default(now())
-
   user      User             @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead])
   @@map("notifications")
 }
 
-// ─── Support ─────────────────────────────────────────────────────────────────
-
 model SupportTicket {
-  id          String        @id @default(uuid())
-  userId      String
-  subject     String
-  message     String
-  category    TicketCategory
-  status      TicketStatus  @default(OPEN)
-  priority    TicketPriority @default(MEDIUM)
-  assignedTo  String?
-  resolvedAt  DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  user        User          @relation(fields: [userId], references: [id])
-  replies     TicketReply[]
+  id         String         @id @default(uuid())
+  userId     String
+  subject    String
+  message    String
+  category   TicketCategory
+  status     TicketStatus   @default(OPEN)
+  priority   TicketPriority @default(MEDIUM)
+  assignedTo String?
+  resolvedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User           @relation(fields: [userId], references: [id])
+  replies    TicketReply[]
 
   @@index([userId])
   @@index([status])
@@ -802,19 +741,16 @@ model SupportTicket {
 }
 
 model TicketReply {
-  id        String   @id @default(uuid())
+  id        String        @id @default(uuid())
   ticketId  String
   userId    String
   message   String
-  isAdmin   Boolean  @default(false)
-  createdAt DateTime @default(now())
-
+  isAdmin   Boolean       @default(false)
+  createdAt DateTime      @default(now())
   ticket    SupportTicket @relation(fields: [ticketId], references: [id])
 
   @@map("ticket_replies")
 }
-
-// ─── Admin ───────────────────────────────────────────────────────────────────
 
 model AdminLog {
   id         String   @id @default(uuid())
@@ -826,7 +762,6 @@ model AdminLog {
   details    Json?
   ipAddress  String?
   createdAt  DateTime @default(now())
-
   user       User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
@@ -857,35 +792,32 @@ model DeliveryZone {
   @@map("delivery_zones")
 }
 
-// ─── Exchange Rates ──────────────────────────────────────────────────────────
-
 model ExchangeRateProvider {
-  id                     String         @id @default(uuid())
-  companyName            String
-  slug                   String         @unique
-  logoUrl                String?
-  country                String         @default("KR")
-  officialWebsite        String?
-  appDeepLink            String?
-  supportedSendCurrencies String[]      @default(["KRW"])
-  supportedRecvCurrencies String[]      @default([])
-  status                 ProviderStatus @default(ACTIVE)
-  fetchMethod            FetchMethod    @default(MANUAL)
-  scraperKey             String?
-  sourceUrl              String?
-  isVerified             Boolean        @default(false)
-  isFeatured             Boolean        @default(false)
-  priority               Int            @default(50)
-  transferTime           String?
-  minAmount              Float?
-  maxAmount              Float?
-  rateSpreadPercent      Float          @default(0)
-  notes                  String?
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
-
-  rates                  ExchangeRate[]
-  updateLogs             RateUpdateLog[]
+  id                      String          @id @default(uuid())
+  companyName             String
+  slug                    String          @unique
+  logoUrl                 String?
+  country                 String          @default("KR")
+  officialWebsite         String?
+  appDeepLink             String?
+  supportedSendCurrencies String[]        @default(["KRW"])
+  supportedRecvCurrencies String[]        @default([])
+  status                  ProviderStatus  @default(ACTIVE)
+  fetchMethod             FetchMethod     @default(MANUAL)
+  scraperKey              String?
+  sourceUrl               String?
+  isVerified              Boolean         @default(false)
+  isFeatured              Boolean         @default(false)
+  priority                Int             @default(50)
+  transferTime            String?
+  minAmount               Float?
+  maxAmount               Float?
+  notes                   String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  rateSpreadPercent       Float           @default(0)
+  rates                   ExchangeRate[]
+  updateLogs              RateUpdateLog[]
 
   @@index([slug])
   @@index([status])
@@ -904,7 +836,6 @@ model ExchangeRate {
   rateSource   String               @default("manual")
   lastUpdated  DateTime             @default(now())
   createdAt    DateTime             @default(now())
-
   provider     ExchangeRateProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, sendCurrency, recvCurrency])
@@ -922,7 +853,6 @@ model RateUpdateLog {
   errorMessage String?
   duration     Int?
   createdAt    DateTime             @default(now())
-
   provider     ExchangeRateProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   @@index([providerId])
@@ -930,20 +860,18 @@ model RateUpdateLog {
   @@map("rate_update_logs")
 }
 
-// ─── SaaS Marketplace Configuration ─────────────────────────────────────────
-
 model PlatformSetting {
-  id          String   @id @default(uuid())
-  scope       String   @default("platform")
+  id          String           @id @default(uuid())
+  scope       String           @default("platform")
   key         String
   value       Json
   valueType   SettingValueType @default(JSON)
-  group       String   @default("general")
+  group       String           @default("general")
   description String?
-  isPublic    Boolean  @default(false)
+  isPublic    Boolean          @default(false)
   updatedBy   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@unique([scope, key])
   @@index([group])
@@ -951,53 +879,53 @@ model PlatformSetting {
 }
 
 model ThemeSetting {
-  id             String   @id @default(uuid())
-  name           String   @default("Default")
-  primaryColor   String   @default("#10B981")
-  secondaryColor String   @default("#183522")
-  accentColor    String   @default("#F59E0B")
-  backgroundColor String  @default("#FFFFFF")
-  textColor      String   @default("#111827")
-  buttonRadius   Int      @default(12)
-  cardRadius     Int      @default(16)
-  fontFamily     String?
-  logoUrl        String?
-  faviconUrl     String?
-  headerStyle    String?
-  footerStyle    String?
-  supportsDarkMode Boolean @default(false)
-  isActive       Boolean  @default(true)
-  updatedBy      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(uuid())
+  name             String   @default("Default")
+  primaryColor     String   @default("#10B981")
+  secondaryColor   String   @default("#183522")
+  accentColor      String   @default("#F59E0B")
+  backgroundColor  String   @default("#FFFFFF")
+  textColor        String   @default("#111827")
+  buttonRadius     Int      @default(12)
+  cardRadius       Int      @default(16)
+  fontFamily       String?
+  logoUrl          String?
+  faviconUrl       String?
+  headerStyle      String?
+  footerStyle      String?
+  supportsDarkMode Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  updatedBy        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@map("theme_settings")
 }
 
 model Language {
-  id        String   @id @default(uuid())
-  code      String   @unique
-  name      String
+  id         String   @id @default(uuid())
+  code       String   @unique
+  name       String
   nativeName String?
-  isDefault Boolean  @default(false)
-  isEnabled Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isDefault  Boolean  @default(false)
+  isEnabled  Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@map("languages")
 }
 
 model Translation {
-  id          String   @id @default(uuid())
+  id           String   @id @default(uuid())
   languageCode String
-  key         String
-  value       String
-  namespace   String   @default("common")
-  description String?
-  updatedBy   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  key          String
+  value        String
+  namespace    String   @default("common")
+  description  String?
+  updatedBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([languageCode, key])
   @@index([namespace])
@@ -1005,23 +933,23 @@ model Translation {
 }
 
 model HomepageSection {
-  id          String   @id @default(uuid())
-  sectionKey  String
-  type        HomepageSectionType
-  title       String?
-  subtitle    String?
-  content     Json?
-  imageUrl    String?
-  buttonText  String?
-  buttonUrl   String?
-  languageCode String @default("en")
-  isVisible   Boolean @default(true)
-  sortOrder   Int     @default(0)
-  settings    Json?
-  createdBy   String?
-  updatedBy   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String              @id @default(uuid())
+  sectionKey   String
+  type         HomepageSectionType
+  title        String?
+  subtitle     String?
+  content      Json?
+  imageUrl     String?
+  buttonText   String?
+  buttonUrl    String?
+  languageCode String              @default("en")
+  isVisible    Boolean             @default(true)
+  sortOrder    Int                 @default(0)
+  settings     Json?
+  createdBy    String?
+  updatedBy    String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   @@unique([sectionKey, languageCode])
   @@index([type])
@@ -1030,35 +958,35 @@ model HomepageSection {
 }
 
 model MenuItem {
-  id          String   @id @default(uuid())
-  menuKey     String   @default("main")
-  label       String
-  url         String
-  languageCode String @default("en")
-  parentId    String?
-  isVisible   Boolean @default(true)
-  sortOrder   Int     @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  menuKey      String   @default("main")
+  label        String
+  url          String
+  languageCode String   @default("en")
+  parentId     String?
+  isVisible    Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([menuKey, languageCode])
   @@map("menu_items")
 }
 
 model CMSPage {
-  id            String   @id @default(uuid())
+  id            String        @id @default(uuid())
   slug          String
   pageType      CMSPageType
   title         String
   content       String
   excerpt       String?
-  languageCode  String   @default("en")
-  version       Int      @default(1)
+  languageCode  String        @default("en")
+  version       Int           @default(1)
   status        PublishStatus @default(DRAFT)
   publishedAt   DateTime?
   lastUpdatedBy String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@unique([slug, languageCode, version])
   @@index([pageType])
@@ -1067,46 +995,44 @@ model CMSPage {
 }
 
 model AgreementTemplate {
-  id              String   @id @default(uuid())
-  key             String
-  title           String
-  body            String
-  languageCode    String   @default("en")
-  required        Boolean  @default(true)
-  enabled         Boolean  @default(true)
-  sellerScopes    String[]
-  version         Int      @default(1)
-  sortOrder       Int      @default(0)
-  updatedBy       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id           String   @id @default(uuid())
+  key          String
+  title        String
+  body         String
+  languageCode String   @default("en")
+  required     Boolean  @default(true)
+  enabled      Boolean  @default(true)
+  sellerScopes String[]
+  version      Int      @default(1)
+  sortOrder    Int      @default(0)
+  updatedBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([key, languageCode, version])
   @@index([enabled, sortOrder])
   @@map("agreement_templates")
 }
 
-// ─── Seller Onboarding, Forms & Documents ───────────────────────────────────
-
 model SellerApplication {
-  id              String   @id @default(uuid())
-  userId          String
-  sellerId        String?
-  sellerScope     SellerScope
-  sellerAccountType SellerAccountType
-  status          SellerApplicationStatus @default(DRAFT)
-  preferredLanguage String?
+  id                 String                  @id @default(uuid())
+  userId             String
+  sellerId           String?
+  sellerScope        SellerScope
+  sellerAccountType  SellerAccountType
+  status             SellerApplicationStatus @default(DRAFT)
+  preferredLanguage  String?
   countryOfResidence String?
-  nationality     String?
-  submittedAt     DateTime?
-  reviewedAt      DateTime?
-  reviewedBy      String?
-  rejectionReason String?
-  requestMessage  String?
-  internalNotes   String?
-  payload         Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  nationality        String?
+  submittedAt        DateTime?
+  reviewedAt         DateTime?
+  reviewedBy         String?
+  rejectionReason    String?
+  requestMessage     String?
+  internalNotes      String?
+  payload            Json?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
 
   @@index([userId])
   @@index([sellerId])
@@ -1116,25 +1042,25 @@ model SellerApplication {
 }
 
 model SellerFormField {
-  id              String   @id @default(uuid())
-  fieldKey        String
-  sectionKey      String
-  label           String
-  placeholder     String?
-  helpText        String?
-  fieldType       SellerFormFieldType
-  options         Json?
-  validationRules Json?
-  required        Boolean  @default(false)
-  enabled         Boolean  @default(true)
-  sellerScopes    String[]
+  id                 String              @id @default(uuid())
+  fieldKey           String
+  sectionKey         String
+  label              String
+  placeholder        String?
+  helpText           String?
+  fieldType          SellerFormFieldType
+  options            Json?
+  validationRules    Json?
+  required           Boolean             @default(false)
+  enabled            Boolean             @default(true)
+  sellerScopes       String[]
   sellerAccountTypes String[]
-  languageCode    String   @default("en")
-  sortOrder       Int      @default(0)
-  createdBy       String?
-  updatedBy       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  languageCode       String              @default("en")
+  sortOrder          Int                 @default(0)
+  createdBy          String?
+  updatedBy          String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@unique([fieldKey, languageCode])
   @@index([sectionKey, enabled, sortOrder])
@@ -1142,27 +1068,27 @@ model SellerFormField {
 }
 
 model SellerBusinessInformation {
-  id                         String   @id @default(uuid())
-  sellerId                   String?
-  applicationId              String?
-  sellerScope                SellerScope
-  businessRegistrationNumber String?
-  businessName               String?
-  businessType               String?
-  businessCategory           String?
-  representativeName         String?
-  businessAddress            String?
-  businessPhone              String?
-  businessEmail              String?
-  mailOrderSalesReportNumber String?
-  taxInvoiceEmail            String?
-  vatStatus                  String?
-  businessOpeningDate        DateTime?
+  id                          String      @id @default(uuid())
+  sellerId                    String?
+  applicationId               String?
+  sellerScope                 SellerScope
+  businessRegistrationNumber  String?
+  businessName                String?
+  businessType                String?
+  businessCategory            String?
+  representativeName          String?
+  businessAddress             String?
+  businessPhone               String?
+  businessEmail               String?
+  mailOrderSalesReportNumber  String?
+  taxInvoiceEmail             String?
+  vatStatus                   String?
+  businessOpeningDate         DateTime?
   globalBusinessLicenseNumber String?
-  countryOfIncorporation     String?
-  metadata                   Json?
-  createdAt                  DateTime @default(now())
-  updatedAt                  DateTime @updatedAt
+  countryOfIncorporation      String?
+  metadata                    Json?
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
 
   @@index([sellerId])
   @@index([applicationId])
@@ -1171,7 +1097,7 @@ model SellerBusinessInformation {
 }
 
 model SellerBankAccount {
-  id                 String   @id @default(uuid())
+  id                 String             @id @default(uuid())
   sellerId           String?
   applicationId      String?
   bankCountry        String
@@ -1180,15 +1106,15 @@ model SellerBankAccount {
   accountNumber      String
   swiftCode          String?
   bankAddress        String?
-  settlementCurrency String   @default("KRW")
-  settlementCycle    SettlementCycle @default(MONTHLY)
-  isPrimary          Boolean  @default(true)
+  settlementCurrency String             @default("KRW")
+  settlementCycle    SettlementCycle    @default(MONTHLY)
+  isPrimary          Boolean            @default(true)
   verificationStatus VerificationStatus @default(PENDING)
   verifiedBy         String?
   verifiedAt         DateTime?
   rejectionReason    String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@index([sellerId])
   @@index([applicationId])
@@ -1197,23 +1123,23 @@ model SellerBankAccount {
 }
 
 model SellerDocumentRequirement {
-  id                 String   @id @default(uuid())
+  id                 String             @id @default(uuid())
   documentType       SellerDocumentType
   title              String
   description        String?
-  required           Boolean  @default(true)
-  enabled            Boolean  @default(true)
+  required           Boolean            @default(true)
+  enabled            Boolean            @default(true)
   sellerScopes       String[]
   sellerAccountTypes String[]
-  acceptedFileTypes  String[] @default(["PDF", "JPG", "JPEG", "PNG"])
-  maxFileSizeMb      Int      @default(10)
-  expires            Boolean  @default(false)
-  languageCode       String   @default("en")
-  sortOrder          Int      @default(0)
+  acceptedFileTypes  String[]           @default(["PDF", "JPG", "JPEG", "PNG"])
+  maxFileSizeMb      Int                @default(10)
+  expires            Boolean            @default(false)
+  languageCode       String             @default("en")
+  sortOrder          Int                @default(0)
   createdBy          String?
   updatedBy          String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@index([documentType])
   @@index([enabled, sortOrder])
@@ -1221,23 +1147,23 @@ model SellerDocumentRequirement {
 }
 
 model SellerDocument {
-  id                String   @id @default(uuid())
-  sellerId          String?
-  applicationId     String?
-  requirementId     String?
-  documentType      SellerDocumentType
-  fileUrl           String
-  originalFileName  String
-  mimeType          String
-  fileSize          Int
-  status            DocumentReviewStatus @default(PENDING)
-  reviewerId        String?
-  reviewedAt        DateTime?
-  rejectionReason   String?
-  expiresAt         DateTime?
-  uploadedBy        String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String               @id @default(uuid())
+  sellerId         String?
+  applicationId    String?
+  requirementId    String?
+  documentType     SellerDocumentType
+  fileUrl          String
+  originalFileName String
+  mimeType         String
+  fileSize         Int
+  status           DocumentReviewStatus @default(PENDING)
+  reviewerId       String?
+  reviewedAt       DateTime?
+  rejectionReason  String?
+  expiresAt        DateTime?
+  uploadedBy       String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   @@index([sellerId])
   @@index([applicationId])
@@ -1247,7 +1173,7 @@ model SellerDocument {
 }
 
 model SellerApplicationReview {
-  id            String   @id @default(uuid())
+  id            String             @id @default(uuid())
   applicationId String
   reviewerId    String
   action        SellerReviewAction
@@ -1255,58 +1181,55 @@ model SellerApplicationReview {
   toStatus      String?
   note          String?
   metadata      Json?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime           @default(now())
 
   @@index([applicationId])
   @@index([reviewerId])
   @@map("seller_application_reviews")
 }
 
-// ─── Product Compliance & Marketplace Rules ─────────────────────────────────
-
 model ProductCompliance {
-  id                    String   @id @default(uuid())
-  productId             String
-  brand                 String?
-  manufacturer          String?
-  importer              String?
-  countryOfOrigin       String?
-  modelName             String?
-  barcode               String?
-  informationNotice     Json?
-  kcCertificationRequired Boolean @default(false)
-  kcCertificationNumber String?
-  expirationDate        DateTime?
-  storageCondition      String?
-  allergyInformation    String?
-  legalWarningLabels    String?
-  status                ProductApprovalStatus @default(DRAFT)
-  reviewedBy            String?
-  reviewedAt            DateTime?
-  rejectionReason       String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                      String                @id @default(uuid())
+  productId               String                @unique
+  brand                   String?
+  manufacturer            String?
+  importer                String?
+  countryOfOrigin         String?
+  modelName               String?
+  barcode                 String?
+  informationNotice       Json?
+  kcCertificationRequired Boolean               @default(false)
+  kcCertificationNumber   String?
+  expirationDate          DateTime?
+  storageCondition        String?
+  allergyInformation      String?
+  legalWarningLabels      String?
+  status                  ProductApprovalStatus @default(DRAFT)
+  reviewedBy              String?
+  reviewedAt              DateTime?
+  rejectionReason         String?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
 
-  @@unique([productId])
   @@index([status])
   @@map("product_compliance")
 }
 
 model ProductDocument {
-  id               String   @id @default(uuid())
-  productId         String
-  documentType      ProductDocumentType
-  fileUrl           String
-  originalFileName  String
-  mimeType          String
-  fileSize          Int
-  status            DocumentReviewStatus @default(PENDING)
-  reviewerId        String?
-  reviewedAt        DateTime?
-  rejectionReason   String?
-  expiresAt         DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String               @id @default(uuid())
+  productId        String
+  documentType     ProductDocumentType
+  fileUrl          String
+  originalFileName String
+  mimeType         String
+  fileSize         Int
+  status           DocumentReviewStatus @default(PENDING)
+  reviewerId       String?
+  reviewedAt       DateTime?
+  rejectionReason  String?
+  expiresAt        DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   @@index([productId])
   @@index([documentType])
@@ -1315,22 +1238,22 @@ model ProductDocument {
 }
 
 model CategoryRequirement {
-  id                    String   @id @default(uuid())
-  categoryId            String?
-  categorySlug          String?
-  title                 String
-  description           String?
-  requiresApproval      Boolean  @default(false)
-  requiresKcCertification Boolean @default(false)
-  requiresFoodCertificate Boolean @default(false)
-  requiresCosmeticCompliance Boolean @default(false)
-  requiresAgeVerification Boolean @default(false)
-  requiredDocumentTypes String[]
-  isRestricted          Boolean  @default(false)
-  isProhibited          Boolean  @default(false)
-  enabled               Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                         String   @id @default(uuid())
+  categoryId                 String?
+  categorySlug               String?
+  title                      String
+  description                String?
+  requiresApproval           Boolean  @default(false)
+  requiresKcCertification    Boolean  @default(false)
+  requiresFoodCertificate    Boolean  @default(false)
+  requiresCosmeticCompliance Boolean  @default(false)
+  requiresAgeVerification    Boolean  @default(false)
+  requiredDocumentTypes      String[]
+  isRestricted               Boolean  @default(false)
+  isProhibited               Boolean  @default(false)
+  enabled                    Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   @@index([categoryId])
   @@index([categorySlug])
@@ -1338,19 +1261,19 @@ model CategoryRequirement {
 }
 
 model ProhibitedItemRule {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  ruleType    ProhibitedRuleType
-  keywords    String[]
-  categoryId  String?
+  id           String             @id @default(uuid())
+  title        String
+  description  String?
+  ruleType     ProhibitedRuleType
+  keywords     String[]
+  categoryId   String?
   categorySlug String?
-  action      ComplianceAction @default(REQUIRE_REVIEW)
-  enabled     Boolean @default(true)
-  createdBy   String?
-  updatedBy   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  action       ComplianceAction   @default(REQUIRE_REVIEW)
+  enabled      Boolean            @default(true)
+  createdBy    String?
+  updatedBy    String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@index([ruleType])
   @@index([enabled])
@@ -1358,25 +1281,25 @@ model ProhibitedItemRule {
 }
 
 model CommissionRule {
-  id              String   @id @default(uuid())
-  name            String
-  sellerId        String?
-  categoryId      String?
-  categorySlug    String?
-  sellerScope     SellerScope?
-  commissionRate  Float
-  paymentFeeRate  Float?
-  shippingFeeRule Json?
+  id                      String       @id @default(uuid())
+  name                    String
+  sellerId                String?
+  categoryId              String?
+  categorySlug            String?
+  sellerScope             SellerScope?
+  commissionRate          Float
+  paymentFeeRate          Float?
+  shippingFeeRule         Json?
   settlementDeductionRate Float?
-  refundDeductionRate Float?
-  promotionalFeeRate Float?
-  featuredListingFee Float?
-  priority        Int      @default(0)
-  enabled         Boolean  @default(true)
-  startsAt        DateTime?
-  endsAt          DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  refundDeductionRate     Float?
+  promotionalFeeRate      Float?
+  featuredListingFee      Float?
+  priority                Int          @default(0)
+  enabled                 Boolean      @default(true)
+  startsAt                DateTime?
+  endsAt                  DateTime?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
   @@index([sellerId])
   @@index([categoryId])
@@ -1384,64 +1307,61 @@ model CommissionRule {
   @@map("commission_rules")
 }
 
-// ─── Payments, Shipping & Settlements ───────────────────────────────────────
-
 model PaymentProviderSetting {
-  id          String   @id @default(uuid())
-  provider    PaymentProvider
-  displayName String
-  enabled     Boolean  @default(false)
-  testMode    Boolean  @default(true)
-  publicConfig Json?
-  secretRef   String?
-  webhookUrl  String?
-  settlementFeeRate Float?
+  id                  String          @id @default(uuid())
+  provider            PaymentProvider @unique
+  displayName         String
+  enabled             Boolean         @default(false)
+  testMode            Boolean         @default(true)
+  publicConfig        Json?
+  secretRef           String?
+  webhookUrl          String?
+  settlementFeeRate   Float?
   supportedCurrencies String[]
-  createdBy   String?
-  updatedBy   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdBy           String?
+  updatedBy           String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
-  @@unique([provider])
   @@index([enabled])
   @@map("payment_provider_settings")
 }
 
 model ShippingMethod {
-  id                    String   @id @default(uuid())
+  id                    String             @id @default(uuid())
   name                  String
   type                  ShippingMethodType
   courierCompany        String?
-  enabled               Boolean  @default(true)
-  baseFee               Float    @default(0)
+  enabled               Boolean            @default(true)
+  baseFee               Float              @default(0)
   freeShippingThreshold Float?
   returnShippingFee     Float?
   exchangeShippingFee   Float?
   deliveryTimeEstimate  String?
   settings              Json?
-  sortOrder             Int      @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  sortOrder             Int                @default(0)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   @@index([enabled, sortOrder])
   @@map("shipping_methods")
 }
 
 model Shipment {
-  id              String   @id @default(uuid())
+  id               String         @id @default(uuid())
   orderId          String
   sellerId         String?
   shippingMethodId String?
   courierCompany   String?
   trackingNumber   String?
-  shippingFee      Float   @default(0)
+  shippingFee      Float          @default(0)
   shippingOrigin   String?
   returnAddress    String?
   status           ShipmentStatus @default(PREPARING)
   shippedAt        DateTime?
   deliveredAt      DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@index([orderId])
   @@index([sellerId])
@@ -1450,19 +1370,19 @@ model Shipment {
 }
 
 model ReturnRequest {
-  id            String   @id @default(uuid())
-  orderId        String
-  orderItemId    String?
-  customerId     String?
-  sellerId       String?
-  reason         String
-  description    String?
-  status         ReturnRequestStatus @default(REQUESTED)
-  adminNotes     String?
-  reviewedBy     String?
-  reviewedAt     DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          String              @id @default(uuid())
+  orderId     String
+  orderItemId String?
+  customerId  String?
+  sellerId    String?
+  reason      String
+  description String?
+  status      ReturnRequestStatus @default(REQUESTED)
+  adminNotes  String?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   @@index([orderId])
   @@index([sellerId])
@@ -1471,24 +1391,24 @@ model ReturnRequest {
 }
 
 model Settlement {
-  id              String   @id @default(uuid())
-  sellerId        String
-  periodStart     DateTime
-  periodEnd       DateTime
-  grossAmount     Float
-  commissionAmount Float @default(0)
-  paymentFeeAmount Float @default(0)
-  shippingFeeAmount Float @default(0)
-  refundDeductionAmount Float @default(0)
-  adjustmentAmount Float @default(0)
-  netAmount       Float
-  currency        String  @default("KRW")
-  status          SettlementStatus @default(PENDING)
-  scheduledPayDate DateTime?
-  paidAt          DateTime?
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                    String           @id @default(uuid())
+  sellerId              String
+  periodStart           DateTime
+  periodEnd             DateTime
+  grossAmount           Float
+  commissionAmount      Float            @default(0)
+  paymentFeeAmount      Float            @default(0)
+  shippingFeeAmount     Float            @default(0)
+  refundDeductionAmount Float            @default(0)
+  adjustmentAmount      Float            @default(0)
+  netAmount             Float
+  currency              String           @default("KRW")
+  status                SettlementStatus @default(PENDING)
+  scheduledPayDate      DateTime?
+  paidAt                DateTime?
+  notes                 String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
   @@index([sellerId])
   @@index([status])
@@ -1496,33 +1416,31 @@ model Settlement {
 }
 
 model SettlementItem {
-  id            String   @id @default(uuid())
-  settlementId  String
-  orderId       String?
-  orderItemId   String?
-  type          SettlementItemType
-  description   String?
-  amount        Float
-  metadata      Json?
-  createdAt     DateTime @default(now())
+  id           String             @id @default(uuid())
+  settlementId String
+  orderId      String?
+  orderItemId  String?
+  type         SettlementItemType
+  description  String?
+  amount       Float
+  metadata     Json?
+  createdAt    DateTime           @default(now())
 
   @@index([settlementId])
   @@map("settlement_items")
 }
 
-// ─── Notifications, Roles & Audit ───────────────────────────────────────────
-
 model NotificationTemplate {
-  id            String   @id @default(uuid())
-  key           String
-  channel       NotificationChannel
-  subject       String?
-  body          String
-  languageCode  String   @default("en")
-  enabled       Boolean  @default(true)
-  updatedBy     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String              @id @default(uuid())
+  key          String
+  channel      NotificationChannel
+  subject      String?
+  body         String
+  languageCode String              @default("en")
+  enabled      Boolean             @default(true)
+  updatedBy    String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   @@unique([key, channel, languageCode])
   @@index([enabled])
@@ -1564,11 +1482,11 @@ model RolePermission {
 }
 
 model UserRoleAssignment {
-  id        String   @id @default(uuid())
-  userId    String
-  roleId    String
+  id         String   @id @default(uuid())
+  userId     String
+  roleId     String
   assignedBy String?
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@unique([userId, roleId])
   @@index([userId])
@@ -1576,18 +1494,18 @@ model UserRoleAssignment {
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  actorId     String?
-  actorRole   String?
-  action      String
-  module      String
-  targetType  String?
-  targetId    String?
-  oldValue    Json?
-  newValue    Json?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  actorId    String?
+  actorRole  String?
+  action     String
+  module     String
+  targetType String?
+  targetId   String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
   @@index([actorId])
   @@index([module])
@@ -1611,8 +1529,6 @@ model ActivityLog {
   @@map("activity_logs")
 }
 
-// ─── Enums ───────────────────────────────────────────────────────────────────
-
 enum UserRole {
   CUSTOMER
   SELLER
@@ -1629,14 +1545,14 @@ enum UserStatus {
 }
 
 enum SellerStatus {
-  DRAFT
   PENDING
-  SUBMITTED
-  UNDER_REVIEW
-  NEED_MORE_DOCUMENTS
   APPROVED
   REJECTED
   SUSPENDED
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEED_MORE_DOCUMENTS
   BLOCKED
   CLOSED
 }
@@ -1656,15 +1572,15 @@ enum OtpPurpose {
 }
 
 enum ProductStatus {
-  DRAFT
-  PENDING_REVIEW
   ACTIVE
-  APPROVED
-  REJECTED
-  SUSPENDED
   INACTIVE
   OUT_OF_STOCK
   DELETED
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
 }
 
 enum OrderStatus {
@@ -1702,13 +1618,13 @@ enum PaymentStatus {
 enum SimStatus {
   PENDING
   AVAILABLE
-  HIDDEN
   RESERVED
   CONFIRMED
   PROCESSING
   OUT_FOR_DELIVERY
   DELIVERED
   CANCELLED
+  HIDDEN
 }
 
 enum SimCarrier {
@@ -1776,11 +1692,11 @@ enum CouponType {
 }
 
 enum CouponCategory {
-  MANUAL           // Admin creates code, users enter manually
-  WELCOME          // Auto-assigned to every new customer on signup
-  FIRST_PURCHASE   // Valid only on the user's very first order
-  REFERRAL_SENDER  // Awarded to referrer when referred friend places first order
-  REFERRAL_RECEIVER // Auto-assigned to new user who signed up via referral
+  MANUAL
+  WELCOME
+  FIRST_PURCHASE
+  REFERRAL_SENDER
+  REFERRAL_RECEIVER
 }
 
 enum BannerLink {
@@ -1808,11 +1724,11 @@ enum TicketCategory {
   TOPUP
   PAYMENT
   ACCOUNT
+  OTHER
   DOCUMENT
   PRODUCT
   SETTLEMENT
   TECHNICAL
-  OTHER
 }
 
 enum TicketStatus {

@@ -31,21 +31,30 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     currency: '₩',
     loaded:   false,
   });
+  const retryCount = React.useRef(0);
 
   const load = useCallback(async () => {
     try {
       const res = await appSettingsApi.getPublic();
       const d = res.data;
       if (d) {
+        retryCount.current = 0; // reset on success
         setBranding({
           appName:  d.APP_NAME  || 'AM Mart',
           appLogo:  d.APP_LOGO  || '',
           currency: d.CURRENCY_SYMBOL || d.CURRENCY || '₩',
           loaded:   true,
         });
+        return;
       }
-    } catch {
-      setBranding((b) => ({ ...b, loaded: true }));
+    } catch {}
+    // Failed — mark loaded so UI doesn't block
+    setBranding((b) => ({ ...b, loaded: true }));
+    // Retry up to 5 times with increasing delay (4s, 8s, 16s, 30s, 30s)
+    if (retryCount.current < 5) {
+      const delay = Math.min(4000 * Math.pow(2, retryCount.current), 30000);
+      retryCount.current += 1;
+      setTimeout(load, delay);
     }
   }, []);
 

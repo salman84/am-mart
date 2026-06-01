@@ -841,10 +841,10 @@ export default function ProductDetailScreen() {
       </ScrollView>
 
       {/* ── Sticky bottom bar ── */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
+      <View style={styles.bottomBar}>
         <View style={styles.totalCol}>
           <Text style={styles.totalLbl}>{t('total')}</Text>
-          <Text style={styles.totalPrice}>{currency}{total.toLocaleString()}</Text>
+          <Text style={styles.totalPrice} numberOfLines={1} adjustsFontSizeToFit>{currency}{total.toLocaleString()}</Text>
         </View>
         <View style={styles.actionBtns}>
           <TouchableOpacity
@@ -966,10 +966,10 @@ const styles = StyleSheet.create({
   relatedList:    { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xs },
 
   // ── Bottom bar ──
-  bottomBar:   { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.borderLight, flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: Spacing.sm, ...Shadow.md },
-  totalCol:    { flex: 1 },
+  bottomBar:   { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.borderLight, flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: 12, ...Shadow.md },
+  totalCol:    { flex: 1, minWidth: 80, maxWidth: 120 },
   totalLbl:    { fontSize: FontSize.xs, color: Colors.textSecondary },
-  totalPrice:  { fontSize: FontSize.xl, fontWeight: FontWeight.extrabold, color: Colors.text },
+  totalPrice:  { fontSize: FontSize.lg, fontWeight: FontWeight.extrabold, color: Colors.text },
   actionBtns:  { flexDirection: 'row', gap: 10 },
   cartBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: Colors.primary, paddingHorizontal: 14, paddingVertical: 12, borderRadius: BorderRadius['2xl'] },
   cartBtnTxt:  { fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: Colors.primary },

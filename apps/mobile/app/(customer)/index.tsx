@@ -75,6 +75,7 @@ export default function HomeScreen() {
   const [popular, setPopular]       = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError]   = useState(false);
 
   // ── Hero Slider (fade transition, no swipe) ──────────────────
   const [heroIndex, setHeroIndex] = useState(0);
@@ -144,9 +145,20 @@ export default function HomeScreen() {
           const allRes = await productApi.getAll({ page: 1, limit: 12, status: 'ACTIVE' });
           const d = allRes.data;
           const allItems = Array.isArray(d) ? d : (d?.products ?? d?.data ?? []);
-          if (allItems.length > 0) setPopular(allItems);
-        } catch {}
+          if (allItems.length > 0) {
+            setPopular(allItems);
+            setLoadError(false);
+          } else {
+            setLoadError(true);
+          }
+        } catch {
+          setLoadError(true);
+        }
+      } else {
+        setLoadError(false);
       }
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -155,6 +167,13 @@ export default function HomeScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
   const onRefresh = () => { setRefreshing(true); loadData(); };
+
+  // Auto-retry silently after 5 s when load failed (covers brief network hiccups)
+  useEffect(() => {
+    if (!loadError) return;
+    const t = setTimeout(() => { loadData(); }, 5000);
+    return () => clearTimeout(t);
+  }, [loadError, loadData]);
 
   if (loading) {
     return (
@@ -351,6 +370,16 @@ export default function HomeScreen() {
               windowSize={5}
               removeClippedSubviews
             />
+          ) : loadError ? (
+            <View style={styles.emptyProducts}>
+              <Ionicons name="wifi-outline" size={48} color={Colors.textLight} />
+              <Text style={styles.emptyProductsTitle}>Connection issue</Text>
+              <Text style={styles.emptyProductsText}>Could not load products. Check your connection.</Text>
+              <TouchableOpacity style={styles.shopNowBtn} onPress={() => { setLoadError(false); setLoading(true); loadData(); }}>
+                <Ionicons name="refresh-outline" size={14} color={Colors.primary} />
+                <Text style={styles.shopNowText}>Tap to Retry</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <View style={styles.emptyProducts}>
               <Ionicons name="storefront-outline" size={48} color={Colors.textLight} />

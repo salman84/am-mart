@@ -77,10 +77,10 @@ export default function ProfileScreen() {
     else if (action === 'coupons') router.push('/(customer)/coupons' as any);
     else if (action === 'wishlist') router.push('/(customer)/products' as any);
     else if (action === 'history') router.push('/(customer)/browsing-history' as any);
-    else if (action === 'wallet') Toast.show({ type: 'info', text1: 'Wallet coming soon' });
+    else if (action === 'wallet') router.push('/(customer)/wallet' as any);
     else if (action === 'info') router.push('/(customer)/my-information' as any);
     else if (action === 'support') router.push('/(customer)/support' as any);
-    else if (action === 'terms') Toast.show({ type: 'info', text1: 'Terms coming soon' });
+    else if (action === 'terms') router.push('/(customer)/terms' as any);
     else if (action === 'pin') {
       if (pinEnabled) {
         await clearPin();
