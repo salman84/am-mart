@@ -69,7 +69,8 @@ export default function BannersPage() {
     }
   };
 
-  const banners = data?.banners || [];
+  // Backend returns a plain array from findMany — not { banners: [] }
+  const banners: any[] = Array.isArray(data) ? data : [];
 
   return (
     <div>

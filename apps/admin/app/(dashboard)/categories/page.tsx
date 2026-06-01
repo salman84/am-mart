@@ -85,7 +85,8 @@ export default function CategoriesPage() {
     queryFn: () => categoriesApi.getAll().then((r) => r.data),
   });
 
-  const cats: any[] = data?.categories || [];
+  // Backend returns a plain array with nested children — not { categories: [] }
+  const cats: any[] = Array.isArray(data) ? data : [];
 
   // Flat list for parent picker
   function flattenCats(list: any[], depth = 0): any[] {

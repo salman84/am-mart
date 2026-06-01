@@ -86,12 +86,12 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   // Initial load
   useEffect(() => { load(); }, [load]);
 
-  // Re-fetch when app comes to foreground — clear cache first so we always
-  // get the latest icons/settings instead of the 10-min cached version
+  // Re-fetch when app comes to foreground — clear ALL caches so admin changes
+  // (banners, categories, products, icons, settings) are visible immediately
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        clearApiCache('/admin/public-settings');
+        clearApiCache(); // wipes every cached endpoint — next fetch goes to server
         load();
       }
     });
