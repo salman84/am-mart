@@ -584,17 +584,17 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
 
       /* ── Compute animation positions ── */
       const roadY = H * 0.52 + H * 0.18 * 0.35; // truck vertical center on road
-      const truckStopX = W * 0.52; // where truck stops (near dest building)
+      const truckStopX = W * 0.32; // truck stops left of building, person walks right to door
       const truckScale = 1.3;
       const personScale = 1.1;
 
       /* Customer position — standing near building entrance */
-      const customerX = W * 0.56;
+      const customerX = W * 0.55;
       const customerY = H * 0.52 - 2;
 
-      /* Delivery person walk start (exits truck) and end (at customer) */
-      const deliveryStartX = truckStopX - 10;
-      const deliveryEndX = customerX - 25;
+      /* Delivery person: exits from right/back of truck (truck faces left), walks right to customer */
+      const deliveryStartX = truckStopX + 65;
+      const deliveryEndX = customerX - 18;
       const deliveryY = H * 0.52 - 2;
 
       let truckX = 0;
@@ -604,34 +604,33 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
       let showCustomer = true;
       let customerHasPackage = false;
       let deliveryFacingLeft = false;
-      let truckFlipped = false;
+      let truckFlipped = true; // truck ALWAYS faces left (cab on left, cargo back on right)
       let step = 0;
 
       if (elapsed < P.STOP) {
-        /* Phase 0: Truck enters from right */
+        /* Phase 0: Truck enters from right, driving left */
         const t = ease(elapsed / P.STOP);
         truckX = W + 100 - (W + 100 - truckStopX) * t;
         step = 1; // In Transit
       } else if (elapsed < P.WALK) {
-        /* Phase 1: Truck stopped, delivery person exits */
+        /* Phase 1: Truck stopped, delivery person exits from back of truck */
         truckX = truckStopX;
         showDeliveryPerson = true;
-        const t = ease((elapsed - P.STOP) / (P.WALK - P.STOP));
         deliveryPersonX = deliveryStartX;
         deliveryHasPackage = true;
-        deliveryFacingLeft = false; // start facing truck
+        deliveryFacingLeft = false; // facing right toward customer
         step = 2; // Out for Delivery
       } else if (elapsed < P.HANDOFF) {
-        /* Phase 2: Person walks to customer */
+        /* Phase 2: Person walks right toward customer at building */
         truckX = truckStopX;
         showDeliveryPerson = true;
         const t = ease((elapsed - P.WALK) / (P.HANDOFF - P.WALK));
         deliveryPersonX = deliveryStartX + (deliveryEndX - deliveryStartX) * t;
         deliveryHasPackage = true;
-        deliveryFacingLeft = false;
+        deliveryFacingLeft = false; // facing right
         step = 2;
       } else if (elapsed < P.RETURN) {
-        /* Phase 3: Package handoff */
+        /* Phase 3: Package handoff at building door */
         truckX = truckStopX;
         showDeliveryPerson = true;
         deliveryPersonX = deliveryEndX;
@@ -641,21 +640,20 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
         deliveryFacingLeft = false;
         step = 3; // Delivered
       } else if (elapsed < P.LEAVE) {
-        /* Phase 4: Person walks back to truck */
+        /* Phase 4: Person walks back left to truck */
         truckX = truckStopX;
         showDeliveryPerson = true;
         const t = ease((elapsed - P.RETURN) / (P.LEAVE - P.RETURN));
         deliveryPersonX = deliveryEndX - (deliveryEndX - deliveryStartX) * t;
         deliveryHasPackage = false;
         customerHasPackage = true;
-        deliveryFacingLeft = true;
+        deliveryFacingLeft = true; // facing left back to truck
         step = 3;
       } else if (elapsed < P.PAUSE) {
         /* Phase 5: Truck leaves to left */
         const t = ease((elapsed - P.LEAVE) / (P.PAUSE - P.LEAVE));
         truckX = truckStopX - (truckStopX + 150) * t;
         customerHasPackage = true;
-        truckFlipped = true;
         step = 3;
       } else {
         /* Phase 6: Pause / reset */
@@ -919,6 +917,10 @@ export default function LandingPage() {
   const heroBgType = g('LP_HERO_BG_TYPE', 'animation'); // 'animation' | 'image' | 'video' | 'none'
   const heroBgImage = cms['LP_HERO_BG_IMAGE'] || '';
   const heroBgVideo = cms['LP_HERO_BG_VIDEO'] || '';
+  const heroBgVideoLoop = g('LP_HERO_VIDEO_LOOP', 'true') === 'true';
+  const heroBgVideoFit = g('LP_HERO_VIDEO_FIT', 'cover') as 'cover' | 'contain' | 'fill';
+  const heroBgVideoPosition = g('LP_HERO_VIDEO_POSITION', 'center');
+  const heroBgVideoOverlay = parseInt(g('LP_HERO_VIDEO_OVERLAY', '40'), 10);
 
   // ── Screenshots ──
   const screenshot1 = cms['LP_APP_SCREENSHOT_1'] || '';
@@ -980,10 +982,23 @@ export default function LandingPage() {
           )}
           {heroBgType === 'video' && heroBgVideo && (
             <div className="absolute inset-0">
-              <video autoPlay muted loop playsInline className="w-full h-full object-cover">
+              <video
+                autoPlay
+                muted
+                playsInline
+                loop={heroBgVideoLoop}
+                className="w-full h-full"
+                style={{
+                  objectFit: heroBgVideoFit,
+                  objectPosition: heroBgVideoPosition,
+                }}
+              >
                 <source src={heroBgVideo} type="video/mp4" />
+                <source src={heroBgVideo} type="video/webm" />
               </video>
-              <div className="absolute inset-0 bg-white/70" />
+              {heroBgVideoOverlay > 0 && (
+                <div className="absolute inset-0" style={{ backgroundColor: `rgba(255,255,255,${heroBgVideoOverlay / 100})` }} />
+              )}
             </div>
           )}
           {heroBgType === 'none' && (
