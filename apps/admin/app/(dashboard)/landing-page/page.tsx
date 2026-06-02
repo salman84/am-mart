@@ -45,7 +45,7 @@ const SECTIONS = [
           { value: 'none',      label: 'Plain Gradient (no animation)' },
         ] },
       { key: 'LP_HERO_BG_IMAGE', label: 'Background Image (used when type = image)', type: 'image' },
-      { key: 'LP_HERO_BG_VIDEO', label: 'Background Video URL (used when type = video)', placeholder: 'https://example.com/video.mp4' },
+      { key: 'LP_HERO_BG_VIDEO', label: 'Background Video (used when type = video)', placeholder: 'https://example.com/video.mp4', type: 'video' },
     ],
   },
   {
@@ -216,6 +216,131 @@ function ImageUpload({ settingKey, currentValue, onUploaded }: {
   );
 }
 
+/* ─── Video uploader component (upload + URL input, no size limit) ──── */
+function VideoUpload({ settingKey, currentValue, onUploaded, onUrlChange, onSave }: {
+  settingKey: string; currentValue: string;
+  onUploaded: (url: string) => void;
+  onUrlChange: (value: string) => void;
+  onSave: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setProgress(0);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('folder', 'videos');
+      const token = localStorage.getItem('adminToken');
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_URL}/upload/image`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          setProgress(Math.round((evt.loaded / evt.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const data = JSON.parse(xhr.responseText);
+          const url = data.url || data.imageUrl || '';
+          if (url) {
+            onUploaded(url);
+            toast.success('Video uploaded successfully');
+          } else {
+            toast.error('Upload failed — no URL returned');
+          }
+        } else {
+          toast.error('Video upload failed');
+        }
+        setUploading(false);
+        setProgress(0);
+        if (inputRef.current) inputRef.current.value = '';
+      };
+
+      xhr.onerror = () => {
+        toast.error('Video upload failed');
+        setUploading(false);
+        setProgress(0);
+        if (inputRef.current) inputRef.current.value = '';
+      };
+
+      xhr.send(formData);
+    } catch {
+      toast.error('Video upload failed');
+      setUploading(false);
+      setProgress(0);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const isVideoUrl = currentValue && (
+    currentValue.startsWith('http') || currentValue.startsWith('data:video')
+  );
+
+  return (
+    <div className="space-y-3">
+      {/* Upload button row */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => inputRef.current?.click()} disabled={uploading}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+          <Upload className="w-4 h-4" /> {uploading ? `Uploading… ${progress}%` : 'Upload Video'}
+        </button>
+        {currentValue && (
+          <button onClick={() => onUploaded('')} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+        )}
+      </div>
+
+      {/* Upload progress bar */}
+      {uploading && (
+        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+        </div>
+      )}
+
+      <input ref={inputRef} type="file" accept="video/*" onChange={handleUpload} className="hidden" />
+
+      {/* OR divider */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-gray-200" />
+        <span className="text-xs text-gray-400 font-medium">OR paste URL</span>
+        <div className="flex-1 h-px bg-gray-200" />
+      </div>
+
+      {/* URL text input with save */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={currentValue}
+          onChange={(e) => onUrlChange(e.target.value)}
+          placeholder="https://example.com/video.mp4"
+          className="flex-1 form-input text-sm"
+        />
+        <button onClick={onSave}
+          className="p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+          title="Save">
+          <Save className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Video preview */}
+      {isVideoUrl && (
+        <div className="mt-2">
+          <video src={currentValue} controls className="h-32 w-auto rounded-lg border border-gray-200" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════ */
 /*  ADMIN CMS — Landing Page Editor                                      */
 /* ═══════════════════════════════════════════════════════════════════════ */
@@ -346,6 +471,14 @@ export default function LandingPageAdmin() {
                           settingKey={field.key}
                           currentValue={getValue(field.key)}
                           onUploaded={(url) => handleImageUploaded(field.key, url)}
+                        />
+                      ) : field.type === 'video' ? (
+                        <VideoUpload
+                          settingKey={field.key}
+                          currentValue={getValue(field.key)}
+                          onUploaded={(url) => handleImageUploaded(field.key, url)}
+                          onUrlChange={(value) => handleChange(field.key, value)}
+                          onSave={() => handleSave(field.key)}
                         />
                       ) : field.multiline ? (
                         <div className="flex gap-2">
