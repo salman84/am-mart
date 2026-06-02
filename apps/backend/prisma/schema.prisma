@@ -223,7 +223,32 @@ model Rider {
   deliveries      DeliveryAssignment[]
   trackingPoints  DeliveryTracking[]
   user            User                 @relation(fields: [userId], references: [id])
+  // ── Parcel delivery extensions ──
+  partnerId             String?
+  licenseExpiryDate     DateTime?
+  backgroundCheckStatus DriverBgCheckStatus  @default(NOT_CHECKED)
+  backgroundCheckDate   DateTime?
+  suspensionReason      String?
+  suspendedAt           DateTime?
+  suspendedUntil        DateTime?
+  maxPackageCapacity    Int                  @default(50)
+  ratingCount           Int                  @default(0)
+  vehicleMake           String?
+  vehicleModel          String?
+  vehicleYear           Int?
+  vehicleColor          String?
+  partner               DeliveryPartner?     @relation(fields: [partnerId], references: [id])
+  documents             DriverDocument[]
+  shiftAssignments      DriverShiftAssignment[]
+  attendanceRecords     DriverAttendance[]
+  assignedRoutes        DeliveryRoute[]
+  deliveryProofs        DeliveryProof[]
+  failedDeliveries      FailedDelivery[]
+  deliveryRatings       DeliveryRating[]
+  earningsSettlements   DriverEarningsSettlement[]
+  returnPickups         ReturnPickup[]
 
+  @@index([partnerId])
   @@map("riders")
 }
 
@@ -357,10 +382,18 @@ model Order {
   customer      Customer             @relation(fields: [customerId], references: [id])
   payments      Payment[]
   refunds       Refund[]
+  // ── Parcel delivery extensions ──
+  fulfillmentCenterId String?
+  deliveryTimeSlotId  String?
+  deliveryInstructions String?
+  deliveryRating      DeliveryRating?
+  fulfillmentCenter   FulfillmentCenter? @relation(fields: [fulfillmentCenterId], references: [id])
+  deliveryTimeSlot    DeliveryTimeSlot?  @relation(fields: [deliveryTimeSlotId], references: [id])
 
   @@index([customerId])
   @@index([status])
   @@index([orderNumber])
+  @@index([fulfillmentCenterId])
   @@map("orders")
 }
 
@@ -789,7 +822,29 @@ model DeliveryZone {
   deliveryFee Float    @default(3000)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
+  // ── Dynamic zone extensions ──
+  zoneCode              String?   @unique
+  city                  String?
+  district              String?
+  maxCapacity           Int?
+  currentLoad           Int       @default(0)
+  surgeMultiplier       Float     @default(1.0)
+  activeHoursStart      String?
+  activeHoursEnd        String?
+  maxDeliveryAttempts   Int       @default(3)
+  parentZoneId          String?
+  fulfillmentCenterId   String?
+  updatedAt             DateTime  @default(now()) @updatedAt
+  parentZone            DeliveryZone?      @relation("ZoneChildren", fields: [parentZoneId], references: [id])
+  childZones            DeliveryZone[]     @relation("ZoneChildren")
+  fulfillmentCenter     FulfillmentCenter? @relation(fields: [fulfillmentCenterId], references: [id])
+  routes                DeliveryRoute[]
+  feeRules              DeliveryFeeRule[]
+  timeSlots             DeliveryTimeSlot[]
+  routeStops            RouteStop[]
 
+  @@index([zoneCode])
+  @@index([fulfillmentCenterId])
   @@map("delivery_zones")
 }
 
@@ -1363,10 +1418,17 @@ model Shipment {
   deliveredAt      DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  // ── Multi-package support ──
+  fulfillmentCenterId String?
+  totalWeight         Float?
+  totalPackages       Int          @default(1)
+  fulfillmentCenter   FulfillmentCenter? @relation(fields: [fulfillmentCenterId], references: [id])
+  packages            Package[]
 
   @@index([orderId])
   @@index([sellerId])
   @@index([status])
+  @@index([fulfillmentCenterId])
   @@map("shipments")
 }
 
@@ -1384,6 +1446,13 @@ model ReturnRequest {
   reviewedAt  DateTime?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+  // ── Reverse logistics extensions ──
+  packageId          String?
+  images             String[]
+  refundAmount       Float?
+  refundProcessedAt  DateTime?
+  returnPickup       ReturnPickup?
+  returnInspection   ReturnInspection?
 
   @@index([orderId])
   @@index([sellerId])
@@ -1559,12 +1628,758 @@ model PasswordResetRequest {
   @@map("password_reset_requests")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ██  PARCEL DELIVERY SYSTEM — Warehouse, Routes, Packages, Proofs, Returns  ██
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Fulfillment Center Management ────────────────────────────────────────────
+
+model FulfillmentCenter {
+  id                  String   @id @default(uuid())
+  name                String
+  code                String   @unique
+  address             String
+  city                String
+  district            String?
+  postalCode          String?
+  lat                 Float?
+  lng                 Float?
+  phone               String?
+  email               String?
+  managerUserId       String?
+  capacity            Int      @default(10000)
+  currentOccupancy    Int      @default(0)
+  isActive            Boolean  @default(true)
+  operatingHoursStart String?
+  operatingHoursEnd   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  bins                WarehouseBin[]
+  inventory           WarehouseInventory[]
+  incomingTransfers   WarehouseTransfer[]  @relation("TransferDestination")
+  outgoingTransfers   WarehouseTransfer[]  @relation("TransferOrigin")
+  shipments           Shipment[]
+  zones               DeliveryZone[]
+  routes              DeliveryRoute[]
+  orders              Order[]
+  packages            Package[]
+  driverShifts        DriverShift[]
+
+  @@index([code])
+  @@index([isActive])
+  @@map("fulfillment_centers")
+}
+
+model WarehouseBin {
+  id                  String   @id @default(uuid())
+  fulfillmentCenterId String
+  binCode             String
+  section             String?
+  aisle               String?
+  shelf               String?
+  position            String?
+  capacity            Int      @default(100)
+  currentOccupancy    Int      @default(0)
+  binType             WarehouseBinType @default(STANDARD)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  fulfillmentCenter   FulfillmentCenter @relation(fields: [fulfillmentCenterId], references: [id])
+  inventory           WarehouseInventory[]
+
+  @@unique([fulfillmentCenterId, binCode])
+  @@index([fulfillmentCenterId])
+  @@map("warehouse_bins")
+}
+
+model WarehouseInventory {
+  id                  String   @id @default(uuid())
+  fulfillmentCenterId String
+  binId               String?
+  productId           String
+  sellerId            String
+  quantity            Int      @default(0)
+  reservedQuantity    Int      @default(0)
+  damagedQuantity     Int      @default(0)
+  lastStockCheck      DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  fulfillmentCenter   FulfillmentCenter @relation(fields: [fulfillmentCenterId], references: [id])
+  bin                 WarehouseBin?     @relation(fields: [binId], references: [id])
+
+  @@unique([fulfillmentCenterId, productId, sellerId])
+  @@index([fulfillmentCenterId])
+  @@index([productId])
+  @@index([sellerId])
+  @@map("warehouse_inventory")
+}
+
+model WarehouseTransfer {
+  id                      String   @id @default(uuid())
+  transferNumber          String   @unique
+  originType              TransferOriginType @default(SELLER)
+  originFulfillmentId     String?
+  destinationFulfillmentId String
+  sellerId                String?
+  status                  TransferStatus @default(REQUESTED)
+  requestedBy             String?
+  approvedBy              String?
+  receivedBy              String?
+  totalItems              Int      @default(0)
+  totalReceived           Int      @default(0)
+  notes                   String?
+  requestedAt             DateTime @default(now())
+  approvedAt              DateTime?
+  shippedAt               DateTime?
+  receivedAt              DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  originFulfillment       FulfillmentCenter? @relation("TransferOrigin", fields: [originFulfillmentId], references: [id])
+  destinationFulfillment  FulfillmentCenter  @relation("TransferDestination", fields: [destinationFulfillmentId], references: [id])
+  items                   WarehouseTransferItem[]
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([destinationFulfillmentId])
+  @@map("warehouse_transfers")
+}
+
+model WarehouseTransferItem {
+  id                String   @id @default(uuid())
+  transferId        String
+  productId         String
+  expectedQuantity  Int
+  receivedQuantity  Int      @default(0)
+  damagedQuantity   Int      @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+  transfer          WarehouseTransfer @relation(fields: [transferId], references: [id])
+
+  @@index([transferId])
+  @@index([productId])
+  @@map("warehouse_transfer_items")
+}
+
+// ── Package & Tracking ───────────────────────────────────────────────────────
+
+model Package {
+  id                  String        @id @default(uuid())
+  shipmentId          String
+  trackingNumber      String        @unique
+  barcode             String?       @unique
+  qrCode              String?
+  status              PackageStatus @default(CREATED)
+  weight              Float?
+  length              Float?
+  width               Float?
+  height              Float?
+  description         String?
+  fulfillmentCenterId String?
+  binId               String?
+  pickedBy            String?
+  pickedAt            DateTime?
+  packedBy            String?
+  packedAt            DateTime?
+  labelGeneratedAt    DateTime?
+  sortedAt            DateTime?
+  sortZone            String?
+  deliveryAttempts    Int           @default(0)
+  maxAttempts         Int           @default(3)
+  currentAttempt      Int           @default(0)
+  specialInstructions String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  shipment            Shipment      @relation(fields: [shipmentId], references: [id])
+  fulfillmentCenter   FulfillmentCenter? @relation(fields: [fulfillmentCenterId], references: [id])
+  scans               PackageScan[]
+  routeStop           RouteStop?
+  deliveryProof       DeliveryProof?
+  failedDeliveries    FailedDelivery[]
+
+  @@index([shipmentId])
+  @@index([trackingNumber])
+  @@index([status])
+  @@index([fulfillmentCenterId])
+  @@map("packages")
+}
+
+model PackageScan {
+  id          String   @id @default(uuid())
+  packageId   String
+  scanType    ScanType
+  scannedBy   String
+  deviceId    String?
+  lat         Float?
+  lng         Float?
+  locationName String?
+  notes       String?
+  scannedAt   DateTime @default(now())
+  package     Package  @relation(fields: [packageId], references: [id])
+
+  @@index([packageId])
+  @@index([scanType])
+  @@index([scannedAt])
+  @@map("package_scans")
+}
+
+// ── Route & Delivery Management ──────────────────────────────────────────────
+
+model DeliveryRoute {
+  id                  String      @id @default(uuid())
+  routeNumber         String      @unique
+  riderId             String?
+  fulfillmentCenterId String?
+  zoneId              String?
+  status              RouteStatus @default(PLANNED)
+  plannedDate         DateTime
+  startedAt           DateTime?
+  completedAt         DateTime?
+  totalStops          Int         @default(0)
+  completedStops      Int         @default(0)
+  failedStops         Int         @default(0)
+  totalDistance        Float?
+  estimatedDuration   Int?
+  actualDuration      Int?
+  optimizedOrder      Json?
+  notes               String?
+  createdBy           String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  rider               Rider?              @relation(fields: [riderId], references: [id])
+  fulfillmentCenter   FulfillmentCenter?  @relation(fields: [fulfillmentCenterId], references: [id])
+  zone                DeliveryZone?       @relation(fields: [zoneId], references: [id])
+  stops               RouteStop[]
+
+  @@index([riderId])
+  @@index([fulfillmentCenterId])
+  @@index([zoneId])
+  @@index([status])
+  @@index([plannedDate])
+  @@map("delivery_routes")
+}
+
+model RouteStop {
+  id                  String         @id @default(uuid())
+  routeId             String
+  packageId           String         @unique
+  stopOrder           Int
+  status              RouteStopStatus @default(PENDING)
+  customerName        String?
+  customerPhone       String?
+  addressLine1        String
+  addressLine2        String?
+  city                String?
+  district            String?
+  postalCode          String?
+  lat                 Float?
+  lng                 Float?
+  deliveryNotes       String?
+  zoneId              String?
+  estimatedArrival    DateTime?
+  actualArrival       DateTime?
+  completedAt         DateTime?
+  failedAt            DateTime?
+  attemptNumber       Int            @default(1)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  route               DeliveryRoute  @relation(fields: [routeId], references: [id])
+  package             Package        @relation(fields: [packageId], references: [id])
+  zone                DeliveryZone?  @relation(fields: [zoneId], references: [id])
+
+  @@index([routeId])
+  @@index([status])
+  @@map("route_stops")
+}
+
+// ── Proof of Delivery ────────────────────────────────────────────────────────
+
+model DeliveryProof {
+  id            String    @id @default(uuid())
+  packageId     String    @unique
+  riderId       String
+  proofType     ProofType
+  photoUrl      String?
+  signatureUrl  String?
+  otp           String?
+  otpVerified   Boolean   @default(false)
+  gpsLat        Float?
+  gpsLng        Float?
+  gpsAccuracy   Float?
+  deviceId      String?
+  deliveredAt   DateTime  @default(now())
+  recipientName String?
+  safePlaceDesc String?
+  driverNotes   String?
+  createdAt     DateTime  @default(now())
+  package       Package   @relation(fields: [packageId], references: [id])
+  rider         Rider     @relation(fields: [riderId], references: [id])
+
+  @@index([riderId])
+  @@index([deliveredAt])
+  @@map("delivery_proofs")
+}
+
+model FailedDelivery {
+  id              String              @id @default(uuid())
+  packageId       String
+  riderId         String
+  attemptNumber   Int
+  reason          FailedDeliveryReason
+  reasonNotes     String?
+  photoUrl        String?
+  gpsLat          Float?
+  gpsLng          Float?
+  deviceId        String?
+  rescheduledDate DateTime?
+  returnToWarehouse Boolean           @default(false)
+  createdAt       DateTime            @default(now())
+  package         Package             @relation(fields: [packageId], references: [id])
+  rider           Rider               @relation(fields: [riderId], references: [id])
+
+  @@index([packageId])
+  @@index([riderId])
+  @@index([reason])
+  @@map("failed_deliveries")
+}
+
+// ── Driver Management ────────────────────────────────────────────────────────
+
+model DeliveryPartner {
+  id                String   @id @default(uuid())
+  companyName       String
+  companyCode       String   @unique
+  contactPerson     String?
+  contactPhone      String?
+  contactEmail      String?
+  address           String?
+  businessRegNumber String?
+  contractStartDate DateTime?
+  contractEndDate   DateTime?
+  commissionRate    Float    @default(0)
+  perDeliveryFee    Float    @default(0)
+  isActive          Boolean  @default(true)
+  fleetSize         Int      @default(0)
+  totalDeliveries   Int      @default(0)
+  totalSettled      Float    @default(0)
+  pendingSettlement Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  riders            Rider[]
+  settlements       DriverEarningsSettlement[]
+
+  @@index([companyCode])
+  @@index([isActive])
+  @@map("delivery_partners")
+}
+
+model DriverDocument {
+  id            String             @id @default(uuid())
+  riderId       String
+  documentType  DriverDocumentType
+  documentUrl   String
+  fileName      String?
+  status        DriverDocStatus    @default(PENDING)
+  expiresAt     DateTime?
+  verifiedBy    String?
+  verifiedAt    DateTime?
+  rejectionNote String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  rider         Rider              @relation(fields: [riderId], references: [id])
+
+  @@index([riderId])
+  @@index([documentType])
+  @@index([status])
+  @@map("driver_documents")
+}
+
+model DriverShift {
+  id                  String    @id @default(uuid())
+  name                String
+  fulfillmentCenterId String?
+  startTime           String
+  endTime             String
+  maxDrivers          Int       @default(10)
+  isActive            Boolean   @default(true)
+  daysOfWeek          Int[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  fulfillmentCenter   FulfillmentCenter? @relation(fields: [fulfillmentCenterId], references: [id])
+  assignments         DriverShiftAssignment[]
+
+  @@index([fulfillmentCenterId])
+  @@index([isActive])
+  @@map("driver_shifts")
+}
+
+model DriverShiftAssignment {
+  id        String   @id @default(uuid())
+  shiftId   String
+  riderId   String
+  date      DateTime
+  status    ShiftAssignmentStatus @default(SCHEDULED)
+  clockInAt  DateTime?
+  clockOutAt DateTime?
+  createdAt DateTime @default(now())
+  shift     DriverShift @relation(fields: [shiftId], references: [id])
+  rider     Rider       @relation(fields: [riderId], references: [id])
+
+  @@unique([shiftId, riderId, date])
+  @@index([riderId])
+  @@index([date])
+  @@map("driver_shift_assignments")
+}
+
+model DriverAttendance {
+  id        String   @id @default(uuid())
+  riderId   String
+  date      DateTime
+  clockIn   DateTime?
+  clockOut  DateTime?
+  hoursWorked Float?
+  status    AttendanceStatus @default(ABSENT)
+  notes     String?
+  createdAt DateTime @default(now())
+  rider     Rider    @relation(fields: [riderId], references: [id])
+
+  @@unique([riderId, date])
+  @@index([riderId])
+  @@index([date])
+  @@map("driver_attendance")
+}
+
+// ── Customer Delivery Features ───────────────────────────────────────────────
+
+model DeliveryTimeSlot {
+  id          String   @id @default(uuid())
+  name        String
+  startTime   String
+  endTime     String
+  zoneId      String?
+  maxOrders   Int      @default(50)
+  currentLoad Int      @default(0)
+  surcharge   Float    @default(0)
+  isExpress   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  daysOfWeek  Int[]
+  cutoffHours Int      @default(2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  zone        DeliveryZone? @relation(fields: [zoneId], references: [id])
+  orders      Order[]
+
+  @@index([zoneId])
+  @@index([isActive])
+  @@map("delivery_time_slots")
+}
+
+model DeliveryRating {
+  id          String   @id @default(uuid())
+  orderId     String   @unique
+  riderId     String
+  customerId  String
+  rating      Int
+  comment     String?
+  tags        String[]
+  createdAt   DateTime @default(now())
+  order       Order    @relation(fields: [orderId], references: [id])
+  rider       Rider    @relation(fields: [riderId], references: [id])
+
+  @@index([riderId])
+  @@index([customerId])
+  @@map("delivery_ratings")
+}
+
+// ── Finance & Settlement ─────────────────────────────────────────────────────
+
+model DeliveryFeeRule {
+  id                    String   @id @default(uuid())
+  name                  String
+  zoneId                String?
+  feeType               DeliveryFeeType @default(FLAT)
+  baseFee               Float    @default(0)
+  perKgFee              Float    @default(0)
+  perKmFee              Float    @default(0)
+  freeShippingThreshold Float?
+  expressMultiplier     Float    @default(1.5)
+  surgeMultiplier       Float    @default(1.0)
+  minFee                Float    @default(0)
+  maxFee                Float?
+  priority              Int      @default(0)
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  zone                  DeliveryZone? @relation(fields: [zoneId], references: [id])
+
+  @@index([zoneId])
+  @@index([isActive, priority])
+  @@map("delivery_fee_rules")
+}
+
+model DriverEarningsSettlement {
+  id              String   @id @default(uuid())
+  riderId         String
+  partnerId       String?
+  periodStart     DateTime
+  periodEnd       DateTime
+  totalDeliveries Int      @default(0)
+  totalEarnings   Float    @default(0)
+  bonuses         Float    @default(0)
+  deductions      Float    @default(0)
+  netAmount       Float    @default(0)
+  codCollected    Float    @default(0)
+  codSettled      Float    @default(0)
+  status          DriverSettlementStatus @default(PENDING)
+  paidAt          DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  rider           Rider           @relation(fields: [riderId], references: [id])
+  partner         DeliveryPartner? @relation(fields: [partnerId], references: [id])
+
+  @@index([riderId])
+  @@index([partnerId])
+  @@index([status])
+  @@index([periodStart, periodEnd])
+  @@map("driver_earnings_settlements")
+}
+
+// ── Reverse Logistics ────────────────────────────────────────────────────────
+
+model ReturnPickup {
+  id              String           @id @default(uuid())
+  returnRequestId String           @unique
+  riderId         String?
+  status          ReturnPickupStatus @default(PENDING)
+  scheduledDate   DateTime?
+  pickupAddress   String?
+  pickupLat       Float?
+  pickupLng       Float?
+  pickedUpAt      DateTime?
+  returnedToWarehouseAt DateTime?
+  proofPhotoUrl   String?
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  returnRequest   ReturnRequest    @relation(fields: [returnRequestId], references: [id])
+  rider           Rider?           @relation(fields: [riderId], references: [id])
+
+  @@index([riderId])
+  @@index([status])
+  @@map("return_pickups")
+}
+
+model ReturnInspection {
+  id              String           @id @default(uuid())
+  returnRequestId String           @unique
+  inspectedBy     String?
+  condition       InspectionCondition @default(PENDING)
+  notes           String?
+  images          String[]
+  refundApproved  Boolean          @default(false)
+  refundAmount    Float?
+  restockApproved Boolean          @default(false)
+  inspectedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  returnRequest   ReturnRequest    @relation(fields: [returnRequestId], references: [id])
+
+  @@index([condition])
+  @@map("return_inspections")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ██  PARCEL DELIVERY ENUMS                                                   ██
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum PackageStatus {
+  CREATED
+  PICKING
+  PACKED
+  LABELED
+  SORTED
+  SCANNED_OUT
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  DELIVERY_FAILED
+  RETURNED
+  DAMAGED
+  LOST
+}
+
+enum ScanType {
+  WAREHOUSE_RECEIVE
+  BIN_ASSIGN
+  PICK
+  PACK
+  LABEL
+  SORT
+  DRIVER_PICKUP
+  DRIVER_SCAN_OUT
+  IN_TRANSIT
+  DELIVERY_ATTEMPT
+  DELIVERED
+  FAILED_DELIVERY
+  RETURN_PICKUP
+  RETURN_WAREHOUSE_IN
+}
+
+enum RouteStatus {
+  PLANNED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  PARTIALLY_COMPLETED
+}
+
+enum RouteStopStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  SKIPPED
+  RESCHEDULED
+}
+
+enum ProofType {
+  PHOTO
+  SIGNATURE
+  OTP
+  SAFE_PLACE
+  PHOTO_AND_OTP
+  PHOTO_AND_SIGNATURE
+}
+
+enum FailedDeliveryReason {
+  CUSTOMER_NOT_AVAILABLE
+  WRONG_ADDRESS
+  CUSTOMER_REQUESTED_LATER
+  UNABLE_TO_CONTACT
+  BUILDING_ACCESS_ISSUE
+  PACKAGE_DAMAGED
+  WEATHER_EMERGENCY
+  REFUSED_BY_CUSTOMER
+  INCORRECT_COD_AMOUNT
+  OTHER
+}
+
+enum DriverDocumentType {
+  DRIVERS_LICENSE
+  VEHICLE_REGISTRATION
+  INSURANCE
+  BACKGROUND_CHECK
+  ID_DOCUMENT
+  VEHICLE_PHOTO
+  PROFILE_PHOTO
+  CONTRACT
+  OTHER
+}
+
+enum DriverDocStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+  NEEDS_REUPLOAD
+}
+
+enum DriverBgCheckStatus {
+  NOT_CHECKED
+  IN_PROGRESS
+  CLEARED
+  FLAGGED
+  FAILED
+}
+
+enum TransferOriginType {
+  SELLER
+  FULFILLMENT_CENTER
+}
+
+enum TransferStatus {
+  REQUESTED
+  APPROVED
+  SHIPPED
+  IN_TRANSIT
+  RECEIVED
+  PARTIALLY_RECEIVED
+  REJECTED
+  CANCELLED
+}
+
+enum WarehouseBinType {
+  STANDARD
+  COLD_STORAGE
+  FRAGILE
+  OVERSIZED
+  HAZARDOUS
+  RETURNS
+}
+
+enum ShiftAssignmentStatus {
+  SCHEDULED
+  CLOCKED_IN
+  CLOCKED_OUT
+  NO_SHOW
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+}
+
+enum ReturnPickupStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  RECEIVED_AT_WAREHOUSE
+  CANCELLED
+}
+
+enum InspectionCondition {
+  PENDING
+  GOOD
+  MINOR_DAMAGE
+  MAJOR_DAMAGE
+  USED
+  MISSING_PARTS
+  WRONG_ITEM
+}
+
+enum DeliveryFeeType {
+  FLAT
+  WEIGHT_BASED
+  DISTANCE_BASED
+  ZONE_BASED
+  COMBINED
+}
+
+enum DriverSettlementStatus {
+  PENDING
+  CALCULATED
+  APPROVED
+  PAID
+  DISPUTED
+  HELD
+}
+
 enum UserRole {
   CUSTOMER
   SELLER
   RIDER
   ADMIN
   SUPER_ADMIN
+  WAREHOUSE_MANAGER
+  WAREHOUSE_STAFF
+  DELIVERY_MANAGER
+  SUPPORT_AGENT
 }
 
 enum UserStatus {
@@ -1591,6 +2406,9 @@ enum RiderStatus {
   AVAILABLE
   BUSY
   OFFLINE
+  ON_ROUTE
+  RETURNING
+  SUSPENDED
 }
 
 enum OtpPurpose {
@@ -1622,6 +2440,15 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
   REFUNDED
+  // ── Parcel delivery statuses ──
+  PROCESSING
+  PICKING
+  PACKED
+  READY_FOR_DISPATCH
+  ASSIGNED_TO_DRIVER
+  SCANNED_AT_WAREHOUSE
+  DELIVERY_ATTEMPTED
+  RETURNED_TO_WAREHOUSE
 }
 
 enum PaymentMethod {
@@ -1691,6 +2518,12 @@ enum DeliveryStatus {
   OUT_FOR_DELIVERY
   DELIVERED
   FAILED
+  // ── Parcel delivery statuses ──
+  SCANNED
+  ROUTE_STARTED
+  DELIVERY_ATTEMPTED
+  RETURNED
+  RESCHEDULED
 }
 
 enum RefundStatus {
@@ -2007,6 +2840,12 @@ enum ReturnRequestStatus {
   RECEIVED
   REFUNDED
   CLOSED
+  // ── Reverse logistics statuses ──
+  PICKUP_ASSIGNED
+  PICKUP_PICKED_UP
+  IN_TRANSIT_RETURN
+  RECEIVED_AT_WAREHOUSE
+  INSPECTED
 }
 
 enum SettlementStatus {

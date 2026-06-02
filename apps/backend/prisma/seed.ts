@@ -274,6 +274,125 @@ async function seedMarketplaceSaaSConfig() {
   console.log('✅ Marketplace SaaS defaults initialized');
 }
 
+async function seedParcelDeliverySystem() {
+  console.log('\n📦 Seeding parcel delivery system...');
+
+  // ── Default Fulfillment Center ──
+  const fc = await prisma.fulfillmentCenter.upsert({
+    where: { code: 'FC-SEOUL-01' },
+    update: {},
+    create: {
+      name: 'Seoul Main Warehouse',
+      code: 'FC-SEOUL-01',
+      address: '123 Warehouse Road, Gangnam-gu',
+      city: 'Seoul',
+      district: 'Gangnam-gu',
+      postalCode: '06000',
+      lat: 37.4979,
+      lng: 127.0276,
+      capacity: 10000,
+      operatingHoursStart: '06:00',
+      operatingHoursEnd: '22:00',
+      isActive: true,
+    },
+  });
+  console.log('  ✅ Default fulfillment center created');
+
+  // ── Default Warehouse Bins ──
+  const binSections = ['A', 'B', 'C'];
+  for (const section of binSections) {
+    for (let shelf = 1; shelf <= 3; shelf++) {
+      for (let pos = 1; pos <= 5; pos++) {
+        const binCode = `${section}${shelf}-${String(pos).padStart(2, '0')}`;
+        await prisma.warehouseBin.upsert({
+          where: { fulfillmentCenterId_binCode: { fulfillmentCenterId: fc.id, binCode } },
+          update: {},
+          create: {
+            fulfillmentCenterId: fc.id,
+            binCode,
+            section,
+            aisle: `${section}`,
+            shelf: String(shelf),
+            position: String(pos),
+            capacity: 50,
+            binType: 'STANDARD',
+          },
+        });
+      }
+    }
+  }
+  console.log('  ✅ 45 warehouse bins created (A/B/C sections)');
+
+  // ── Default Delivery Time Slots ──
+  const timeSlots = [
+    { name: 'Morning', startTime: '09:00', endTime: '12:00', surcharge: 0, isExpress: false, daysOfWeek: [1,2,3,4,5,6] },
+    { name: 'Afternoon', startTime: '12:00', endTime: '17:00', surcharge: 0, isExpress: false, daysOfWeek: [1,2,3,4,5,6] },
+    { name: 'Evening', startTime: '17:00', endTime: '21:00', surcharge: 1000, isExpress: false, daysOfWeek: [1,2,3,4,5,6] },
+    { name: 'Express', startTime: '09:00', endTime: '21:00', surcharge: 3000, isExpress: true, daysOfWeek: [1,2,3,4,5,6,0] },
+  ];
+  for (const slot of timeSlots) {
+    const existing = await prisma.deliveryTimeSlot.findFirst({ where: { name: slot.name } });
+    if (!existing) {
+      await prisma.deliveryTimeSlot.create({ data: { ...slot, maxOrders: 50, cutoffHours: 2 } });
+    }
+  }
+  console.log('  ✅ Delivery time slots created (Morning/Afternoon/Evening/Express)');
+
+  // ── Default Delivery Fee Rules ──
+  const feeRules = [
+    { name: 'Standard Flat Fee', feeType: 'FLAT' as const, baseFee: 3000, priority: 0 },
+    { name: 'Weight Surcharge', feeType: 'WEIGHT_BASED' as const, baseFee: 0, perKgFee: 500, priority: 1 },
+    { name: 'Express Delivery', feeType: 'FLAT' as const, baseFee: 5000, expressMultiplier: 1.5, priority: 2 },
+  ];
+  for (const rule of feeRules) {
+    const existing = await prisma.deliveryFeeRule.findFirst({ where: { name: rule.name } });
+    if (!existing) {
+      await prisma.deliveryFeeRule.create({ data: rule });
+    }
+  }
+  console.log('  ✅ Delivery fee rules created (Standard/Weight/Express)');
+
+  // ── Default Driver Shifts ──
+  const shifts = [
+    { name: 'Morning Shift', startTime: '06:00', endTime: '14:00', maxDrivers: 20, daysOfWeek: [1,2,3,4,5,6] },
+    { name: 'Afternoon Shift', startTime: '14:00', endTime: '22:00', maxDrivers: 20, daysOfWeek: [1,2,3,4,5,6] },
+    { name: 'Full Day', startTime: '08:00', endTime: '20:00', maxDrivers: 10, daysOfWeek: [1,2,3,4,5,6,0] },
+  ];
+  for (const shift of shifts) {
+    const existing = await prisma.driverShift.findFirst({ where: { name: shift.name } });
+    if (!existing) {
+      await prisma.driverShift.create({ data: { ...shift, fulfillmentCenterId: fc.id } });
+    }
+  }
+  console.log('  ✅ Driver shifts created (Morning/Afternoon/Full Day)');
+
+  // ── Parcel delivery app settings ──
+  const parcelSettings = [
+    { key: 'PARCEL_MAX_DELIVERY_ATTEMPTS', value: '3' },
+    { key: 'PARCEL_DEFAULT_PROOF_TYPE', value: 'PHOTO' },
+    { key: 'PARCEL_COD_ENABLED', value: 'false' },
+    { key: 'PARCEL_AUTO_ASSIGN_ENABLED', value: 'false' },
+    { key: 'PARCEL_TRACKING_PREFIX', value: 'AMM' },
+    { key: 'PARCEL_REQUIRE_SCAN_BEFORE_START', value: 'true' },
+    { key: 'PARCEL_OFFLINE_MODE_ENABLED', value: 'true' },
+    { key: 'PARCEL_GPS_TRACKING_INTERVAL_SEC', value: '30' },
+    { key: 'PARCEL_DEFAULT_ZONE_FEE', value: '3000' },
+    { key: 'PARCEL_EXPRESS_SURCHARGE', value: '3000' },
+    { key: 'PARCEL_WEIGHT_SURCHARGE_PER_KG', value: '500' },
+    { key: 'PARCEL_FREE_SHIPPING_THRESHOLD', value: '30000' },
+  ];
+  for (const s of parcelSettings) {
+    await prisma.appSettings.upsert({
+      where: { key: s.key },
+      update: { value: s.value },
+      create: s,
+    });
+  }
+  console.log('  ✅ Parcel delivery settings initialized');
+
+  console.log('📦 Parcel delivery system seed complete!');
+}
+
 async function main() {
   console.log('🌱 Seeding database...');
 
@@ -548,6 +667,9 @@ async function main() {
     });
   }
   console.log('✅ App settings initialized');
+
+  // ── Parcel Delivery System Seed Data ──
+  await seedParcelDeliverySystem();
 
   await seedMarketplaceSaaSConfig();
 
