@@ -129,8 +129,8 @@ export default function CouponsPage() {
 
       {/* Coupon Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-auto">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl my-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xl shadow-xl my-8">
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-lg font-bold">{editingId ? 'Edit Coupon' : 'Create Coupon'}</h2>
               <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">✕</button>
