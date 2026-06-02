@@ -273,6 +273,9 @@ export default {
   enterValidStock: 'বৈধ স্টক পরিমাণ লিখুন',
   discountPrice: 'ছাড়ের মূল্য', optional: 'ঐচ্ছিক', addPhoto: 'ছবি যোগ করুন', productPublished: 'পণ্য প্রকাশিত!',
   productNowLive: '{name} এখন লাইভ', failedAddProduct: 'পণ্য যোগ করতে ব্যর্থ',
+  editProductTitle: 'পণ্য সম্পাদনা', updateProduct: 'পণ্য আপডেট',
+  productUpdated: 'পণ্য আপডেট হয়েছে!', productUpdateSuccess: '{name} আপডেট হয়েছে',
+  failedUpdateProduct: 'পণ্য আপডেট ব্যর্থ', failedLoadProduct: 'পণ্য লোড ব্যর্থ',
   // ── Rider Deliveries ──
   myDeliveries: 'আমার ডেলিভারি', locationRequired: 'লোকেশন আবশ্যক',
   enableLocation: 'অনলাইন যেতে লোকেশন চালু করুন', nowOnline: 'আপনি এখন অনলাইন', nowOffline: 'আপনি এখন অফলাইন',

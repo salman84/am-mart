@@ -275,6 +275,9 @@ export default {
   enterValidStock: 'ใส่จำนวนสต็อกที่ถูกต้อง',
   discountPrice: 'ราคาลด', optional: 'ไม่บังคับ', addPhoto: 'เพิ่มรูปภาพ', productPublished: 'เผยแพร่สินค้าแล้ว!',
   productNowLive: '{name} ออนไลน์แล้ว', failedAddProduct: 'เพิ่มสินค้าล้มเหลว',
+  editProductTitle: 'แก้ไขสินค้า', updateProduct: 'อัปเดตสินค้า',
+  productUpdated: 'อัปเดตสินค้าแล้ว!', productUpdateSuccess: '{name} ได้รับการอัปเดต',
+  failedUpdateProduct: 'อัปเดตสินค้าล้มเหลว', failedLoadProduct: 'โหลดสินค้าล้มเหลว',
   // ── Rider Deliveries ──
   myDeliveries: 'การจัดส่งของฉัน', locationRequired: 'ต้องการตำแหน่ง',
   enableLocation: 'เปิดตำแหน่งเพื่อออนไลน์', nowOnline: 'คุณออนไลน์แล้ว', nowOffline: 'คุณออฟไลน์แล้ว',

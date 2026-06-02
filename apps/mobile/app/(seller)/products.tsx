@@ -117,6 +117,10 @@ export default function SellerProductsScreen() {
                 </View>
               </View>
               <View style={styles.productActions}>
+                {/* Edit icon: tap to edit product */}
+                <TouchableOpacity onPress={() => router.push({ pathname: '/(seller)/add-product', params: { productId: item.id } })}>
+                  <Ionicons name="create-outline" size={20} color={Colors.secondary} />
+                </TouchableOpacity>
                 {/* Eye icon: tap to toggle hide/show */}
                 <TouchableOpacity onPress={() => toggleActive(item)}>
                   <Ionicons

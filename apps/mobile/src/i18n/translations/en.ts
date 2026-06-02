@@ -393,6 +393,12 @@ export default {
   productPublished: 'Product published!',
   productNowLive: '{name} is now live',
   failedAddProduct: 'Failed to add product',
+  editProductTitle: 'Edit Product',
+  updateProduct: 'Update Product',
+  productUpdated: 'Product updated!',
+  productUpdateSuccess: '{name} has been updated',
+  failedUpdateProduct: 'Failed to update product',
+  failedLoadProduct: 'Failed to load product',
 
   // ── Rider Deliveries ──────────────────────────────────────────────────────────
   myDeliveries: 'My Deliveries',

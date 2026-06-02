@@ -4,11 +4,11 @@ import {
   TouchableOpacity, ActivityIndicator, Switch, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useSelector } from 'react-redux';
-import { sellerApi, categoryApi, uploadApi } from '../../src/services/api';
+import { sellerApi, categoryApi, uploadApi, productApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
 import { useLanguage } from '../../src/i18n';
@@ -34,8 +34,11 @@ function Field({ label, required, children }: FieldProps) {
 export default function AddProductScreen() {
   const currency = useSelector((state: any) => state.appSettings?.currencySymbol ?? '₩');
   const { t } = useLanguage();
+  const { productId } = useLocalSearchParams<{ productId?: string }>();
+  const isEditMode = !!productId;
   const [categories, setCategories] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(!!productId);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [form, setForm] = useState({
@@ -53,6 +56,33 @@ export default function AddProductScreen() {
   useEffect(() => {
     categoryApi.getAll().then((res) => setCategories(res.data.categories || [])).catch(() => {});
   }, []);
+
+  // Load existing product data when editing
+  useEffect(() => {
+    if (!productId) return;
+    setIsLoadingProduct(true);
+    productApi.getOne(productId)
+      .then((res) => {
+        const p = res.data.product || res.data;
+        setForm({
+          name: p.name || '',
+          description: p.description || '',
+          price: p.price != null ? String(p.price) : '',
+          discountPrice: p.discountPrice != null ? String(p.discountPrice) : '',
+          stock: p.stock != null ? String(p.stock) : '',
+          unit: p.unit || '',
+          sku: p.sku || '',
+          categoryId: p.categoryId || p.category?.id || '',
+          isFeatured: !!p.isFeatured,
+        });
+        const existingImages = (p.images || []).map((img: any) => typeof img === 'string' ? img : img.url).filter(Boolean);
+        setImages(existingImages);
+      })
+      .catch(() => {
+        Toast.show({ type: 'error', text1: t('failedLoadProduct') });
+      })
+      .finally(() => setIsLoadingProduct(false));
+  }, [productId]);
 
   const MAX_IMAGES = 20;
 
@@ -110,27 +140,37 @@ export default function AddProductScreen() {
     }
 
     setIsSubmitting(true);
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+      categoryId: form.categoryId,
+      price: Number(form.price),
+      discountPrice: form.discountPrice ? Number(form.discountPrice) : undefined,
+      stock: Number(form.stock),
+      unit: form.unit.trim() || undefined,
+      sku: form.sku.trim() || undefined,
+      isFeatured: form.isFeatured,
+      images,
+    };
     try {
-      await sellerApi.createProduct({
-        name: form.name.trim(),
-        description: form.description.trim() || undefined,
-        categoryId: form.categoryId,
-        price: Number(form.price),
-        discountPrice: form.discountPrice ? Number(form.discountPrice) : undefined,
-        stock: Number(form.stock),
-        unit: form.unit.trim() || undefined,
-        sku: form.sku.trim() || undefined,
-        isFeatured: form.isFeatured,
-        images,
-      });
-      Toast.show({
-        type: 'success',
-        text1: t('productPublished'),
-        text2: t('productNowLive').replace('{name}', form.name),
-      });
+      if (isEditMode) {
+        await sellerApi.updateProduct(productId!, payload);
+        Toast.show({
+          type: 'success',
+          text1: t('productUpdated'),
+          text2: t('productUpdateSuccess').replace('{name}', form.name),
+        });
+      } else {
+        await sellerApi.createProduct(payload);
+        Toast.show({
+          type: 'success',
+          text1: t('productPublished'),
+          text2: t('productNowLive').replace('{name}', form.name),
+        });
+      }
       router.back();
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || t('failedAddProduct') });
+      Toast.show({ type: 'error', text1: e.response?.data?.message || (isEditMode ? t('failedUpdateProduct') : t('failedAddProduct')) });
     } finally {
       setIsSubmitting(false);
     }
@@ -142,10 +182,15 @@ export default function AddProductScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('addProductTitle')}</Text>
+        <Text style={styles.headerTitle}>{isEditMode ? t('editProductTitle') : t('addProductTitle')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
+      {isLoadingProduct ? (
+        <View style={styles.loadingCenter}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Basic Info */}
         <View style={styles.card}>
@@ -308,17 +353,19 @@ export default function AddProductScreen() {
           ) : (
             <>
               <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-              <Text style={styles.submitText}>{t('publishProduct')}</Text>
+              <Text style={styles.submitText}>{isEditMode ? t('updateProduct') : t('publishProduct')}</Text>
             </>
           )}
         </TouchableOpacity>
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.base,

@@ -275,6 +275,9 @@ export default {
   enterValidStock: 'वैध स्टॉक मात्रा दर्ज करें',
   discountPrice: 'छूट मूल्य', optional: 'वैकल्पिक', addPhoto: 'फ़ोटो जोड़ें', productPublished: 'उत्पाद प्रकाशित!',
   productNowLive: '{name} अब लाइव है', failedAddProduct: 'उत्पाद जोड़ने में विफल',
+  editProductTitle: 'उत्पाद संपादित करें', updateProduct: 'उत्पाद अपडेट करें',
+  productUpdated: 'उत्पाद अपडेट हो गया!', productUpdateSuccess: '{name} अपडेट किया गया',
+  failedUpdateProduct: 'उत्पाद अपडेट विफल', failedLoadProduct: 'उत्पाद लोड विफल',
   // ── Rider Deliveries ──
   myDeliveries: 'मेरी डिलीवरी', locationRequired: 'स्थान आवश्यक',
   enableLocation: 'ऑनलाइन जाने के लिए स्थान चालू करें', nowOnline: 'आप अभी ऑनलाइन हैं', nowOffline: 'आप अभी ऑफ़लाइन हैं',

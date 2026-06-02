@@ -275,6 +275,9 @@ export default {
   enterValidStock: 'Nhập số lượng kho hợp lệ',
   discountPrice: 'Giá giảm', optional: 'Tùy chọn', addPhoto: 'Thêm ảnh', productPublished: 'Đã đăng sản phẩm!',
   productNowLive: '{name} đã được đăng', failedAddProduct: 'Thêm sản phẩm thất bại',
+  editProductTitle: 'Sửa sản phẩm', updateProduct: 'Cập nhật sản phẩm',
+  productUpdated: 'Đã cập nhật sản phẩm!', productUpdateSuccess: '{name} đã được cập nhật',
+  failedUpdateProduct: 'Cập nhật sản phẩm thất bại', failedLoadProduct: 'Tải sản phẩm thất bại',
   // ── Rider Deliveries ──
   myDeliveries: 'Giao hàng của tôi', locationRequired: 'Yêu cầu vị trí',
   enableLocation: 'Vui lòng bật vị trí để online', nowOnline: 'Bạn đang online', nowOffline: 'Bạn đang offline',

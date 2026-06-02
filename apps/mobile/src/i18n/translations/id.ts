@@ -275,6 +275,9 @@ export default {
   enterValidStock: 'Masukkan jumlah stok yang valid',
   discountPrice: 'Harga Diskon', optional: 'Opsional', addPhoto: 'Tambah Foto', productPublished: 'Produk diterbitkan!',
   productNowLive: '{name} sekarang aktif', failedAddProduct: 'Gagal menambahkan produk',
+  editProductTitle: 'Edit Produk', updateProduct: 'Perbarui Produk',
+  productUpdated: 'Produk diperbarui!', productUpdateSuccess: '{name} telah diperbarui',
+  failedUpdateProduct: 'Gagal memperbarui produk', failedLoadProduct: 'Gagal memuat produk',
   // ── Rider Deliveries ──
   myDeliveries: 'Pengiriman Saya', locationRequired: 'Lokasi Diperlukan',
   enableLocation: 'Aktifkan lokasi untuk online', nowOnline: 'Anda sekarang online', nowOffline: 'Anda sekarang offline',

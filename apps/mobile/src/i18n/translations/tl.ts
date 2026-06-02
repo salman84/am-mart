@@ -275,6 +275,9 @@ export default {
   enterValidStock: 'Maglagay ng wastong dami ng stock',
   discountPrice: 'Presyong may Diskwento', optional: 'Opsyonal', addPhoto: 'Magdagdag ng Larawan', productPublished: 'Na-publish ang produkto!',
   productNowLive: 'Ang {name} ay live na', failedAddProduct: 'Nabigong magdagdag ng produkto',
+  editProductTitle: 'I-edit ang Produkto', updateProduct: 'I-update ang Produkto',
+  productUpdated: 'Na-update ang produkto!', productUpdateSuccess: 'Na-update ang {name}',
+  failedUpdateProduct: 'Nabigong i-update ang produkto', failedLoadProduct: 'Nabigong i-load ang produkto',
   // ── Rider Deliveries ──
   myDeliveries: 'Aking Mga Delivery', locationRequired: 'Kailangan ang Lokasyon',
   enableLocation: 'Paganahin ang lokasyon para mag-online', nowOnline: 'Online ka na ngayon', nowOffline: 'Offline ka na ngayon',

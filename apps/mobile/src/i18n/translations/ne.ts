@@ -273,6 +273,9 @@ export default {
   enterValidStock: 'मान्य स्टक परिमाण प्रविष्ट गर्नुस्',
   discountPrice: 'छुट मूल्य', optional: 'ऐच्छिक', addPhoto: 'फोटो थप्नुस्', productPublished: 'उत्पादन प्रकाशित!',
   productNowLive: '{name} अहिले लाइभ छ', failedAddProduct: 'उत्पादन थप्न असफल',
+  editProductTitle: 'उत्पादन सम्पादन', updateProduct: 'उत्पादन अपडेट',
+  productUpdated: 'उत्पादन अपडेट भयो!', productUpdateSuccess: '{name} अपडेट गरियो',
+  failedUpdateProduct: 'उत्पादन अपडेट असफल', failedLoadProduct: 'उत्पादन लोड असफल',
   // ── Rider Deliveries ──
   myDeliveries: 'मेरा डेलिभरीहरू', locationRequired: 'स्थान आवश्यक',
   enableLocation: 'अनलाइन जान स्थान सक्रिय गर्नुस्', nowOnline: 'तपाईं अहिले अनलाइन हुनुहुन्छ', nowOffline: 'तपाईं अहिले अफलाइन हुनुहुन्छ',
