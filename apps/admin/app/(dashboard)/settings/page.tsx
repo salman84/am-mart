@@ -162,17 +162,54 @@ export default function SettingsPage() {
     }
   }, [settingsData]);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ key, value }: any) => adminApi.updateSetting(key, value),
-    onSuccess: () => { toast.success('Setting saved'); qc.invalidateQueries({ queryKey: ['settings'] }); },
-    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
-  });
+  // Original values from server (for change detection)
+  const [serverValues, setServerValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  // Sync server values snapshot when data loads
+  useEffect(() => {
+    if (settingsData?.settings) {
+      const vals: Record<string, string> = {};
+      (settingsData.settings as any[]).forEach((s: any) => { vals[s.key] = s.value; });
+      setServerValues(vals);
+    }
+  }, [settingsData]);
 
   const notifyMutation = useMutation({
     mutationFn: () => notificationsApi.sendToAll(notification),
     onSuccess: () => { toast.success('Notification sent!'); setNotification({ title: '', body: '', role: 'ALL' }); },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
   });
+
+  // Check if there are unsaved changes
+  const hasChanges = Object.keys(localValues).some(
+    (key) => localValues[key] !== (serverValues[key] ?? '')
+  );
+
+  // Save ALL changed settings at once
+  const handleSaveAll = async () => {
+    const changedKeys = Object.keys(localValues).filter(
+      (key) => localValues[key] !== (serverValues[key] ?? '')
+    );
+    if (changedKeys.length === 0) {
+      toast.success('No changes to save');
+      return;
+    }
+    setSaving(true);
+    try {
+      await Promise.all(
+        changedKeys.map((key) =>
+          adminApi.updateSetting(key, localValues[key])
+        )
+      );
+      qc.invalidateQueries({ queryKey: ['settings'] });
+      toast.success(`Saved ${changedKeys.length} setting${changedKeys.length > 1 ? 's' : ''} successfully`);
+    } catch {
+      toast.error('Some settings failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleImageUpload = async (key: string, folder: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -185,9 +222,7 @@ export default function SettingsPage() {
       const res = await uploadApi.uploadImage(file, folder);
       const url = res.data.url;
       setLocalValues((v) => ({ ...v, [key]: url }));
-      await adminApi.updateSetting(key, url);
-      toast.success('Image uploaded and saved!');
-      qc.invalidateQueries({ queryKey: ['settings'] });
+      toast.success('Image uploaded — click Save All to apply');
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Upload failed');
     } finally {
@@ -197,18 +232,26 @@ export default function SettingsPage() {
     }
   };
 
-  const removeImage = async (key: string) => {
+  const removeImage = (key: string) => {
     setLocalValues((v) => ({ ...v, [key]: '' }));
-    await adminApi.updateSetting(key, '');
-    toast.success('Image removed');
-    qc.invalidateQueries({ queryKey: ['settings'] });
   };
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-1">Configure app branding, settings and send notifications</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+          <p className="text-gray-500 mt-1">Configure app branding, settings and send notifications</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {hasChanges && (
+            <span className="text-xs text-amber-600 font-medium">Unsaved changes</span>
+          )}
+          <button onClick={handleSaveAll} disabled={saving || !hasChanges}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            {saving ? 'Saving...' : 'Save All Changes'}
+          </button>
+        </div>
       </div>
 
       {/* Tab switcher */}
@@ -239,7 +282,7 @@ export default function SettingsPage() {
       {activeTab === 'landing' && (
         <div className="space-y-6">
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700">
-            <strong>💡 How it works:</strong> Edit any field and click <strong>Save</strong>. Changes appear immediately on the Seller Landing Page at{' '}
+            <strong>💡 How it works:</strong> Edit any field, then click <strong>Save All Changes</strong> at the top. Changes appear on the Seller Landing Page at{' '}
             <a href="http://localhost:3002" target="_blank" rel="noreferrer" className="underline font-semibold">localhost:3002</a>.
             Leave a field blank to use the default English text. Both EN and KO labels fall back gracefully.
           </div>
@@ -254,36 +297,21 @@ export default function SettingsPage() {
                 {section.fields.map((field) => (
                   <div key={field.key}>
                     <label className="text-sm font-semibold text-gray-700 block mb-1">{field.label}</label>
-                    <div className="flex gap-2">
-                      {(field as any).textarea ? (
-                        <textarea
-                          className="form-input flex-1 resize-none text-sm"
-                          rows={2}
-                          placeholder={field.placeholder}
-                          value={localValues[field.key] || ''}
-                          onChange={(e) => setLocalValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                        />
-                      ) : (
-                        <input
-                          className="form-input flex-1 text-sm"
-                          placeholder={field.placeholder}
-                          value={localValues[field.key] || ''}
-                          onChange={(e) => setLocalValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                          onKeyDown={(e) => e.key === 'Enter' && updateMutation.mutate({ key: field.key, value: localValues[field.key] || '' })}
-                        />
-                      )}
-                      <button
-                        type="button"
-                        className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 whitespace-nowrap self-start"
-                        onClick={() => updateMutation.mutate({ key: field.key, value: localValues[field.key] || '' })}
-                      >
-                        Save
-                      </button>
-                    </div>
-                    {localValues[field.key] && (
-                      <p className="text-xs text-emerald-600 mt-0.5 flex items-center gap-1">
-                        ✓ Custom value saved
-                      </p>
+                    {(field as any).textarea ? (
+                      <textarea
+                        className="form-input w-full resize-none text-sm"
+                        rows={2}
+                        placeholder={field.placeholder}
+                        value={localValues[field.key] || ''}
+                        onChange={(e) => setLocalValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                      />
+                    ) : (
+                      <input
+                        className="form-input w-full text-sm"
+                        placeholder={field.placeholder}
+                        value={localValues[field.key] || ''}
+                        onChange={(e) => setLocalValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                      />
                     )}
                   </div>
                 ))}
@@ -376,7 +404,6 @@ export default function SettingsPage() {
                     value={localValues['SPLASH_BG_COLOR'] || '#10B981'}
                     onChange={(e) => {
                       setLocalValues((v) => ({ ...v, SPLASH_BG_COLOR: e.target.value }));
-                      updateMutation.mutate({ key: 'SPLASH_BG_COLOR', value: e.target.value });
                     }}
                   />
                   <span className="text-sm text-gray-500 font-mono">{localValues['SPLASH_BG_COLOR'] || '#10B981'}</span>
@@ -387,24 +414,14 @@ export default function SettingsPage() {
               <div>
                 <p className="text-sm font-bold text-gray-800 mb-0.5">App Name</p>
                 <p className="text-xs text-gray-400 mb-2">Shown in notifications and fallback text.</p>
-                <div className="flex gap-2">
-                  <input
-                    id="app-name"
-                    aria-label="App Name"
-                    className="form-input flex-1 text-sm"
-                    value={localValues['APP_NAME'] || ''}
-                    placeholder="Your App Name"
-                    onChange={(e) => setLocalValues((v) => ({ ...v, APP_NAME: e.target.value }))}
-                    onKeyDown={(e) => e.key === 'Enter' && updateMutation.mutate({ key: 'APP_NAME', value: localValues['APP_NAME'] })}
-                  />
-                  <button
-                    type="button"
-                    className="px-3 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90"
-                    onClick={() => updateMutation.mutate({ key: 'APP_NAME', value: localValues['APP_NAME'] })}
-                  >
-                    Save
-                  </button>
-                </div>
+                <input
+                  id="app-name"
+                  aria-label="App Name"
+                  className="form-input w-full text-sm"
+                  value={localValues['APP_NAME'] || ''}
+                  placeholder="Your App Name"
+                  onChange={(e) => setLocalValues((v) => ({ ...v, APP_NAME: e.target.value }))}
+                />
               </div>
 
               {/* Brand Primary Color */}
@@ -419,7 +436,6 @@ export default function SettingsPage() {
                     value={localValues['PRIMARY_COLOR'] || '#10B981'}
                     onChange={(e) => {
                       setLocalValues((v) => ({ ...v, PRIMARY_COLOR: e.target.value }));
-                      updateMutation.mutate({ key: 'PRIMARY_COLOR', value: e.target.value });
                     }}
                   />
                   <span className="text-sm text-gray-500 font-mono">{localValues['PRIMARY_COLOR'] || '#10B981'}</span>
@@ -444,22 +460,12 @@ export default function SettingsPage() {
               {TEXT_SETTINGS.filter(s => s.key !== 'APP_NAME').map((setting) => (
                 <div key={setting.key}>
                   <label htmlFor={`setting-${setting.key}`} className="text-sm font-semibold text-gray-700">{setting.label}</label>
-                  <div className="flex gap-2 mt-1">
-                    <input
-                      id={`setting-${setting.key}`}
-                      className="form-input flex-1"
-                      value={localValues[setting.key] || ''}
-                      onChange={(e) => setLocalValues((v) => ({ ...v, [setting.key]: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && updateMutation.mutate({ key: setting.key, value: localValues[setting.key] })}
-                    />
-                    <button
-                      type="button"
-                      className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90"
-                      onClick={() => updateMutation.mutate({ key: setting.key, value: localValues[setting.key] })}
-                    >
-                      Save
-                    </button>
-                  </div>
+                  <input
+                    id={`setting-${setting.key}`}
+                    className="form-input w-full mt-1"
+                    value={localValues[setting.key] || ''}
+                    onChange={(e) => setLocalValues((v) => ({ ...v, [setting.key]: e.target.value }))}
+                  />
                 </div>
               ))}
             </div>
@@ -492,7 +498,6 @@ export default function SettingsPage() {
                       onClick={() => {
                         const newVal = isEnabled ? 'false' : 'true';
                         setLocalValues((v) => ({ ...v, [flag.key]: newVal }));
-                        updateMutation.mutate({ key: flag.key, value: newVal });
                       }}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                         isEnabled ? 'bg-primary' : 'bg-gray-200'
@@ -563,6 +568,19 @@ export default function SettingsPage() {
         </div>
       </div>
       )} {/* end general tab */}
+
+      {/* Sticky bottom save bar */}
+      {hasChanges && (
+        <div className="sticky bottom-0 mt-6 -mx-6 px-6 py-4 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] flex items-center justify-between">
+          <span className="text-sm text-amber-600 font-medium">
+            You have unsaved changes
+          </span>
+          <button onClick={handleSaveAll} disabled={saving}
+            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+            {saving ? 'Saving...' : 'Save All Changes'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../../lib/api';
 import toast from 'react-hot-toast';
 import {
@@ -172,7 +172,8 @@ function ImageUpload({ settingKey, currentValue, onUploaded }: {
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('file', file);
+      formData.append('folder', 'landing');
       const token = localStorage.getItem('adminToken');
       const res = await fetch(`${API_URL}/upload/image`, {
         method: 'POST',
@@ -234,7 +235,7 @@ function VideoUpload({ settingKey, currentValue, onUploaded, onUrlChange, onSave
     setProgress(0);
     try {
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('file', file);
       formData.append('folder', 'videos');
       const token = localStorage.getItem('adminToken');
 
@@ -364,15 +365,8 @@ export default function LandingPageAdmin() {
     return map;
   }, [settingsData]);
 
-  // Save mutation
-  const updateMutation = useMutation({
-    mutationFn: ({ key, value }: { key: string; value: string }) =>
-      adminApi.updateSetting(key, value),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] });
-    },
-    onError: () => toast.error('Failed to save'),
-  });
+  // Track saving state
+  const [saving, setSaving] = useState(false);
 
   const getValue = (key: string) => localValues[key] ?? settingsMap[key] ?? '';
 
@@ -380,18 +374,40 @@ export default function LandingPageAdmin() {
     setLocalValues((v) => ({ ...v, [key]: value }));
   };
 
-  const handleSave = (key: string) => {
-    const value = localValues[key] ?? settingsMap[key] ?? '';
-    updateMutation.mutate({ key, value }, {
-      onSuccess: () => toast.success(`Saved: ${key}`),
-    });
+  // Store uploaded file URL locally only — no auto-save
+  const handleFileUploaded = (key: string, url: string) => {
+    setLocalValues((v) => ({ ...v, [key]: url }));
   };
 
-  const handleImageUploaded = (key: string, url: string) => {
-    setLocalValues((v) => ({ ...v, [key]: url }));
-    updateMutation.mutate({ key, value: url }, {
-      onSuccess: () => toast.success(`Saved: ${key}`),
-    });
+  // Check if there are unsaved changes
+  const hasChanges = Object.keys(localValues).some(
+    (key) => localValues[key] !== (settingsMap[key] ?? '')
+  );
+
+  // Save ALL changed fields at once
+  const handleSaveAll = async () => {
+    const changedKeys = Object.keys(localValues).filter(
+      (key) => localValues[key] !== (settingsMap[key] ?? '')
+    );
+    if (changedKeys.length === 0) {
+      toast.success('No changes to save');
+      return;
+    }
+    setSaving(true);
+    try {
+      await Promise.all(
+        changedKeys.map((key) =>
+          adminApi.updateSetting(key, localValues[key])
+        )
+      );
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      setLocalValues({});
+      toast.success(`Saved ${changedKeys.length} setting${changedKeys.length > 1 ? 's' : ''} successfully`);
+    } catch {
+      toast.error('Some settings failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleSection = (label: string) => {
@@ -414,10 +430,19 @@ export default function LandingPageAdmin() {
           <h1 className="text-2xl font-bold">Landing Page</h1>
           <p className="text-sm text-gray-500 mt-1">Edit every text, image, and link on your public landing page</p>
         </div>
-        <a href="/" target="_blank" rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-          <ExternalLink className="w-4 h-4" /> Preview Landing Page
-        </a>
+        <div className="flex items-center gap-3">
+          {hasChanges && (
+            <span className="text-xs text-amber-600 font-medium">Unsaved changes</span>
+          )}
+          <button onClick={handleSaveAll} disabled={saving || !hasChanges}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save All Changes'}
+          </button>
+          <a href="/" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+            <ExternalLink className="w-4 h-4" /> Preview
+          </a>
+        </div>
       </div>
 
       {/* Sections */}
@@ -451,65 +476,44 @@ export default function LandingPageAdmin() {
                       </label>
 
                       {field.type === 'select' ? (
-                        <div className="flex gap-2">
-                          <select
-                            value={getValue(field.key) || field.options?.[0]?.value || ''}
-                            onChange={(e) => { handleChange(field.key, e.target.value); }}
-                            className="flex-1 form-input text-sm">
-                            {(field.options || []).map((opt: any) => (
-                              <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                          </select>
-                          <button onClick={() => handleSave(field.key)}
-                            className="p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                            title="Save">
-                            <Save className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <select
+                          value={getValue(field.key) || field.options?.[0]?.value || ''}
+                          onChange={(e) => { handleChange(field.key, e.target.value); }}
+                          className="w-full form-input text-sm">
+                          {(field.options || []).map((opt: any) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
                       ) : field.type === 'image' ? (
                         <ImageUpload
                           settingKey={field.key}
                           currentValue={getValue(field.key)}
-                          onUploaded={(url) => handleImageUploaded(field.key, url)}
+                          onUploaded={(url) => handleFileUploaded(field.key, url)}
                         />
                       ) : field.type === 'video' ? (
                         <VideoUpload
                           settingKey={field.key}
                           currentValue={getValue(field.key)}
-                          onUploaded={(url) => handleImageUploaded(field.key, url)}
+                          onUploaded={(url) => handleFileUploaded(field.key, url)}
                           onUrlChange={(value) => handleChange(field.key, value)}
-                          onSave={() => handleSave(field.key)}
+                          onSave={handleSaveAll}
                         />
                       ) : field.multiline ? (
-                        <div className="flex gap-2">
-                          <textarea
-                            value={getValue(field.key)}
-                            onChange={(e) => handleChange(field.key, e.target.value)}
-                            placeholder={field.placeholder}
-                            rows={3}
-                            className="flex-1 form-input text-sm resize-none"
-                          />
-                          <button onClick={() => handleSave(field.key)}
-                            className="self-start p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                            title="Save">
-                            <Save className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <textarea
+                          value={getValue(field.key)}
+                          onChange={(e) => handleChange(field.key, e.target.value)}
+                          placeholder={field.placeholder}
+                          rows={3}
+                          className="w-full form-input text-sm resize-none"
+                        />
                       ) : (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={getValue(field.key)}
-                            onChange={(e) => handleChange(field.key, e.target.value)}
-                            placeholder={field.placeholder}
-                            className="flex-1 form-input text-sm"
-                          />
-                          <button onClick={() => handleSave(field.key)}
-                            className="p-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                            title="Save">
-                            <Save className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <input
+                          type="text"
+                          value={getValue(field.key)}
+                          onChange={(e) => handleChange(field.key, e.target.value)}
+                          placeholder={field.placeholder}
+                          className="w-full form-input text-sm"
+                        />
                       )}
                     </div>
                   ))}
@@ -519,6 +523,19 @@ export default function LandingPageAdmin() {
           );
         })}
       </div>
+
+      {/* Bottom save bar (sticky) */}
+      {hasChanges && (
+        <div className="sticky bottom-0 mt-6 -mx-6 px-6 py-4 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] flex items-center justify-between rounded-b-xl">
+          <span className="text-sm text-amber-600 font-medium">
+            You have unsaved changes
+          </span>
+          <button onClick={handleSaveAll} disabled={saving}
+            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+            <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save All Changes'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
