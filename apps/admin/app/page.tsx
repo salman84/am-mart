@@ -87,6 +87,14 @@ const SERVICE_COLORS = [
 /* ─── 3D Isometric City Background — Canvas-based realistic delivery scene ── */
 function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [activeStep, setActiveStep] = useState(0);
+
+  /* Parse primary color for rgba usage in JSX */
+  const hexToRgb = (hex: string): [number, number, number] => {
+    const h = hex.replace('#', '').substring(0, 6);
+    return [parseInt(h.substring(0, 2), 16) || 0, parseInt(h.substring(2, 4), 16) || 0, parseInt(h.substring(4, 6), 16) || 0];
+  };
+  const [pcR, pcG, pcB] = hexToRgb(primaryColor);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -107,517 +115,696 @@ function DeliveryMapAnimation({ primaryColor }: { primaryColor: string }) {
     resize();
     window.addEventListener('resize', resize);
 
-    /* ═══ Isometric projection ═══ */
-    const TW = 64, TH = 32;
-    const iso = (gx: number, gy: number): [number, number] => [
-      (gx - gy) * TW / 2 + W * 0.52,
-      (gx + gy) * TH / 2 - 60,
-    ];
-
-    /* ═══ Seeded random ═══ */
-    let _s = 54321;
-    const srand = () => { _s = (_s * 16807) % 2147483647; return (_s & 0x7fffffff) / 0x7fffffff; };
-
-    /* ═══ City grid — delivery-focused: wide roads, few buildings, lots of green ═══ */
-    const G = 16;
-    const grid: number[][] = [];
-    for (let y = 0; y < G; y++) {
-      grid[y] = [];
-      for (let x = 0; x < G; x++) {
-        if (x % 4 === 0 || y % 4 === 0) {
-          grid[y][x] = 0; // road
-        } else {
-          const r = srand();
-          if (r < 0.30) grid[y][x] = -1;       // tree (30%)
-          else if (r < 0.50) grid[y][x] = -2;   // park/grass (20%)
-          else grid[y][x] = 1 + Math.floor(srand() * 3); // short building 1-3 floors (50%)
-        }
-      }
-    }
-
     /* ═══ Colour helpers ═══ */
     const hexRgb = (hex: string): [number, number, number] => {
       const h = hex.replace('#', '').substring(0, 6);
       return [parseInt(h.substring(0, 2), 16) || 0, parseInt(h.substring(2, 4), 16) || 0, parseInt(h.substring(4, 6), 16) || 0];
     };
-    const shadeHex = (hex: string, f: number) => {
-      const [r, g, b] = hexRgb(hex);
-      return `rgb(${Math.min(255, Math.round(r * f))},${Math.min(255, Math.round(g * f))},${Math.min(255, Math.round(b * f))})`;
+    const [pR, pG, pB] = hexRgb(primaryColor);
+
+    /* ═══ Animation timing ═══ */
+    const CYCLE = 14; // seconds per full delivery cycle
+    let elapsed = 0;
+    let lastTime = performance.now();
+
+    /* Phase boundaries (seconds) */
+    const P = {
+      ENTER: 0,        // 0-3s: Truck enters from right
+      STOP: 3,         // 3-4.5s: Truck stopped, person exits
+      WALK: 4.5,       // 4.5-6.5s: Person walks to customer
+      HANDOFF: 6.5,    // 6.5-8.5s: Package handoff
+      RETURN: 8.5,     // 8.5-10s: Person walks back
+      LEAVE: 10,       // 10-13s: Truck leaves
+      PAUSE: 13,       // 13-14s: Reset pause
     };
 
-    /* ═══ Building palettes ═══ */
-    const pals = [
-      { top: '#d2e6f5', left: '#7aacd4', right: '#4d82b0', win: 'rgba(170,215,255,0.7)', edge: 'rgba(40,90,140,0.15)' },
-      { top: '#dde2e8', left: '#9ba8b8', right: '#667a8e', win: 'rgba(255,255,255,0.4)', edge: 'rgba(0,0,0,0.1)' },
-      { top: '#f2e8d4', left: '#ccb490', right: '#a08060', win: 'rgba(255,240,200,0.5)', edge: 'rgba(100,70,30,0.12)' },
-      { top: shadeHex(primaryColor, 1.3), left: shadeHex(primaryColor, 0.9), right: shadeHex(primaryColor, 0.65), win: 'rgba(255,255,255,0.4)', edge: shadeHex(primaryColor, 0.4) },
-      { top: '#c8d0d8', left: '#607080', right: '#404e5c', win: 'rgba(160,200,240,0.6)', edge: 'rgba(0,0,0,0.12)' },
-    ];
-    const pal = (gx: number, gy: number) => pals[(gx * 7 + gy * 13) % pals.length];
+    /* ═══ Easing ═══ */
+    const ease = (t: number) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
-    /* ═══ Drawing helpers ═══ */
+    /* ═══ Draw sky ═══ */
+    const drawSky = () => {
+      const grad = ctx.createLinearGradient(0, 0, 0, H * 0.55);
+      grad.addColorStop(0, '#e8f4fd');
+      grad.addColorStop(0.5, '#d4ecf9');
+      grad.addColorStop(1, '#c5e4f5');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H * 0.55);
 
-    /* Isometric diamond tile */
-    const drawDiamond = (sx: number, sy: number, col: string) => {
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(sx + TW / 2, sy + TH / 2);
-      ctx.lineTo(sx, sy + TH);
-      ctx.lineTo(sx - TW / 2, sy + TH / 2);
-      ctx.closePath();
-      ctx.fillStyle = col;
-      ctx.fill();
-    };
-
-    /* ═══ 3D Building — enhanced shading ═══ */
-    const drawBuilding = (sx: number, sy: number, h: number, p: typeof pals[0]) => {
-      const pH = h * 14;
-      const hw = TW / 2, hh = TH / 2;
-
-      /* Ground shadow */
+      /* Soft clouds */
       ctx.save();
-      ctx.globalAlpha = 0.09;
-      ctx.beginPath();
-      ctx.moveTo(sx + 5, sy + hh + 5);
-      ctx.lineTo(sx + hw + 5, sy + TH + 5);
-      ctx.lineTo(sx + hw + pH * 0.3, sy + TH + pH * 0.18);
-      ctx.lineTo(sx + pH * 0.3, sy + hh + pH * 0.18);
-      ctx.closePath();
-      ctx.fillStyle = '#000';
-      ctx.fill();
+      ctx.globalAlpha = 0.4;
+      const drawCloud = (cx: number, cy: number, s: number) => {
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 40 * s, 14 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(cx - 25 * s, cy + 4 * s, 28 * s, 10 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(cx + 30 * s, cy + 2 * s, 32 * s, 11 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      drawCloud(W * 0.15, H * 0.1, 1.2);
+      drawCloud(W * 0.55, H * 0.08, 0.9);
+      drawCloud(W * 0.85, H * 0.14, 1.0);
       ctx.restore();
-
-      /* Left face */
-      const leftGrad = ctx.createLinearGradient(sx - hw, sy, sx, sy + TH);
-      leftGrad.addColorStop(0, p.left);
-      leftGrad.addColorStop(1, p.right);
-      ctx.beginPath();
-      ctx.moveTo(sx - hw, sy + hh);
-      ctx.lineTo(sx, sy + TH);
-      ctx.lineTo(sx, sy + TH - pH);
-      ctx.lineTo(sx - hw, sy + hh - pH);
-      ctx.closePath();
-      ctx.fillStyle = leftGrad;
-      ctx.fill();
-      ctx.strokeStyle = p.edge;
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-
-      /* Left face windows */
-      const floors = Math.min(h, 4);
-      const fH = pH / h;
-      for (let f = 0; f < floors; f++) {
-        for (let w = 0; w < 2; w++) {
-          const wy = sy + hh - pH + 5 + f * fH;
-          const wx = sx - hw + 6 + w * (hw - 10);
-          ctx.fillStyle = p.win;
-          ctx.fillRect(wx, wy, 9, Math.min(6, fH - 4));
-          ctx.fillStyle = 'rgba(255,255,255,0.2)';
-          ctx.fillRect(wx, wy, 9, 2);
-        }
-      }
-
-      /* Right face */
-      ctx.beginPath();
-      ctx.moveTo(sx, sy + TH);
-      ctx.lineTo(sx + hw, sy + hh);
-      ctx.lineTo(sx + hw, sy + hh - pH);
-      ctx.lineTo(sx, sy + TH - pH);
-      ctx.closePath();
-      ctx.fillStyle = p.right;
-      ctx.fill();
-      ctx.strokeStyle = p.edge;
-      ctx.stroke();
-
-      /* Right face windows */
-      for (let f = 0; f < floors; f++) {
-        for (let w = 0; w < 2; w++) {
-          const wy = sy + hh - pH + 5 + f * fH;
-          const wx = sx + 5 + w * (hw - 10);
-          ctx.fillStyle = p.win;
-          ctx.fillRect(wx, wy, 9, Math.min(6, fH - 4));
-          ctx.fillStyle = 'rgba(255,255,255,0.15)';
-          ctx.fillRect(wx, wy, 9, 2);
-        }
-      }
-
-      /* Top face */
-      ctx.beginPath();
-      ctx.moveTo(sx, sy - pH);
-      ctx.lineTo(sx + hw, sy + hh - pH);
-      ctx.lineTo(sx, sy + TH - pH);
-      ctx.lineTo(sx - hw, sy + hh - pH);
-      ctx.closePath();
-      ctx.fillStyle = p.top;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
     };
 
-    /* ═══ Tree ═══ */
-    const drawTree = (sx: number, sy: number) => {
-      /* shadow */
-      ctx.save();
-      ctx.globalAlpha = 0.07;
-      ctx.beginPath();
-      ctx.ellipse(sx + 4, sy + TH / 2 + 3, 12, 5, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#000';
-      ctx.fill();
-      ctx.restore();
-
-      /* trunk */
-      ctx.fillStyle = '#7c6a50';
-      ctx.fillRect(sx - 2, sy - 6, 4, 14);
-
-      /* foliage */
-      const layers: [number, number, number, string][] = [
-        [0, -18, 13, 'rgba(22,163,74,0.8)'],
-        [-6, -14, 9, 'rgba(34,197,94,0.7)'],
-        [6, -15, 8, 'rgba(74,222,128,0.6)'],
-        [0, -23, 7, 'rgba(34,197,94,0.55)'],
+    /* ═══ Draw background buildings (skyline) ═══ */
+    const drawSkyline = () => {
+      const groundY = H * 0.52;
+      const bldgs: { x: number; w: number; h: number; color: string; windows: boolean }[] = [
+        { x: W * 0.02, w: 50, h: 120, color: '#8a9bb0', windows: true },
+        { x: W * 0.08, w: 35, h: 80, color: '#94a8be', windows: true },
+        { x: W * 0.13, w: 60, h: 160, color: '#7b8fa5', windows: true },
+        { x: W * 0.22, w: 45, h: 100, color: '#a0b0c2', windows: true },
+        { x: W * 0.30, w: 55, h: 140, color: '#8696ab', windows: true },
+        { x: W * 0.38, w: 40, h: 70, color: '#9aacbe', windows: false },
+        { x: W * 0.55, w: 50, h: 130, color: '#8293a8', windows: true },
+        { x: W * 0.63, w: 65, h: 170, color: '#7a8c9f', windows: true },
+        { x: W * 0.72, w: 40, h: 90, color: '#96a6b8', windows: true },
+        { x: W * 0.80, w: 55, h: 110, color: '#889aae', windows: true },
+        { x: W * 0.90, w: 45, h: 150, color: '#7e90a4', windows: true },
       ];
-      for (const [dx, dy, r, c] of layers) {
-        ctx.beginPath();
-        ctx.arc(sx + dx, sy + dy, r, 0, Math.PI * 2);
-        ctx.fillStyle = c;
-        ctx.fill();
-      }
-    };
 
-    /* ═══ Road tile with markings ═══ */
-    const drawRoadTile = (sx: number, sy: number, gx: number, gy: number) => {
-      drawDiamond(sx, sy, '#a0a8b2');
-      /* center dashes */
-      if (gx % 4 === 0 && gy % 2 === 1) {
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.fillRect(sx - 1, sy + TH / 2 - 1, 3, 3);
-      }
-      if (gy % 4 === 0 && gx % 2 === 1) {
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.fillRect(sx - 1, sy + TH / 2 - 1, 3, 3);
-      }
-      /* intersection crosswalk */
-      if (gx % 4 === 0 && gy % 4 === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.fillRect(sx - 5, sy + TH / 2 - 2, 10, 5);
-      }
-    };
+      for (const b of bldgs) {
+        const by = groundY - b.h;
+        /* Building body */
+        ctx.fillStyle = b.color;
+        ctx.fillRect(b.x, by, b.w, b.h);
+        /* Darker edge */
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        ctx.fillRect(b.x + b.w - 3, by, 3, b.h);
+        /* Top */
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(b.x, by, b.w, 3);
 
-    /* ═══ 3D Delivery TRUCK — BIG and detailed ═══ */
-    const drawVehicle = (gx: number, gy: number, v: { color: string; size: number }) => {
-      const [sx, sy] = iso(gx, gy);
-      const s = v.size;
-
-      /* Shadow */
-      ctx.save();
-      ctx.globalAlpha = 0.15;
-      ctx.beginPath();
-      ctx.ellipse(sx, sy + 8 * s, 20 * s, 8 * s, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#000';
-      ctx.fill();
-      ctx.restore();
-
-      /* Cargo — left face */
-      ctx.beginPath();
-      ctx.moveTo(sx - 18 * s, sy - 4 * s);
-      ctx.lineTo(sx + 2 * s, sy + 7 * s);
-      ctx.lineTo(sx + 2 * s, sy - 15 * s);
-      ctx.lineTo(sx - 18 * s, sy - 26 * s);
-      ctx.closePath();
-      ctx.fillStyle = v.color;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-      ctx.lineWidth = 0.7;
-      ctx.stroke();
-
-      /* Cargo — right face */
-      ctx.beginPath();
-      ctx.moveTo(sx + 2 * s, sy + 7 * s);
-      ctx.lineTo(sx + 16 * s, sy - 2 * s);
-      ctx.lineTo(sx + 16 * s, sy - 24 * s);
-      ctx.lineTo(sx + 2 * s, sy - 15 * s);
-      ctx.closePath();
-      ctx.fillStyle = shadeHex(v.color, 0.75);
-      ctx.fill();
-      ctx.stroke();
-
-      /* Cargo — top face */
-      ctx.beginPath();
-      ctx.moveTo(sx - 18 * s, sy - 26 * s);
-      ctx.lineTo(sx - 2 * s, sy - 30 * s);
-      ctx.lineTo(sx + 16 * s, sy - 24 * s);
-      ctx.lineTo(sx + 2 * s, sy - 15 * s);
-      ctx.closePath();
-      ctx.fillStyle = shadeHex(v.color, 1.2);
-      ctx.fill();
-
-      /* Package icon on cargo */
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 1.2 * s;
-      const pkgX = sx - 8 * s, pkgY = sy - 16 * s, pkgS = 8 * s;
-      ctx.strokeRect(pkgX - pkgS / 2, pkgY - pkgS / 2, pkgS, pkgS);
-      ctx.beginPath();
-      ctx.moveTo(pkgX, pkgY - pkgS / 2);
-      ctx.lineTo(pkgX, pkgY + pkgS / 2);
-      ctx.moveTo(pkgX - pkgS / 2, pkgY);
-      ctx.lineTo(pkgX + pkgS / 2, pkgY);
-      ctx.stroke();
-
-      /* Cab windshield */
-      ctx.fillStyle = '#7dd3fc';
-      ctx.fillRect(sx + 8 * s, sy - 20 * s, 9 * s, 10 * s);
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.fillRect(sx + 8 * s, sy - 20 * s, 9 * s, 4 * s);
-
-      /* Headlights */
-      ctx.fillStyle = '#fbbf24';
-      ctx.beginPath();
-      ctx.arc(sx + 17 * s, sy - 5 * s, 3 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fcd34d';
-      ctx.beginPath();
-      ctx.arc(sx + 17 * s, sy - 10 * s, 2.5 * s, 0, Math.PI * 2);
-      ctx.fill();
-
-      /* Wheels */
-      const wheelPositions: [number, number][] = [[-12, 5], [0, 6], [10, 2]];
-      for (const [dx, dy] of wheelPositions) {
-        ctx.fillStyle = '#1e293b';
-        ctx.beginPath();
-        ctx.arc(sx + dx * s, sy + dy * s, 4.5 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#64748b';
-        ctx.beginPath();
-        ctx.arc(sx + dx * s, sy + dy * s, 2.5 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#94a3b8';
-        ctx.beginPath();
-        ctx.arc(sx + dx * s, sy + dy * s, 1 * s, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    };
-
-    /* ═══ Pulsing Location Pin — BIG ═══ */
-    let pulse = 0;
-    const drawPin = (gx: number, gy: number, color: string) => {
-      const [sx, sy] = iso(gx, gy);
-
-      /* Pulse ring */
-      const r = 18 + Math.sin(pulse) * 7;
-      ctx.save();
-      ctx.globalAlpha = 0.22 + Math.sin(pulse) * 0.08;
-      ctx.beginPath();
-      ctx.arc(sx, sy - 14, r, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.restore();
-
-      /* Second pulse ring (outer) */
-      const r2 = 28 + Math.sin(pulse * 0.7) * 10;
-      ctx.save();
-      ctx.globalAlpha = 0.08 + Math.sin(pulse * 0.7) * 0.04;
-      ctx.beginPath();
-      ctx.arc(sx, sy - 14, r2, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.restore();
-
-      /* Pin body */
-      ctx.beginPath();
-      ctx.moveTo(sx, sy + 6);
-      ctx.bezierCurveTo(sx - 14, sy - 12, sx - 14, sy - 34, sx, sy - 38);
-      ctx.bezierCurveTo(sx + 14, sy - 34, sx + 14, sy - 12, sx, sy + 6);
-      ctx.closePath();
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-
-      /* White dot */
-      ctx.beginPath();
-      ctx.arc(sx, sy - 20, 6, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff';
-      ctx.fill();
-    };
-
-    /* ═══ 3D Package at doorstep ═══ */
-    const drawPackage = (gx: number, gy: number) => {
-      const [sx, sy] = iso(gx, gy);
-      const ps = 8;
-      const d = 3;
-
-      /* front */
-      ctx.fillStyle = '#d4a574';
-      ctx.fillRect(sx - ps / 2, sy - ps + 4, ps, ps);
-      ctx.strokeStyle = 'rgba(140,90,40,0.3)';
-      ctx.lineWidth = 0.6;
-      ctx.strokeRect(sx - ps / 2, sy - ps + 4, ps, ps);
-
-      /* top */
-      ctx.fillStyle = '#e8c49a';
-      ctx.beginPath();
-      ctx.moveTo(sx - ps / 2, sy - ps + 4);
-      ctx.lineTo(sx - ps / 2 + d, sy - ps + 4 - d);
-      ctx.lineTo(sx + ps / 2 + d, sy - ps + 4 - d);
-      ctx.lineTo(sx + ps / 2, sy - ps + 4);
-      ctx.closePath();
-      ctx.fill();
-
-      /* side */
-      ctx.fillStyle = '#c09060';
-      ctx.beginPath();
-      ctx.moveTo(sx + ps / 2, sy - ps + 4);
-      ctx.lineTo(sx + ps / 2 + d, sy - ps + 4 - d);
-      ctx.lineTo(sx + ps / 2 + d, sy + 4 - d);
-      ctx.lineTo(sx + ps / 2, sy + 4);
-      ctx.closePath();
-      ctx.fill();
-
-      /* tape */
-      ctx.strokeStyle = 'rgba(180,140,80,0.6)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy - ps + 4);
-      ctx.lineTo(sx, sy + 4);
-      ctx.stroke();
-    };
-
-    /* ═══ Delivery route dashes ═══ */
-    const drawRoute = (from: number[], to: number[], t: number) => {
-      const [x1, y1] = iso(from[0], from[1]);
-      const [x2, y2] = iso(to[0], to[1]);
-      ctx.save();
-      ctx.setLineDash([7, 5]);
-      ctx.lineDashOffset = -t * 35;
-      ctx.strokeStyle = primaryColor;
-      ctx.globalAlpha = 0.5;
-      ctx.lineWidth = 3;
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(x1, y1 + TH / 2);
-      ctx.lineTo(x2, y2 + TH / 2);
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    /* ═══ Vehicles — multiple trucks on delivery routes ═══ */
-    type VehicleData = { path: number[][]; progress: number; speed: number; color: string; size: number };
-    const vehicles: VehicleData[] = [
-      { path: [[0,4],[4,4],[8,4],[12,4],[12,8],[12,12],[8,12],[4,12],[0,12]], progress: 0, speed: 0.00032, color: primaryColor, size: 1.4 },
-      { path: [[4,0],[4,4],[4,8],[4,12],[4,15],[8,15],[12,15],[12,12],[12,8],[12,4],[12,0]], progress: 0.4, speed: 0.00025, color: '#6366f1', size: 1.2 },
-      { path: [[8,0],[8,4],[8,8],[8,12],[8,15]], progress: 0.2, speed: 0.00045, color: '#f59e0b', size: 1.0 },
-    ];
-
-    const vehiclePos = (v: VehicleData): [number, number] => {
-      const n = v.path.length - 1;
-      const e = v.progress * n;
-      const i = Math.min(Math.floor(e), n - 1);
-      const f = e - i;
-      const a = v.path[i], b = v.path[i + 1];
-      return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-    };
-
-    /* ═══ Delivery destination pins ═══ */
-    const deliveryPins = [
-      { gx: 2, gy: 6, color: primaryColor },
-      { gx: 14, gy: 2, color: '#ef4444' },
-      { gx: 6, gy: 14, color: '#f59e0b' },
-      { gx: 10, gy: 10, color: '#6366f1' },
-    ];
-
-    /* ═══ Package locations (doorsteps) ═══ */
-    const packageSpots = [
-      [2, 5], [3, 6], [14, 1], [13, 2], [6, 13], [5, 14], [10, 9], [11, 10],
-    ];
-
-    /* ═══════════════════════════════════════════
-       RENDER LOOP
-    ═══════════════════════════════════════════ */
-    let time = 0;
-    const render = () => {
-      ctx.clearRect(0, 0, W, H);
-
-      /* Sky gradient */
-      const sky = ctx.createLinearGradient(0, 0, W * 0.3, H);
-      sky.addColorStop(0, '#f0f6fa');
-      sky.addColorStop(1, '#e4eef4');
-      ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, W, H);
-
-      /* Collect drawables for depth sorting */
-      type Drawable = { depth: number; draw: () => void };
-      const drawables: Drawable[] = [];
-
-      for (let y = 0; y < G; y++) {
-        for (let x = 0; x < G; x++) {
-          const [sx, sy] = iso(x, y);
-          if (sx < -80 || sx > W + 80 || sy < -140 || sy > H + 140) continue;
-
-          const v = grid[y][x];
-          const d = x + y;
-
-          if (v === 0) {
-            drawables.push({ depth: d, draw: () => drawRoadTile(sx, sy, x, y) });
-          } else if (v === -1) {
-            drawables.push({ depth: d + 0.05, draw: () => { drawDiamond(sx, sy, '#c8e8c8'); drawTree(sx, sy); } });
-          } else if (v === -2) {
-            drawables.push({ depth: d, draw: () => drawDiamond(sx, sy, '#b8deb4') });
-          } else {
-            drawables.push({ depth: d + v * 0.1, draw: () => { drawDiamond(sx, sy, '#d0d4d8'); drawBuilding(sx, sy, v, pal(x, y)); } });
+        if (b.windows) {
+          const cols = Math.floor(b.w / 12);
+          const rows = Math.floor(b.h / 18);
+          for (let r = 1; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              const wx = b.x + 5 + c * 12;
+              const wy = by + 8 + r * 18;
+              ctx.fillStyle = (r + c) % 3 === 0 ? 'rgba(255,240,180,0.7)' : 'rgba(180,210,240,0.5)';
+              ctx.fillRect(wx, wy, 7, 10);
+            }
           }
         }
       }
+    };
 
-      /* Packages at doorsteps */
-      for (const [px, py] of packageSpots) {
-        drawables.push({ depth: px + py + 0.02, draw: () => drawPackage(px, py) });
+    /* ═══ Draw foreground building (delivery destination — right side) ═══ */
+    const drawDestBuilding = () => {
+      const groundY = H * 0.52;
+      const bx = W * 0.48;
+      const bw = W * 0.18;
+      const bh = H * 0.32;
+      const by = groundY - bh;
+
+      /* Main structure */
+      const bGrad = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
+      bGrad.addColorStop(0, '#d4c4b0');
+      bGrad.addColorStop(1, '#c2ae96');
+      ctx.fillStyle = bGrad;
+      ctx.fillRect(bx, by, bw, bh);
+
+      /* Right edge shading */
+      ctx.fillStyle = 'rgba(0,0,0,0.06)';
+      ctx.fillRect(bx + bw - 5, by, 5, bh);
+
+      /* Top accent */
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillRect(bx, by, bw, 4);
+
+      /* Windows - glass facade */
+      const winCols = 4;
+      const winRows = 5;
+      const ww = bw * 0.16;
+      const wh = bh * 0.10;
+      const wGapX = (bw - winCols * ww) / (winCols + 1);
+      const wGapY = (bh * 0.75 - winRows * wh) / (winRows + 1);
+
+      for (let r = 0; r < winRows; r++) {
+        for (let c = 0; c < winCols; c++) {
+          const wx = bx + wGapX + c * (ww + wGapX);
+          const wy = by + 10 + wGapY + r * (wh + wGapY);
+          /* Window glass */
+          ctx.fillStyle = (r + c) % 4 === 0 ? 'rgba(255,245,200,0.8)' : 'rgba(160,210,255,0.6)';
+          ctx.fillRect(wx, wy, ww, wh);
+          /* Window frame */
+          ctx.strokeStyle = 'rgba(120,90,60,0.2)';
+          ctx.lineWidth = 0.8;
+          ctx.strokeRect(wx, wy, ww, wh);
+          /* Reflection */
+          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          ctx.fillRect(wx, wy, ww, wh * 0.3);
+        }
       }
 
-      /* Vehicles in depth order */
-      for (const v of vehicles) {
-        const [vx, vy] = vehiclePos(v);
-        drawables.push({ depth: vx + vy + 0.05, draw: () => drawVehicle(vx, vy, v) });
+      /* Door / entrance */
+      const doorW = bw * 0.22;
+      const doorH = bh * 0.18;
+      const doorX = bx + bw * 0.39;
+      const doorY = groundY - doorH;
+      /* Door recess */
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(doorX - 3, doorY - 3, doorW + 6, doorH + 3);
+      /* Door glass */
+      ctx.fillStyle = 'rgba(120,180,220,0.5)';
+      ctx.fillRect(doorX, doorY, doorW, doorH);
+      /* Door frame */
+      ctx.strokeStyle = 'rgba(80,60,40,0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(doorX, doorY, doorW, doorH);
+      /* Door handle */
+      ctx.fillStyle = '#a08060';
+      ctx.fillRect(doorX + doorW * 0.75, doorY + doorH * 0.45, 3, 8);
+
+      /* Small awning over door */
+      ctx.fillStyle = `rgba(${pR},${pG},${pB},0.7)`;
+      ctx.beginPath();
+      ctx.moveTo(doorX - 10, doorY - 2);
+      ctx.lineTo(doorX + doorW + 10, doorY - 2);
+      ctx.lineTo(doorX + doorW + 5, doorY + 8);
+      ctx.lineTo(doorX - 5, doorY + 8);
+      ctx.closePath();
+      ctx.fill();
+    };
+
+    /* ═══ Draw road ═══ */
+    const drawRoad = () => {
+      const roadTop = H * 0.52;
+      const roadH = H * 0.18;
+
+      /* Sidewalk top */
+      ctx.fillStyle = '#c8bfb0';
+      ctx.fillRect(0, roadTop, W, 12);
+
+      /* Road surface */
+      const rGrad = ctx.createLinearGradient(0, roadTop + 12, 0, roadTop + roadH);
+      rGrad.addColorStop(0, '#5a5e65');
+      rGrad.addColorStop(0.5, '#4a4e55');
+      rGrad.addColorStop(1, '#3e4248');
+      ctx.fillStyle = rGrad;
+      ctx.fillRect(0, roadTop + 12, W, roadH - 12);
+
+      /* Lane markings (dashed center line) */
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([20, 15]);
+      ctx.beginPath();
+      ctx.moveTo(0, roadTop + roadH * 0.5);
+      ctx.lineTo(W, roadTop + roadH * 0.5);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      /* Edge lines */
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, roadTop + 14);
+      ctx.lineTo(W, roadTop + 14);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, roadTop + roadH - 2);
+      ctx.lineTo(W, roadTop + roadH - 2);
+      ctx.stroke();
+
+      /* Sidewalk bottom */
+      ctx.fillStyle = '#c8bfb0';
+      ctx.fillRect(0, roadTop + roadH, W, 10);
+
+      /* Ground below */
+      const gGrad = ctx.createLinearGradient(0, roadTop + roadH + 10, 0, H);
+      gGrad.addColorStop(0, '#8ab87a');
+      gGrad.addColorStop(1, '#6fa060');
+      ctx.fillStyle = gGrad;
+      ctx.fillRect(0, roadTop + roadH + 10, W, H - (roadTop + roadH + 10));
+    };
+
+    /* ═══ Draw trees ═══ */
+    const drawTrees = () => {
+      const treeY = H * 0.52;
+      const treePositions = [W * 0.05, W * 0.20, W * 0.35, W * 0.75, W * 0.92];
+      for (const tx of treePositions) {
+        /* Trunk */
+        ctx.fillStyle = '#6b5a42';
+        ctx.fillRect(tx - 3, treeY - 40, 6, 40);
+
+        /* Foliage layers */
+        ctx.fillStyle = 'rgba(34,140,60,0.85)';
+        ctx.beginPath();
+        ctx.arc(tx, treeY - 50, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(46,170,75,0.7)';
+        ctx.beginPath();
+        ctx.arc(tx - 10, treeY - 42, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(tx + 12, treeY - 44, 14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(60,190,90,0.5)';
+        ctx.beginPath();
+        ctx.arc(tx, treeY - 60, 11, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+
+    /* ═══ Draw delivery truck (side view) ═══ */
+    const drawTruck = (tx: number, ty: number, scale: number, flipped: boolean) => {
+      ctx.save();
+      ctx.translate(tx, ty);
+      if (flipped) ctx.scale(-1, 1);
+      const s = scale;
+
+      /* Shadow */
+      ctx.save();
+      ctx.globalAlpha = 0.12;
+      ctx.beginPath();
+      ctx.ellipse(0, 10 * s, 55 * s, 8 * s, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      ctx.restore();
+
+      /* ── Cargo body ── */
+      const cargoW = 70 * s, cargoH = 45 * s;
+      const cargoX = -35 * s, cargoY = -50 * s;
+
+      /* Body */
+      ctx.fillStyle = primaryColor;
+      ctx.beginPath();
+      ctx.roundRect(cargoX, cargoY, cargoW, cargoH, [4 * s, 4 * s, 2 * s, 2 * s]);
+      ctx.fill();
+
+      /* Body shading */
+      const bodyGrad = ctx.createLinearGradient(cargoX, cargoY, cargoX, cargoY + cargoH);
+      bodyGrad.addColorStop(0, 'rgba(255,255,255,0.15)');
+      bodyGrad.addColorStop(0.5, 'rgba(0,0,0,0)');
+      bodyGrad.addColorStop(1, 'rgba(0,0,0,0.1)');
+      ctx.fillStyle = bodyGrad;
+      ctx.fillRect(cargoX, cargoY, cargoW, cargoH);
+
+      /* "Deliver" text on cargo */
+      ctx.save();
+      if (flipped) ctx.scale(-1, 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.font = `bold ${11 * s}px Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      const textX = flipped ? 0 : 0;
+      ctx.fillText('Deliver', textX, cargoY + cargoH * 0.45);
+      ctx.font = `${6 * s}px Arial, sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillText('Door-to-Door Delivery', textX, cargoY + cargoH * 0.68);
+      ctx.restore();
+
+      /* ── Cab ── */
+      const cabW = 30 * s, cabH = 35 * s;
+      const cabX = 35 * s, cabY = -40 * s;
+
+      ctx.fillStyle = primaryColor;
+      ctx.beginPath();
+      ctx.roundRect(cabX, cabY, cabW, cabH, [0, 8 * s, 2 * s, 0]);
+      ctx.fill();
+
+      /* Cab darker shade */
+      const [cr, cg, cb] = hexRgb(primaryColor);
+      ctx.fillStyle = `rgb(${Math.max(0, cr - 25)},${Math.max(0, cg - 25)},${Math.max(0, cb - 25)})`;
+      ctx.fillRect(cabX, cabY, cabW, cabH);
+
+      /* Windshield */
+      ctx.fillStyle = '#a8d8ea';
+      ctx.beginPath();
+      ctx.roundRect(cabX + 4 * s, cabY + 4 * s, cabW - 8 * s, cabH * 0.55, [2 * s]);
+      ctx.fill();
+      /* Windshield reflection */
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(cabX + 6 * s, cabY + 5 * s, cabW * 0.3, cabH * 0.25);
+
+      /* Headlight */
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.roundRect(cabX + cabW - 3 * s, cabY + cabH * 0.6, 5 * s, 8 * s, [2 * s]);
+      ctx.fill();
+
+      /* ── Wheels ── */
+      const wheelY = -2 * s;
+      const wheels = [-20 * s, 42 * s];
+      for (const wx of wheels) {
+        /* Tire */
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(wx, wheelY, 10 * s, 0, Math.PI * 2);
+        ctx.fill();
+        /* Rim */
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.arc(wx, wheelY, 6 * s, 0, Math.PI * 2);
+        ctx.fill();
+        /* Hub */
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath();
+        ctx.arc(wx, wheelY, 2.5 * s, 0, Math.PI * 2);
+        ctx.fill();
       }
 
-      /* Sort back-to-front and draw */
-      drawables.sort((a, b) => a.depth - b.depth);
-      for (const dd of drawables) dd.draw();
+      /* ── Bumper ── */
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(cabX + cabW - 2 * s, cabY + cabH - 5 * s, 5 * s, 10 * s);
 
-      /* Delivery routes (animated dashes on roads) */
-      const routeWaypoints = [[0, 4], [4, 4], [8, 4], [12, 4], [12, 8], [12, 12]];
-      for (let i = 0; i < routeWaypoints.length - 1; i++) {
-        drawRoute(routeWaypoints[i], routeWaypoints[i + 1], time);
-      }
-      const route2 = [[4, 0], [4, 4], [4, 8], [4, 12]];
-      for (let i = 0; i < route2.length - 1; i++) {
-        drawRoute(route2[i], route2[i + 1], time);
+      ctx.restore();
+    };
+
+    /* ═══ Draw person (delivery man or customer) ═══ */
+    const drawPerson = (px: number, py: number, scale: number, isDelivery: boolean, hasPackage: boolean, facingLeft: boolean) => {
+      ctx.save();
+      ctx.translate(px, py);
+      const s = scale;
+      const dir = facingLeft ? -1 : 1;
+
+      /* Shadow */
+      ctx.save();
+      ctx.globalAlpha = 0.1;
+      ctx.beginPath();
+      ctx.ellipse(0, 2 * s, 10 * s, 4 * s, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      ctx.restore();
+
+      /* Legs */
+      ctx.fillStyle = isDelivery ? '#2d3748' : '#6b7280';
+      ctx.fillRect(-5 * s, -14 * s, 4 * s, 16 * s);
+      ctx.fillRect(1 * s, -14 * s, 4 * s, 16 * s);
+
+      /* Shoes */
+      ctx.fillStyle = isDelivery ? '#1a202c' : '#92400e';
+      ctx.fillRect(-6 * s, 0, 6 * s, 3 * s);
+      ctx.fillRect(0, 0, 6 * s, 3 * s);
+
+      /* Body / torso */
+      ctx.fillStyle = isDelivery ? primaryColor : '#ec4899';
+      ctx.beginPath();
+      ctx.roundRect(-7 * s, -30 * s, 14 * s, 18 * s, [2 * s]);
+      ctx.fill();
+
+      /* Arms */
+      if (hasPackage) {
+        /* Arms holding package */
+        ctx.fillStyle = isDelivery ? primaryColor : '#ec4899';
+        ctx.fillRect(dir * 4 * s, -26 * s, dir * 10 * s, 4 * s);
+        /* Package */
+        ctx.fillStyle = '#d4a574';
+        ctx.fillRect(dir * 10 * s, -30 * s, 10 * s, 10 * s);
+        ctx.strokeStyle = 'rgba(140,90,40,0.3)';
+        ctx.lineWidth = 0.6;
+        ctx.strokeRect(dir * 10 * s, -30 * s, 10 * s, 10 * s);
+        /* Tape on package */
+        ctx.strokeStyle = 'rgba(180,140,80,0.6)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(dir * 10 * s + 5 * s, -30 * s);
+        ctx.lineTo(dir * 10 * s + 5 * s, -20 * s);
+        ctx.stroke();
+      } else {
+        /* Arms at sides */
+        ctx.fillStyle = isDelivery ? primaryColor : '#ec4899';
+        ctx.fillRect(-9 * s, -28 * s, 3 * s, 12 * s);
+        ctx.fillRect(6 * s, -28 * s, 3 * s, 12 * s);
       }
 
-      /* Pulsing location pins (always on top) */
-      for (const pin of deliveryPins) {
-        drawPin(pin.gx, pin.gy, pin.color);
+      /* Head */
+      ctx.fillStyle = '#f5d6b8';
+      ctx.beginPath();
+      ctx.arc(0, -36 * s, 7 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      /* Hat (delivery) or hair (customer) */
+      if (isDelivery) {
+        ctx.fillStyle = primaryColor;
+        ctx.beginPath();
+        ctx.ellipse(0, -41 * s, 9 * s, 4 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(-7 * s, -43 * s, 14 * s, 5 * s);
+      } else {
+        /* Hair for customer (woman) */
+        ctx.fillStyle = '#4a3728';
+        ctx.beginPath();
+        ctx.arc(0, -38 * s, 8 * s, Math.PI, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(-8 * s, -38 * s, 16 * s, 3 * s);
+        /* Long hair sides */
+        ctx.fillRect(-8 * s, -38 * s, 3 * s, 14 * s);
+        ctx.fillRect(5 * s, -38 * s, 3 * s, 14 * s);
       }
 
-      /* ── Animate ── */
-      for (const v of vehicles) {
-        v.progress += v.speed;
-        if (v.progress >= 1) v.progress = 0;
+      /* Face — simple */
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.arc(dir * 2.5 * s, -37 * s, 1 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    };
+
+    /* ═══ Render loop ═══ */
+    const render = (now: number) => {
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+      elapsed = (elapsed + dt) % CYCLE;
+
+      ctx.clearRect(0, 0, W, H);
+
+      /* Scene layers */
+      drawSky();
+      drawSkyline();
+      drawDestBuilding();
+      drawTrees();
+      drawRoad();
+
+      /* ── Compute animation positions ── */
+      const roadY = H * 0.52 + H * 0.18 * 0.35; // truck vertical center on road
+      const truckStopX = W * 0.52; // where truck stops (near dest building)
+      const truckScale = 1.3;
+      const personScale = 1.1;
+
+      /* Customer position — standing near building entrance */
+      const customerX = W * 0.56;
+      const customerY = H * 0.52 - 2;
+
+      /* Delivery person walk start (exits truck) and end (at customer) */
+      const deliveryStartX = truckStopX - 10;
+      const deliveryEndX = customerX - 25;
+      const deliveryY = H * 0.52 - 2;
+
+      let truckX = 0;
+      let showDeliveryPerson = false;
+      let deliveryPersonX = deliveryStartX;
+      let deliveryHasPackage = true;
+      let showCustomer = true;
+      let customerHasPackage = false;
+      let deliveryFacingLeft = false;
+      let truckFlipped = false;
+      let step = 0;
+
+      if (elapsed < P.STOP) {
+        /* Phase 0: Truck enters from right */
+        const t = ease(elapsed / P.STOP);
+        truckX = W + 100 - (W + 100 - truckStopX) * t;
+        step = 1; // In Transit
+      } else if (elapsed < P.WALK) {
+        /* Phase 1: Truck stopped, delivery person exits */
+        truckX = truckStopX;
+        showDeliveryPerson = true;
+        const t = ease((elapsed - P.STOP) / (P.WALK - P.STOP));
+        deliveryPersonX = deliveryStartX;
+        deliveryHasPackage = true;
+        deliveryFacingLeft = false; // start facing truck
+        step = 2; // Out for Delivery
+      } else if (elapsed < P.HANDOFF) {
+        /* Phase 2: Person walks to customer */
+        truckX = truckStopX;
+        showDeliveryPerson = true;
+        const t = ease((elapsed - P.WALK) / (P.HANDOFF - P.WALK));
+        deliveryPersonX = deliveryStartX + (deliveryEndX - deliveryStartX) * t;
+        deliveryHasPackage = true;
+        deliveryFacingLeft = false;
+        step = 2;
+      } else if (elapsed < P.RETURN) {
+        /* Phase 3: Package handoff */
+        truckX = truckStopX;
+        showDeliveryPerson = true;
+        deliveryPersonX = deliveryEndX;
+        const ht = (elapsed - P.HANDOFF) / (P.RETURN - P.HANDOFF);
+        deliveryHasPackage = ht < 0.4;
+        customerHasPackage = ht >= 0.4;
+        deliveryFacingLeft = false;
+        step = 3; // Delivered
+      } else if (elapsed < P.LEAVE) {
+        /* Phase 4: Person walks back to truck */
+        truckX = truckStopX;
+        showDeliveryPerson = true;
+        const t = ease((elapsed - P.RETURN) / (P.LEAVE - P.RETURN));
+        deliveryPersonX = deliveryEndX - (deliveryEndX - deliveryStartX) * t;
+        deliveryHasPackage = false;
+        customerHasPackage = true;
+        deliveryFacingLeft = true;
+        step = 3;
+      } else if (elapsed < P.PAUSE) {
+        /* Phase 5: Truck leaves to left */
+        const t = ease((elapsed - P.LEAVE) / (P.PAUSE - P.LEAVE));
+        truckX = truckStopX - (truckStopX + 150) * t;
+        customerHasPackage = true;
+        truckFlipped = true;
+        step = 3;
+      } else {
+        /* Phase 6: Pause / reset */
+        truckX = W + 200;
+        step = 0;
       }
-      pulse += 0.05;
-      time += 0.016;
+
+      /* Draw truck */
+      drawTruck(truckX, roadY, truckScale, truckFlipped);
+
+      /* Draw customer */
+      if (showCustomer) {
+        drawPerson(customerX, customerY, personScale, false, customerHasPackage, true);
+      }
+
+      /* Draw delivery person */
+      if (showDeliveryPerson) {
+        drawPerson(deliveryPersonX, deliveryY, personScale, true, deliveryHasPackage, deliveryFacingLeft);
+      }
+
+      /* Update step for React state (throttled) */
+      if (step !== activeStep) {
+        setActiveStep(step);
+      }
 
       animId = requestAnimationFrame(render);
     };
 
-    render();
+    animId = requestAnimationFrame(render);
     return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
   }, [primaryColor]);
+
+  /* ═══ Delivery progress steps ═══ */
+  const steps = [
+    { label: 'Order Confirmed', icon: '✓' },
+    { label: 'In Transit', icon: '🚛' },
+    { label: 'Out for Delivery', icon: '📦' },
+    { label: 'Delivered', icon: '🏠' },
+  ];
 
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
       <canvas ref={canvasRef} className="w-full h-full" />
+
+      {/* ── Delivery Progress Card (left) ── */}
+      <div className="hidden lg:block absolute top-8 left-8 w-56 z-[1]">
+        <div className="rounded-2xl p-4 shadow-lg border border-white/30"
+          style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)' }}>
+          <p className="text-xs font-bold text-gray-700 mb-3 tracking-wide uppercase">Delivery Progress</p>
+          <div className="space-y-0">
+            {steps.map((s, i) => {
+              const done = i <= activeStep;
+              const current = i === activeStep;
+              return (
+                <div key={i} className="flex items-start gap-2.5">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-500 ${
+                        done
+                          ? 'border-transparent text-white shadow-md'
+                          : 'border-gray-200 text-gray-400 bg-white'
+                      }`}
+                      style={done ? { backgroundColor: primaryColor, borderColor: primaryColor } : {}}
+                    >
+                      {done ? s.icon : (i + 1)}
+                    </div>
+                    {i < steps.length - 1 && (
+                      <div className="w-0.5 h-5 my-0.5 rounded transition-all duration-500"
+                        style={{ backgroundColor: i < activeStep ? primaryColor : '#e5e7eb' }} />
+                    )}
+                  </div>
+                  <div className="pt-1">
+                    <p className={`text-xs font-semibold transition-colors duration-500 ${
+                      current ? 'text-gray-900' : done ? 'text-gray-600' : 'text-gray-400'
+                    }`}>{s.label}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Map Card (right) ── */}
+      <div className="hidden lg:block absolute top-8 right-8 w-52 z-[1]">
+        <div className="rounded-2xl p-3 shadow-lg border border-white/30"
+          style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)' }}>
+          <p className="text-xs font-bold text-gray-700 mb-2 tracking-wide uppercase">Live Tracking</p>
+          {/* Mini map SVG */}
+          <div className="relative w-full h-28 rounded-xl overflow-hidden bg-green-50 mb-2">
+            <svg viewBox="0 0 200 120" className="w-full h-full">
+              {/* Map roads */}
+              <rect x="0" y="50" width="200" height="8" fill="#d1d5db" rx="2" />
+              <rect x="80" y="0" width="8" height="120" fill="#d1d5db" rx="2" />
+              <rect x="0" y="90" width="200" height="6" fill="#e5e7eb" rx="2" />
+              <rect x="140" y="0" width="6" height="120" fill="#e5e7eb" rx="2" />
+
+              {/* Route line (animated) */}
+              <path d="M 30 54 L 84 54 L 84 20" fill="none"
+                stroke={primaryColor} strokeWidth="3" strokeDasharray="6 4"
+                strokeLinecap="round">
+                <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="1.5s" repeatCount="indefinite" />
+              </path>
+
+              {/* Start point */}
+              <circle cx="30" cy="54" r="5" fill={primaryColor} opacity="0.5">
+                <animate attributeName="r" values="5;8;5" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.5;0.2;0.5" dur="2s" repeatCount="indefinite" />
+              </circle>
+              <circle cx="30" cy="54" r="3" fill={primaryColor} />
+
+              {/* Destination pin */}
+              <g>
+                <circle cx="84" cy="20" r="8" fill={primaryColor} opacity="0.2">
+                  <animate attributeName="r" values="8;14;8" dur="1.5s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.2;0.05;0.2" dur="1.5s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="84" cy="20" r="5" fill={primaryColor} />
+                <circle cx="84" cy="20" r="2" fill="white" />
+              </g>
+
+              {/* Truck dot moving along route */}
+              <circle r="3.5" fill="white" stroke={primaryColor} strokeWidth="1.5">
+                <animateMotion dur="3s" repeatCount="indefinite" path="M 30 54 L 84 54 L 84 20" />
+              </circle>
+
+              {/* Buildings as small rectangles */}
+              <rect x="95" y="35" width="12" height="16" fill="#cbd5e1" rx="1" />
+              <rect x="112" y="30" width="10" height="21" fill="#94a3b8" rx="1" />
+              <rect x="95" y="60" width="15" height="12" fill="#b0bec5" rx="1" />
+              <rect x="50" y="60" width="10" height="10" fill="#b0bec5" rx="1" />
+              <rect x="155" y="40" width="18" height="14" fill="#a0aab4" rx="1" />
+              <rect x="10" y="60" width="14" height="10" fill="#cbd5e1" rx="1" />
+            </svg>
+          </div>
+          {/* ETA bar */}
+          <div className="rounded-lg p-2" style={{ backgroundColor: `rgba(${pcR},${pcG},${pcB},0.08)` }}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold" style={{ color: primaryColor }}>Arriving Soon</span>
+              <span className="text-[10px] text-gray-500">2.1 km</span>
+            </div>
+            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-full rounded-full animate-pulse" style={{ width: '65%', backgroundColor: primaryColor }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* White overlay gradient */}
       <div className="absolute inset-0 bg-gradient-to-r from-white/50 via-white/15 to-white/5" />
     </div>
   );
