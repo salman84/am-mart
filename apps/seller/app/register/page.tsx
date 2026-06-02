@@ -294,16 +294,13 @@ function SellerFlowHeader({
         <Link href="/" className="flex items-center gap-3">
           {appLogo ? (
             <img src={appLogo} alt={appName} className="h-9 w-auto object-contain" />
-          ) : (
+          ) : appName ? (
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500">
-              <span className="text-sm font-extrabold text-white">AM</span>
+              <span className="text-sm font-extrabold text-white">{appName.substring(0, 2).toUpperCase()}</span>
             </div>
-          )}
+          ) : null}
           <div>
             <span className="text-base font-extrabold text-gray-900">{appName}</span>
-            <span className="ml-1.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-600">
-              Seller
-            </span>
           </div>
         </Link>
         <div className="flex items-center gap-3">
@@ -325,6 +322,7 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [appName, setAppName] = useState('');
   const [appLogo, setAppLogo] = useState('');
+  const [cms, setCms] = useState<Record<string, string>>({});
   const [selectedScope, setSelectedScope] = useState<SellerScope | null>(null);
   const [documentUploads, setDocumentUploads] = useState<Record<string, DocumentUpload>>({});
   const [uploadingDocument, setUploadingDocument] = useState<string | null>(null);
@@ -428,11 +426,14 @@ export default function RegisterPage() {
     fetch(`${API_URL}/admin/public-settings`)
       .then((r) => r.json())
       .then((data) => {
+        if (data && typeof data === 'object') setCms(data);
         if (data?.APP_NAME) setAppName(data.APP_NAME);
         if (data?.APP_LOGO) setAppLogo(data.APP_LOGO);
       })
       .catch(() => {});
   }, []);
+
+  const c = (key: string, fallback: string) => cms[key] || fallback;
 
   // Debounced store name check
   useEffect(() => {
@@ -482,23 +483,23 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.password.length < 8) {
-      toast.error(lang === 'ko' ? '비밀번호는 8자 이상이어야 합니다' : 'Password must be at least 8 characters');
+      toast.error(c('LP_PASSWORD_MIN_LENGTH', t.passwordMinLength));
       return;
     }
     if (form.password !== form.confirmPassword) {
-      toast.error(t.passwordMismatch);
+      toast.error(c('LP_PASSWORD_MISMATCH', t.passwordMismatch));
       return;
     }
     if (!form.privacyDocumentConsent) {
-      toast.error(lang === 'ko' ? '서류 수집 및 검토에 대한 개인정보 동의가 필요합니다' : 'Privacy consent is required before document review.');
+      toast.error(c('LP_PRIVACY_CONSENT_REQUIRED', t.privacyConsentRequired));
       return;
     }
     if (!allAgreementsChecked) {
-      toast.error(lang === 'ko' ? '필수 약관에 모두 동의해 주세요' : 'Please agree to all required seller policies.');
+      toast.error(c('LP_AGREE_ALL_POLICIES', t.agreeAllPolicies));
       return;
     }
     if (!allRequiredDocumentsUploaded) {
-      toast.error(isGlobalSeller ? 'Please upload all required global seller documents.' : 'Please upload all required Korean seller documents.');
+      toast.error(isGlobalSeller ? c('LP_UPLOAD_ALL_GLOBAL_DOCS', t.uploadAllGlobalDocs) : c('LP_UPLOAD_ALL_LOCAL_DOCS', t.uploadAllLocalDocs));
       return;
     }
     setLoading(true);
@@ -576,21 +577,19 @@ export default function RegisterPage() {
           </div>
 
           <h2 className="text-3xl font-extrabold text-gray-900 mb-3">
-            {t.registerSuccess}
+            {c('LP_REGISTER_SUCCESS', t.registerSuccess)}
           </h2>
           <p className="text-gray-500 text-base leading-relaxed mb-8">
-            {lang === 'ko'
-              ? '판매자 신청이 성공적으로 접수되었습니다. 저희 팀이 영업일 기준 1-2일 내에 검토 후 승인 여부를 이메일로 안내드립니다.'
-              : 'Your seller application has been received. Our team will review it within 1–2 business days and notify you via email once approved.'}
+            {c('LP_SUCCESS_DESCRIPTION', t.successDescription)}
           </p>
 
           {/* Status steps */}
           <div className="bg-gray-50 rounded-2xl p-6 mb-8 text-left space-y-4">
             {[
-              { icon: '✅', label: lang === 'ko' ? '신청서 제출 완료' : 'Application submitted', done: true },
-              { icon: '🔍', label: lang === 'ko' ? '팀 검토 중 (1-2 영업일)' : 'Team review (1–2 business days)', done: false },
-              { icon: '📧', label: lang === 'ko' ? '승인 시 이메일 알림' : 'Email notification upon approval', done: false },
-              { icon: '🚀', label: lang === 'ko' ? '판매 시작!' : 'Start selling!', done: false },
+              { icon: '✅', label: c('LP_STEP_APPLICATION_SUBMITTED', t.stepApplicationSubmitted), done: true },
+              { icon: '🔍', label: c('LP_STEP_TEAM_REVIEW', t.stepTeamReview), done: false },
+              { icon: '📧', label: c('LP_STEP_EMAIL_NOTIFICATION', t.stepEmailNotification), done: false },
+              { icon: '🚀', label: c('LP_STEP_START_SELLING', t.stepStartSelling), done: false },
             ].map((step, i) => (
               <div key={i} className="flex items-center gap-3">
                 <span className="text-xl">{step.icon}</span>
@@ -606,12 +605,12 @@ export default function RegisterPage() {
             href="/login"
             className="inline-flex items-center gap-2 bg-primary text-white font-bold px-8 py-3.5 rounded-2xl hover:bg-primary-dark transition-colors"
           >
-            {lang === 'ko' ? '로그인 페이지로 이동' : 'Go to Sign In Page'}
+            {c('LP_GO_TO_SIGN_IN', t.goToSignIn)}
           </Link>
           <div className="mt-4">
             <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 flex items-center justify-center gap-1">
               <ArrowLeft className="w-3 h-3" />
-              {lang === 'ko' ? '홈으로 돌아가기' : 'Back to Home'}
+              {c('LP_BACK_TO_HOME', t.backToHome)}
             </Link>
           </div>
         </div>
@@ -635,19 +634,19 @@ export default function RegisterPage() {
               className="mb-8 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Seller Home
+              {c('LP_BACK_TO_SELLER_HOME', t.backToSellerHome)}
             </Link>
 
             <div className="text-center max-w-3xl mx-auto mb-10 animate-fade-in-up">
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm">
                 <Sparkles className="w-4 h-4" />
-                Seller registration path
+                {c('LP_SELLER_REGISTRATION_PATH', t.sellerRegistrationPath)}
               </div>
               <h1 className="mt-6 text-4xl sm:text-5xl font-black tracking-normal text-gray-950">
-                Choose how you want to sell
+                {c('LP_CHOOSE_HOW_TO_SELL', t.chooseHowToSell)}
               </h1>
               <p className="mt-4 text-base sm:text-lg text-gray-600 leading-relaxed">
-                Local Korean sellers and global sellers need different business, address, bank, and document checks. Select one path and the correct form will open.
+                {c('LP_SCOPE_SELECTION_DESC', t.scopeSelectionDesc)}
               </p>
             </div>
 
@@ -663,10 +662,10 @@ export default function RegisterPage() {
                     <Building2 className="w-7 h-7" />
                   </div>
                   <div>
-                    <div className="text-sm font-black uppercase tracking-wider text-emerald-600">Local Seller</div>
-                    <h2 className="mt-2 text-2xl font-black text-gray-950">Sell as a Korean seller</h2>
+                    <div className="text-sm font-black uppercase tracking-wider text-emerald-600">{c('LP_LOCAL_SELLER_LABEL', t.localSellerLabel)}</div>
+                    <h2 className="mt-2 text-2xl font-black text-gray-950">{c('LP_SELL_AS_KOREAN_SELLER', t.sellAsKoreanSeller)}</h2>
                     <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                      Use Korean address search, business registration number, mail order sales report, purchase safety confirmation, and bankbook copy upload.
+                      {c('LP_LOCAL_SELLER_DESC', t.localSellerDesc)}
                     </p>
                   </div>
                 </div>
@@ -678,7 +677,7 @@ export default function RegisterPage() {
                   ))}
                 </div>
                 <div className="relative mt-7 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-black text-white">
-                  Open local form
+                  {c('LP_OPEN_LOCAL_FORM', t.openLocalForm)}
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </div>
               </button>
@@ -694,10 +693,10 @@ export default function RegisterPage() {
                     <Globe2 className="w-7 h-7" />
                   </div>
                   <div>
-                    <div className="text-sm font-black uppercase tracking-wider text-teal-700">Global Seller</div>
-                    <h2 className="mt-2 text-2xl font-black text-gray-950">Sell to Korea from overseas</h2>
+                    <div className="text-sm font-black uppercase tracking-wider text-teal-700">{c('LP_GLOBAL_SELLER_LABEL', t.globalSellerLabel)}</div>
+                    <h2 className="mt-2 text-2xl font-black text-gray-950">{c('LP_SELL_TO_KOREA_FROM_OVERSEAS', t.sellToKoreaFromOverseas)}</h2>
                     <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                      Use global business address entry, passport or government ID, business license, KYC, bank statement, SWIFT, and global settlement fields.
+                      {c('LP_GLOBAL_SELLER_DESC', t.globalSellerDesc)}
                     </p>
                   </div>
                 </div>
@@ -709,7 +708,7 @@ export default function RegisterPage() {
                   ))}
                 </div>
                 <div className="relative mt-7 inline-flex items-center gap-2 rounded-full bg-teal-600 px-5 py-3 text-sm font-black text-white">
-                  Open global form
+                  {c('LP_OPEN_GLOBAL_FORM', t.openGlobalForm)}
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </div>
               </button>
@@ -733,12 +732,12 @@ export default function RegisterPage() {
             {t.sellerPortal}
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold mb-3">
-            {isGlobalSeller ? 'Global Seller Registration' : 'Local Seller Registration'}
+            {isGlobalSeller ? c('LP_GLOBAL_SELLER_REGISTRATION', t.globalSellerRegistration) : c('LP_LOCAL_SELLER_REGISTRATION', t.localSellerRegistration)}
           </h1>
           <p className="text-emerald-100 text-base max-w-md mx-auto">
             {isGlobalSeller
-              ? 'Complete the global seller form with international business, bank, and document verification.'
-              : 'Complete the local Korean seller form with Korean address, business, and document verification.'}
+              ? c('LP_GLOBAL_REG_DESC', t.globalRegDesc)
+              : c('LP_LOCAL_REG_DESC', t.localRegDesc)}
           </p>
         </div>
       </div>
@@ -751,7 +750,7 @@ export default function RegisterPage() {
           className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Seller Type
+          {c('LP_BACK_TO_SELLER_TYPE', t.backToSellerType)}
         </button>
 
         <form onSubmit={handleRegister} className="space-y-6">
@@ -764,12 +763,12 @@ export default function RegisterPage() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-gray-900">
-                  {lang === 'ko' ? '선택한 판매자 유형' : 'Selected Seller Type'}
+                  {c('LP_SELECTED_SELLER_TYPE', t.selectedSellerType)}
                 </h3>
                 <p className="text-sm text-gray-500 mt-0.5">
                   {isGlobalSeller
-                    ? 'Global seller form is active. You can go back and choose local if needed.'
-                    : 'Local Korean seller form is active. You can go back and choose global if needed.'}
+                    ? c('LP_GLOBAL_FORM_ACTIVE_DESC', t.globalFormActiveDesc)
+                    : c('LP_LOCAL_FORM_ACTIVE_DESC', t.localFormActiveDesc)}
                 </p>
               </div>
             </div>
@@ -777,12 +776,12 @@ export default function RegisterPage() {
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <div className="text-lg font-black text-gray-950">
-                  {isGlobalSeller ? 'Global Seller' : 'Local Korean Seller'}
+                  {isGlobalSeller ? c('LP_GLOBAL_SELLER_FULL', t.globalSellerFull) : c('LP_LOCAL_KOREAN_SELLER', t.localKoreanSeller)}
                 </div>
                 <div className="text-sm text-emerald-800 mt-1">
                   {isGlobalSeller
-                    ? 'Global business address, passport/ID, business license, bank statement, and SWIFT fields are enabled.'
-                    : 'Korean address search, business registration, mail order sales report, bankbook copy, and Korean document fields are enabled.'}
+                    ? c('LP_GLOBAL_FIELDS_ENABLED', t.globalFieldsEnabled)
+                    : c('LP_LOCAL_FIELDS_ENABLED', t.localFieldsEnabled)}
                 </div>
               </div>
               <button
@@ -790,7 +789,7 @@ export default function RegisterPage() {
                 onClick={() => setSelectedScope(null)}
                 className="rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
               >
-                Change type
+                {c('LP_CHANGE_TYPE', t.changeType)}
               </button>
             </div>
           </div>
@@ -802,7 +801,7 @@ export default function RegisterPage() {
                 <User className="w-4 h-4 text-emerald-600" />
               </div>
               <h3 className="text-base font-bold text-gray-900">
-                {lang === 'ko' ? '개인 정보' : 'Personal Information'}
+                {c('LP_PERSONAL_INFORMATION', t.personalInformation)}
               </h3>
             </div>
 
@@ -850,7 +849,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="form-label" htmlFor="preferredLanguage">Preferred Language</label>
+                <label className="form-label" htmlFor="preferredLanguage">{c('LP_PREFERRED_LANGUAGE', t.preferredLanguage)}</label>
                 <select
                   id="preferredLanguage"
                   className="form-input"
@@ -866,36 +865,36 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="form-label" htmlFor="sellerAccountType">Seller Account Type</label>
+                <label className="form-label" htmlFor="sellerAccountType">{c('LP_SELLER_ACCOUNT_TYPE', t.sellerAccountType)}</label>
                 <select
                   id="sellerAccountType"
                   className="form-input"
                   value={form.sellerAccountType}
                   onChange={(e) => set('sellerAccountType', e.target.value)}
                 >
-                  <option value="INDIVIDUAL">Individual seller</option>
-                  <option value="BUSINESS">Business seller</option>
-                  <option value="COMPANY">Company seller</option>
-                  <option value="GLOBAL">Global seller</option>
+                  <option value="INDIVIDUAL">{c('LP_INDIVIDUAL_SELLER', t.individualSeller)}</option>
+                  <option value="BUSINESS">{c('LP_BUSINESS_SELLER', t.businessSeller)}</option>
+                  <option value="COMPANY">{c('LP_COMPANY_SELLER', t.companySeller)}</option>
+                  <option value="GLOBAL">{c('LP_GLOBAL_SELLER', t.globalSeller)}</option>
                 </select>
               </div>
 
               <AdvancedCombobox
                 id="countryOfResidence"
-                label="Country of Residence"
+                label={c('LP_COUNTRY_OF_RESIDENCE', t.countryOfResidence)}
                 value={form.countryOfResidence}
                 options={COUNTRY_OPTIONS}
-                placeholder={isGlobalSeller ? 'Search or type country' : 'South Korea'}
+                placeholder={isGlobalSeller ? c('LP_SEARCH_OR_TYPE_COUNTRY', t.searchOrTypeCountry) : 'South Korea'}
                 required
                 onChange={(value) => set('countryOfResidence', value)}
               />
 
               <AdvancedCombobox
                 id="nationality"
-                label="Nationality"
+                label={c('LP_NATIONALITY', t.nationalityLabel)}
                 value={form.nationality}
                 options={NATIONALITY_OPTIONS}
-                placeholder="Search or type nationality"
+                placeholder={c('LP_SEARCH_OR_TYPE_NATIONALITY', t.searchOrTypeNationality)}
                 onChange={(value) => set('nationality', value)}
               />
 
@@ -946,7 +945,7 @@ export default function RegisterPage() {
                 {form.confirmPassword && form.password === form.confirmPassword && form.password.length >= 8 && (
                   <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3" />
-                    {lang === 'ko' ? '비밀번호가 일치합니다' : 'Passwords match'}
+                    {c('LP_PASSWORDS_MATCH', t.passwordsMatch)}
                   </p>
                 )}
               </div>
@@ -960,24 +959,24 @@ export default function RegisterPage() {
                 <User className="w-4 h-4 text-cyan-600" />
               </div>
               <h3 className="text-base font-bold text-gray-900">
-                {lang === 'ko' ? '대표자 정보' : 'Personal and Representative Information'}
+                {c('LP_REPRESENTATIVE_INFO', t.representativeInfo)}
               </h3>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-5">
               <div>
-                <label className="form-label" htmlFor="representativeName">Representative Name</label>
+                <label className="form-label" htmlFor="representativeName">{c('LP_REPRESENTATIVE_NAME', t.representativeName)}</label>
                 <input
                   id="representativeName"
                   className="form-input"
-                  placeholder="Legal representative name"
+                  placeholder={c('LP_REPRESENTATIVE_NAME_PLACEHOLDER', t.representativeNamePlaceholder)}
                   value={form.representativeName}
                   onChange={(e) => set('representativeName', e.target.value)}
                   required={form.sellerAccountType !== 'INDIVIDUAL'}
                 />
               </div>
               <div>
-                <label className="form-label" htmlFor="dateOfBirth">Date of Birth</label>
+                <label className="form-label" htmlFor="dateOfBirth">{c('LP_DATE_OF_BIRTH', t.dateOfBirth)}</label>
                 <input
                   id="dateOfBirth"
                   type="date"
@@ -988,22 +987,22 @@ export default function RegisterPage() {
               </div>
               {isGlobalSeller && (
                 <div>
-                  <label className="form-label" htmlFor="passportNumber">Passport Number</label>
+                  <label className="form-label" htmlFor="passportNumber">{c('LP_PASSPORT_NUMBER', t.passportNumber)}</label>
                   <input
                     id="passportNumber"
                     className="form-input"
-                    placeholder="Passport number"
+                    placeholder={c('LP_PASSPORT_NUMBER_PLACEHOLDER', t.passportNumberPlaceholder)}
                     value={form.passportNumber}
                     onChange={(e) => set('passportNumber', e.target.value)}
                   />
                 </div>
               )}
               <div>
-                <label className="form-label" htmlFor="emergencyContact">Emergency Contact</label>
+                <label className="form-label" htmlFor="emergencyContact">{c('LP_EMERGENCY_CONTACT', t.emergencyContact)}</label>
                 <input
                   id="emergencyContact"
                   className="form-input"
-                  placeholder="Optional"
+                  placeholder={c('LP_OPTIONAL_FIELD', t.optionalField)}
                   value={form.emergencyContact}
                   onChange={(e) => set('emergencyContact', e.target.value)}
                 />
@@ -1018,7 +1017,7 @@ export default function RegisterPage() {
                     required
                   />
                   <span className="text-sm text-emerald-800 leading-relaxed">
-                    I agree to the collection and review of identity, business, and settlement documents required for seller verification.
+                    {c('LP_PRIVACY_DOCUMENT_CONSENT_TEXT', t.privacyDocumentConsentText)}
                   </span>
                 </label>
               </div>
@@ -1032,7 +1031,7 @@ export default function RegisterPage() {
                 <Store className="w-4 h-4 text-blue-600" />
               </div>
               <h3 className="text-base font-bold text-gray-900">
-                {lang === 'ko' ? '스토어 정보' : 'Store Information'}
+                {c('LP_STORE_INFORMATION', t.storeInformation)}
               </h3>
             </div>
 
@@ -1097,19 +1096,19 @@ export default function RegisterPage() {
               <div className="grid sm:grid-cols-2 gap-5">
                 <AdvancedCombobox
                   id="storeCategory"
-                  label="Store Category"
+                  label={c('LP_STORE_CATEGORY', t.storeCategory)}
                   value={form.storeCategory}
                   options={BUSINESS_CATEGORY_OPTIONS}
-                  placeholder="Search or type store category"
+                  placeholder={c('LP_STORE_CATEGORY_PLACEHOLDER', t.storeCategoryPlaceholder)}
                   required
                   onChange={(value) => set('storeCategory', value)}
                 />
                 <AdvancedCombobox
                   id="storeCountry"
-                  label="Store Country"
+                  label={c('LP_STORE_COUNTRY', t.storeCountry)}
                   value={isGlobalSeller ? form.countryOfResidence : 'South Korea'}
                   options={COUNTRY_OPTIONS}
-                  placeholder={isGlobalSeller ? 'Search or type store country' : 'South Korea'}
+                  placeholder={isGlobalSeller ? c('LP_SEARCH_OR_TYPE_COUNTRY', t.searchOrTypeCountry) : 'South Korea'}
                   readOnly={!isGlobalSeller}
                   onChange={(value) => isGlobalSeller && set('countryOfResidence', value)}
                 />
@@ -1124,7 +1123,7 @@ export default function RegisterPage() {
                 <Building2 className="w-4 h-4 text-purple-600" />
               </div>
               <h3 className="text-base font-bold text-gray-900">
-                {lang === 'ko' ? '사업자 정보' : 'Business Information'}
+                {c('LP_BUSINESS_INFORMATION', t.businessInformation)}
               </h3>
             </div>
 
@@ -1133,7 +1132,7 @@ export default function RegisterPage() {
                 {!isGlobalSeller ? (
                   <>
                     <div>
-                      <label className="form-label" htmlFor="businessRegNumber">Business Registration Number</label>
+                      <label className="form-label" htmlFor="businessRegNumber">{c('LP_BUSINESS_REG_NUMBER', t.businessRegNumber)}</label>
                       <input
                         id="businessRegNumber"
                         type="text"
@@ -1144,14 +1143,14 @@ export default function RegisterPage() {
                         inputMode="numeric"
                         required={form.sellerAccountType !== 'INDIVIDUAL'}
                       />
-                      <p className="text-xs text-gray-400 mt-1">10-digit Korean business registration number</p>
+                      <p className="text-xs text-gray-400 mt-1">{c('LP_BUSINESS_REG_NUMBER_HELP', t.businessRegNumberHelp)}</p>
                     </div>
                     <div>
-                      <label className="form-label" htmlFor="mailOrderSalesReportNumber">Mail Order Sales Report Number</label>
+                      <label className="form-label" htmlFor="mailOrderSalesReportNumber">{c('LP_MAIL_ORDER_SALES_REPORT_NUMBER', t.mailOrderSalesReportNumber)}</label>
                       <input
                         id="mailOrderSalesReportNumber"
                         className="form-input"
-                        placeholder="통신판매업 신고번호"
+                        placeholder={c('LP_MAIL_ORDER_SALES_PLACEHOLDER', t.mailOrderSalesPlaceholder)}
                         value={form.mailOrderSalesReportNumber}
                         onChange={(e) => set('mailOrderSalesReportNumber', e.target.value)}
                         required={form.sellerAccountType !== 'INDIVIDUAL'}
@@ -1161,11 +1160,11 @@ export default function RegisterPage() {
                 ) : (
                   <>
                     <div>
-                      <label className="form-label" htmlFor="globalBusinessLicenseNumber">Business License Number</label>
+                      <label className="form-label" htmlFor="globalBusinessLicenseNumber">{c('LP_BUSINESS_LICENSE_NUMBER', t.businessLicenseNumber)}</label>
                       <input
                         id="globalBusinessLicenseNumber"
                         className="form-input"
-                        placeholder="Business license in your country"
+                        placeholder={c('LP_BUSINESS_LICENSE_PLACEHOLDER', t.businessLicensePlaceholder)}
                         value={form.globalBusinessLicenseNumber}
                         onChange={(e) => set('globalBusinessLicenseNumber', e.target.value)}
                         required
@@ -1173,10 +1172,10 @@ export default function RegisterPage() {
                     </div>
                     <AdvancedCombobox
                       id="countryOfIncorporation"
-                      label="Country of Business Entity"
+                      label={c('LP_COUNTRY_OF_BUSINESS_ENTITY', t.countryOfBusinessEntity)}
                       value={form.countryOfIncorporation}
                       options={COUNTRY_OPTIONS}
-                      placeholder="Search or type country"
+                      placeholder={c('LP_SEARCH_OR_TYPE_COUNTRY', t.searchOrTypeCountry)}
                       required
                       onChange={(value) => set('countryOfIncorporation', value)}
                     />
@@ -1184,33 +1183,33 @@ export default function RegisterPage() {
                 )}
 
                 <div>
-                  <label className="form-label" htmlFor="businessName">Business Name</label>
+                  <label className="form-label" htmlFor="businessName">{c('LP_BUSINESS_NAME', t.businessName)}</label>
                   <input
                     id="businessName"
                     className="form-input"
-                    placeholder="Registered business name"
+                    placeholder={c('LP_BUSINESS_NAME_PLACEHOLDER', t.businessNamePlaceholder)}
                     value={form.businessName}
                     onChange={(e) => set('businessName', e.target.value)}
                   />
                 </div>
                 <AdvancedCombobox
                   id="businessType"
-                  label="Business Type"
+                  label={c('LP_BUSINESS_TYPE', t.businessType)}
                   value={form.businessType}
                   options={BUSINESS_TYPE_OPTIONS}
-                  placeholder="Search or type business type"
+                  placeholder={c('LP_BUSINESS_TYPE_PLACEHOLDER', t.businessTypePlaceholder)}
                   onChange={(value) => set('businessType', value)}
                 />
                 <AdvancedCombobox
                   id="businessCategory"
-                  label="Business Category"
+                  label={c('LP_BUSINESS_CATEGORY', t.businessCategory)}
                   value={form.businessCategory}
                   options={BUSINESS_CATEGORY_OPTIONS}
-                  placeholder="Search or type business category"
+                  placeholder={c('LP_BUSINESS_CATEGORY_PLACEHOLDER', t.businessCategoryPlaceholder)}
                   onChange={(value) => set('businessCategory', value)}
                 />
                 <div>
-                  <label className="form-label" htmlFor="businessOpeningDate">Business Opening Date</label>
+                  <label className="form-label" htmlFor="businessOpeningDate">{c('LP_BUSINESS_OPENING_DATE', t.businessOpeningDate)}</label>
                   <input
                     id="businessOpeningDate"
                     type="date"
@@ -1220,22 +1219,22 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div>
-                  <label className="form-label" htmlFor="businessPhone">Business Phone Number</label>
+                  <label className="form-label" htmlFor="businessPhone">{c('LP_BUSINESS_PHONE_NUMBER', t.businessPhoneNumber)}</label>
                   <input
                     id="businessPhone"
                     className="form-input"
-                    placeholder="Business phone"
+                    placeholder={c('LP_BUSINESS_PHONE_PLACEHOLDER', t.businessPhonePlaceholder)}
                     value={form.businessPhone}
                     onChange={(e) => set('businessPhone', e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="form-label" htmlFor="businessEmail">Business Email</label>
+                  <label className="form-label" htmlFor="businessEmail">{c('LP_BUSINESS_EMAIL', t.businessEmail)}</label>
                   <input
                     id="businessEmail"
                     type="email"
                     className="form-input"
-                    placeholder="business@example.com"
+                    placeholder={c('LP_BUSINESS_EMAIL_PLACEHOLDER', t.businessEmailPlaceholder)}
                     value={form.businessEmail}
                     onChange={(e) => set('businessEmail', e.target.value)}
                   />
@@ -1243,28 +1242,28 @@ export default function RegisterPage() {
                 {!isGlobalSeller && (
                   <>
                     <div>
-                      <label className="form-label" htmlFor="taxInvoiceEmail">Tax Invoice Email</label>
+                      <label className="form-label" htmlFor="taxInvoiceEmail">{c('LP_TAX_INVOICE_EMAIL', t.taxInvoiceEmail)}</label>
                       <input
                         id="taxInvoiceEmail"
                         type="email"
                         className="form-input"
-                        placeholder="tax@example.com"
+                        placeholder={c('LP_TAX_INVOICE_EMAIL_PLACEHOLDER', t.taxInvoiceEmailPlaceholder)}
                         value={form.taxInvoiceEmail}
                         onChange={(e) => set('taxInvoiceEmail', e.target.value)}
                       />
                     </div>
                     <div>
-                      <label className="form-label" htmlFor="vatStatus">VAT Status</label>
+                      <label className="form-label" htmlFor="vatStatus">{c('LP_VAT_STATUS', t.vatStatus)}</label>
                       <select
                         id="vatStatus"
                         className="form-input"
                         value={form.vatStatus}
                         onChange={(e) => set('vatStatus', e.target.value)}
                       >
-                        <option value="">Select VAT status</option>
-                        <option value="GENERAL">General taxable business</option>
-                        <option value="SIMPLIFIED">Simplified taxpayer</option>
-                        <option value="EXEMPT">Tax exempt</option>
+                        <option value="">{c('LP_SELECT_VAT_STATUS', t.selectVatStatus)}</option>
+                        <option value="GENERAL">{c('LP_VAT_GENERAL', t.vatGeneral)}</option>
+                        <option value="SIMPLIFIED">{c('LP_VAT_SIMPLIFIED', t.vatSimplified)}</option>
+                        <option value="EXEMPT">{c('LP_VAT_EXEMPT', t.vatExempt)}</option>
                       </select>
                     </div>
                   </>
@@ -1274,7 +1273,7 @@ export default function RegisterPage() {
               {/* Address */}
               <div>
                 <label className="form-label" htmlFor="address">
-                  {isGlobalSeller ? 'Business Address' : t.address}
+                  {isGlobalSeller ? c('LP_BUSINESS_ADDRESS', t.businessAddress) : c('LP_ADDRESS', t.address)}
                 </label>
                 {!isGlobalSeller ? (
                   <div className="flex gap-2">
@@ -1301,7 +1300,7 @@ export default function RegisterPage() {
                     id="address"
                     className="form-input resize-none"
                     rows={3}
-                    placeholder="Full global business address"
+                    placeholder={c('LP_GLOBAL_ADDRESS_PLACEHOLDER', t.globalAddressPlaceholder)}
                     value={form.address}
                     onChange={(e) => set('address', e.target.value)}
                     required
@@ -1334,10 +1333,10 @@ export default function RegisterPage() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-gray-900">
-                  {isGlobalSeller ? 'Global Seller Documents' : 'Korean Seller Documents'}
+                  {isGlobalSeller ? c('LP_GLOBAL_SELLER_DOCUMENTS', t.globalSellerDocuments) : c('LP_KOREAN_SELLER_DOCUMENTS', t.koreanSellerDocuments)}
                 </h3>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  Upload PDF, JPG, JPEG, or PNG files. Each document can be reviewed, approved, rejected, or requested again by admin.
+                  {c('LP_DOCUMENT_UPLOAD_HELP', t.documentUploadHelp)}
                 </p>
               </div>
             </div>
@@ -1353,7 +1352,7 @@ export default function RegisterPage() {
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-gray-900">{document.title}</span>
                           {document.required && (
-                            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600">Required</span>
+                            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600">{c('LP_REQUIRED_BADGE', t.requiredBadge)}</span>
                           )}
                         </div>
                         {document.korean && <p className="text-sm text-gray-500 mt-1">{document.korean}</p>}
@@ -1366,7 +1365,7 @@ export default function RegisterPage() {
                       </div>
                       <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-100">
                         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-                        {uploaded ? 'Replace file' : 'Upload file'}
+                        {uploaded ? c('LP_REPLACE_FILE', t.replaceFile) : c('LP_UPLOAD_FILE', t.uploadFile)}
                         <input
                           type="file"
                           className="hidden"
@@ -1388,48 +1387,48 @@ export default function RegisterPage() {
                 <Landmark className="w-4 h-4 text-amber-600" />
               </div>
               <h3 className="text-base font-bold text-gray-900">
-                {lang === 'ko' ? '정산 및 은행 정보' : 'Settlement and Bank Information'}
+                {c('LP_SETTLEMENT_BANK_INFO', t.settlementBankInfo)}
               </h3>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-5">
               <AdvancedCombobox
                 id="bankCountry"
-                label="Bank Country"
+                label={c('LP_BANK_COUNTRY', t.bankCountry)}
                 value={form.bankCountry}
                 options={COUNTRY_OPTIONS}
-                placeholder={isGlobalSeller ? 'Search or type bank country' : 'South Korea'}
+                placeholder={isGlobalSeller ? c('LP_SEARCH_OR_TYPE_COUNTRY', t.searchOrTypeCountry) : 'South Korea'}
                 required
                 onChange={(value) => set('bankCountry', value)}
               />
               <div>
-                <label className="form-label" htmlFor="bankName">Bank Name</label>
+                <label className="form-label" htmlFor="bankName">{c('LP_BANK_NAME', t.bankName)}</label>
                 <input
                   id="bankName"
                   className="form-input"
-                  placeholder="Bank name"
+                  placeholder={c('LP_BANK_NAME_PLACEHOLDER', t.bankNamePlaceholder)}
                   value={form.bankName}
                   onChange={(e) => set('bankName', e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="form-label" htmlFor="accountHolderName">Account Holder Name</label>
+                <label className="form-label" htmlFor="accountHolderName">{c('LP_ACCOUNT_HOLDER_NAME', t.accountHolderName)}</label>
                 <input
                   id="accountHolderName"
                   className="form-input"
-                  placeholder="Account holder name"
+                  placeholder={c('LP_ACCOUNT_HOLDER_PLACEHOLDER', t.accountHolderPlaceholder)}
                   value={form.accountHolderName}
                   onChange={(e) => set('accountHolderName', e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="form-label" htmlFor="accountNumber">Account Number</label>
+                <label className="form-label" htmlFor="accountNumber">{c('LP_ACCOUNT_NUMBER', t.accountNumber)}</label>
                 <input
                   id="accountNumber"
                   className="form-input"
-                  placeholder="Account number"
+                  placeholder={c('LP_ACCOUNT_NUMBER_PLACEHOLDER', t.accountNumberPlaceholder)}
                   value={form.accountNumber}
                   onChange={(e) => set('accountNumber', e.target.value)}
                   required
@@ -1438,21 +1437,21 @@ export default function RegisterPage() {
               {isGlobalSeller && (
                 <>
                   <div>
-                    <label className="form-label" htmlFor="swiftCode">SWIFT Code</label>
+                    <label className="form-label" htmlFor="swiftCode">{c('LP_SWIFT_CODE', t.swiftCode)}</label>
                     <input
                       id="swiftCode"
                       className="form-input"
-                      placeholder="SWIFT/BIC"
+                      placeholder={c('LP_SWIFT_CODE_PLACEHOLDER', t.swiftCodePlaceholder)}
                       value={form.swiftCode}
                       onChange={(e) => set('swiftCode', e.target.value)}
                     />
                   </div>
                   <div>
-                    <label className="form-label" htmlFor="bankAddress">Bank Address</label>
+                    <label className="form-label" htmlFor="bankAddress">{c('LP_BANK_ADDRESS', t.bankAddress)}</label>
                     <input
                       id="bankAddress"
                       className="form-input"
-                      placeholder="Bank branch address"
+                      placeholder={c('LP_BANK_ADDRESS_PLACEHOLDER', t.bankAddressPlaceholder)}
                       value={form.bankAddress}
                       onChange={(e) => set('bankAddress', e.target.value)}
                     />
@@ -1460,7 +1459,7 @@ export default function RegisterPage() {
                 </>
               )}
               <div>
-                <label className="form-label" htmlFor="settlementCurrency">Settlement Currency</label>
+                <label className="form-label" htmlFor="settlementCurrency">{c('LP_SETTLEMENT_CURRENCY', t.settlementCurrency)}</label>
                 <select
                   id="settlementCurrency"
                   className="form-input"
@@ -1475,16 +1474,16 @@ export default function RegisterPage() {
                 </select>
               </div>
               <div>
-                <label className="form-label" htmlFor="settlementCycle">Settlement Cycle</label>
+                <label className="form-label" htmlFor="settlementCycle">{c('LP_SETTLEMENT_CYCLE', t.settlementCycle)}</label>
                 <select
                   id="settlementCycle"
                   className="form-input"
                   value={form.settlementCycle}
                   onChange={(e) => set('settlementCycle', e.target.value)}
                 >
-                  <option value="WEEKLY">Weekly settlement</option>
-                  <option value="MONTHLY">Monthly settlement</option>
-                  <option value="CUSTOM">Custom settlement</option>
+                  <option value="WEEKLY">{c('LP_WEEKLY_SETTLEMENT', t.weeklySettlement)}</option>
+                  <option value="MONTHLY">{c('LP_MONTHLY_SETTLEMENT', t.monthlySettlement)}</option>
+                  <option value="CUSTOM">{c('LP_CUSTOM_SETTLEMENT', t.customSettlement)}</option>
                 </select>
               </div>
             </div>
@@ -1497,12 +1496,23 @@ export default function RegisterPage() {
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
               </div>
               <h3 className="text-base font-bold text-gray-900">
-                {lang === 'ko' ? '필수 동의' : 'Required Agreements'}
+                {c('LP_REQUIRED_AGREEMENTS', t.requiredAgreements)}
               </h3>
             </div>
 
             <div className="space-y-3">
-              {REQUIRED_AGREEMENTS.map(([key, label]) => (
+              {([
+                ['sellerTerms', c('LP_AGREEMENT_SELLER_TERMS', t.agreementSellerTerms)],
+                ['privacyPolicy', c('LP_AGREEMENT_PRIVACY_POLICY', t.agreementPrivacyPolicy)],
+                ['personalInfo', c('LP_AGREEMENT_PERSONAL_INFO', t.agreementPersonalInfo)],
+                ['businessDocuments', c('LP_AGREEMENT_BUSINESS_DOCS', t.agreementBusinessDocs)],
+                ['sellerNotices', c('LP_AGREEMENT_SELLER_NOTICES', t.agreementSellerNotices)],
+                ['trueInfo', c('LP_AGREEMENT_TRUE_INFO', t.agreementTrueInfo)],
+                ['falseInfo', c('LP_AGREEMENT_FALSE_INFO', t.agreementFalseInfo)],
+                ['prohibitedProducts', c('LP_AGREEMENT_PROHIBITED_PRODUCTS', t.agreementProhibitedProducts)],
+                ['commissionPolicy', c('LP_AGREEMENT_COMMISSION_POLICY', t.agreementCommissionPolicy)],
+                ['returnPolicy', c('LP_AGREEMENT_RETURN_POLICY', t.agreementReturnPolicy)],
+              ] as const).map(([key, label]) => (
                 <label key={key} className="flex items-start gap-3 rounded-xl border border-gray-100 p-3 cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
@@ -1522,12 +1532,10 @@ export default function RegisterPage() {
             <div className="text-2xl">⏳</div>
             <div>
               <p className="text-sm font-bold text-amber-800 mb-1">
-                {lang === 'ko' ? '승인 절차 안내' : 'Approval Process'}
+                {c('LP_APPROVAL_PROCESS', t.approvalProcess)}
               </p>
               <p className="text-sm text-amber-700 leading-relaxed">
-                {lang === 'ko'
-                  ? '신청 후 저희 팀이 영업일 기준 1-2일 내에 검토합니다. 승인 후에만 로그인하여 판매를 시작할 수 있습니다.'
-                  : 'After submitting, our team reviews your application within 1–2 business days. You can only sign in and start selling after your account is approved.'}
+                {c('LP_APPROVAL_PROCESS_DESC', t.approvalProcessDesc)}
               </p>
             </div>
           </div>

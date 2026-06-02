@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
@@ -15,9 +16,23 @@ import {
 import { useLanguage } from '../lib/useLanguage';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
 export function Sidebar() {
   const pathname = usePathname();
   const { lang, setLang, t } = useLanguage();
+  const [appName, setAppName] = useState('');
+  const [appLogo, setAppLogo] = useState('');
+
+  useEffect(() => {
+    fetch(`${API_URL}/admin/public-settings`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.APP_NAME) setAppName(data.APP_NAME);
+        if (data?.APP_LOGO) setAppLogo(data.APP_LOGO);
+      })
+      .catch(() => {});
+  }, []);
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: t.dashboard },
@@ -34,11 +49,11 @@ export function Sidebar() {
     window.location.href = '/login';
   };
 
-  let storeName = 'My Store';
+  let storeName = '';
   try {
     if (typeof window !== 'undefined') {
       const user = JSON.parse(localStorage.getItem('sellerUser') || '{}');
-      storeName = user?.storeName || user?.seller?.storeName || user?.fullName || 'My Store';
+      storeName = user?.storeName || user?.seller?.storeName || user?.fullName || '';
     }
   } catch {}
 
@@ -46,11 +61,15 @@ export function Sidebar() {
     <div className="w-60 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-40">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-gray-100">
-        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-bold text-sm">AM</span>
-        </div>
+        {appLogo ? (
+          <img src={appLogo} alt={appName} className="h-9 w-9 rounded-xl object-contain flex-shrink-0" />
+        ) : appName ? (
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-sm">{appName.substring(0, 2).toUpperCase()}</span>
+          </div>
+        ) : null}
         <div className="min-w-0">
-          <div className="font-bold text-gray-900 text-sm truncate">AM Mart</div>
+          <div className="font-bold text-gray-900 text-sm truncate">{appName}</div>
           <div className="text-xs text-gray-500">{t.sellerPortal}</div>
         </div>
       </div>

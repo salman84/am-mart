@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch } from 'react-redux';
-import { authApi } from '../../src/services/api';
+import { authApi, sellerApi, riderApi } from '../../src/services/api';
 import { setUser, loginWithOtp } from '../../src/store/slices/authSlice';
 import * as SecureStore from 'expo-secure-store';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
@@ -24,8 +24,14 @@ function formatKoreanPhone(phone: string) {
 }
 
 export default function VerifyOtpScreen() {
-  const { userId, phone, returnTo, mode, devCode } = useLocalSearchParams<{
+  const {
+    userId, phone, returnTo, mode, devCode,
+    isSeller, storeName, storeDescription,
+    isRider, vehicleType, vehicleNumber, licenseNumber,
+  } = useLocalSearchParams<{
     userId?: string; phone: string; returnTo?: string; mode?: string; devCode?: string;
+    isSeller?: string; storeName?: string; storeDescription?: string;
+    isRider?: string; vehicleType?: string; vehicleNumber?: string; licenseNumber?: string;
   }>();
   const dispatch = useDispatch<AppDispatch>();
   const { t } = useLanguage();
@@ -108,6 +114,27 @@ export default function VerifyOtpScreen() {
         await SecureStore.setItemAsync('accessToken', res.data.accessToken);
         await SecureStore.setItemAsync('refreshToken', res.data.refreshToken);
         dispatch(setUser(res.data.user));
+
+        // Handle seller application after OTP
+        if (isSeller === 'true' && storeName) {
+          try {
+            await sellerApi.apply({ storeName, storeDescription: storeDescription || '' });
+          } catch {}
+          router.replace('/(auth)/login');
+          Toast.show({ type: 'success', text1: t('applicationSubmitted'), text2: t('riderApplicationReview') });
+          return;
+        }
+
+        // Handle rider application after OTP
+        if (isRider === 'true' && vehicleType && vehicleNumber && licenseNumber) {
+          try {
+            await riderApi.register({ vehicleType, vehicleNumber, licenseNumber });
+          } catch {}
+          router.replace('/(auth)/login');
+          Toast.show({ type: 'success', text1: t('riderApplicationSubmitted'), text2: t('riderApplicationReview') });
+          return;
+        }
+
         if (returnTo === 'cart') router.replace('/(customer)/cart');
         else router.replace('/(customer)');
       }

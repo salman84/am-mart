@@ -1,9 +1,21 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize } from '../../src/theme';
 import { StyleSheet } from 'react-native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../src/store';
 
 export default function RiderLayout() {
+  const user = useSelector((state: RootState) => state.auth.user);
+
+  // Route guard — only RIDER role can access rider screens
+  useEffect(() => {
+    if (user && user.role !== 'RIDER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      router.replace('/(customer)');
+    }
+  }, [user?.role]);
+
   return (
     <Tabs
       screenOptions={{

@@ -6,8 +6,8 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_NAME ? `${process.env.NEXT_PUBLIC_APP_NAME} — Seller Portal` : 'Seller Portal',
-  description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'Seller Dashboard — Manage your store, products and orders',
+  title: process.env.NEXT_PUBLIC_APP_NAME ? `${process.env.NEXT_PUBLIC_APP_NAME} — Rider Portal` : 'Rider Portal',
+  description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'Join as a delivery rider. Earn money on your schedule with flexible delivery opportunities.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

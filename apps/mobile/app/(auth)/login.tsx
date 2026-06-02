@@ -86,10 +86,27 @@ export default function LoginScreen() {
         router.replace('/(customer)');
       }
     } else {
-      const errMsg = loginMode === 'phone'
+      const errMsg = result.payload as string || '';
+
+      // Detect status-related errors from backend and show proper status screens
+      const errLower = errMsg.toLowerCase();
+      if (errLower.includes('under review') || errLower.includes('pending')) {
+        router.push({ pathname: '/(auth)/account-status', params: { status: 'pending', message: errMsg, role: 'SELLER' } });
+        return;
+      }
+      if (errLower.includes('rejected') || errLower.includes('not approved')) {
+        router.push({ pathname: '/(auth)/account-status', params: { status: 'rejected', message: errMsg, role: 'SELLER' } });
+        return;
+      }
+      if (errLower.includes('suspended')) {
+        router.push({ pathname: '/(auth)/account-status', params: { status: 'suspended', message: errMsg } });
+        return;
+      }
+
+      const fallbackMsg = loginMode === 'phone'
         ? (t('incorrectLogin' as any) || 'Incorrect phone or password')
         : (t('incorrectEmailLogin' as any) || 'Incorrect email or password');
-      Toast.show({ type: 'error', text1: result.payload as string || errMsg });
+      Toast.show({ type: 'error', text1: errMsg || fallbackMsg });
     }
   };
 

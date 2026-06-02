@@ -20,11 +20,21 @@ export class SellersController {
   }
 
   @Post('apply') apply(@Req() req: any, @Body() dto: any) { return this.sellersService.applyAsSeller(req.user.id, dto); }
-  @Get('profile') getProfile(@Req() req: any) { return this.sellersService.getSellerProfile(req.user.id); }
-  @Put('profile') updateProfile(@Req() req: any, @Body() dto: any) { return this.sellersService.updateSellerProfile(req.user.id, dto); }
-  @Get('dashboard') getDashboard(@Req() req: any) { return this.sellersService.getSellerDashboard(req.user.id); }
+
+  @Get('profile')
+  @UseGuards(RolesGuard) @Roles('SELLER', 'ADMIN', 'SUPER_ADMIN')
+  getProfile(@Req() req: any) { return this.sellersService.getSellerProfile(req.user.id); }
+
+  @Put('profile')
+  @UseGuards(RolesGuard) @Roles('SELLER', 'ADMIN', 'SUPER_ADMIN')
+  updateProfile(@Req() req: any, @Body() dto: any) { return this.sellersService.updateSellerProfile(req.user.id, dto); }
+
+  @Get('dashboard')
+  @UseGuards(RolesGuard) @Roles('SELLER', 'ADMIN', 'SUPER_ADMIN')
+  getDashboard(@Req() req: any) { return this.sellersService.getSellerDashboard(req.user.id); }
 
   @Get('orders')
+  @UseGuards(RolesGuard) @Roles('SELLER', 'ADMIN', 'SUPER_ADMIN')
   getOrders(
     @Req() req: any,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,

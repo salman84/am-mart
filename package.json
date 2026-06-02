@@ -15,6 +15,7 @@
     "mobile": "pnpm --filter mobile start",
     "admin": "pnpm --filter admin dev",
     "seller": "pnpm --filter seller dev",
+    "rider": "pnpm --filter rider dev",
     "db:generate": "pnpm --filter backend prisma:generate",
     "db:migrate": "pnpm --filter backend prisma:migrate",
     "db:seed": "pnpm --filter backend prisma:seed",

@@ -276,11 +276,6 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.sellerLink} onPress={() => router.push('/(auth)/seller-apply')}>
-            <Ionicons name="storefront-outline" size={16} color={Colors.primary} />
-            <Text style={styles.sellerLinkText}>{t('registerSeller')}</Text>
-            <Ionicons name="arrow-forward" size={14} color={Colors.primary} />
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -340,11 +335,4 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: Spacing.xl },
   footerText: { color: Colors.textSecondary, fontSize: FontSize.base },
   footerLink: { color: Colors.primary, fontSize: FontSize.base, fontWeight: FontWeight.bold },
-  sellerLink: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: Spacing.base, paddingVertical: Spacing.sm,
-    borderWidth: 1.5, borderColor: Colors.primary,
-    borderRadius: BorderRadius['2xl'],
-  },
-  sellerLinkText: { color: Colors.primary, fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 });

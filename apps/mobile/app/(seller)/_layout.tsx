@@ -1,9 +1,21 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize } from '../../src/theme';
 import { StyleSheet } from 'react-native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../src/store';
 
 export default function SellerLayout() {
+  const user = useSelector((state: RootState) => state.auth.user);
+
+  // Route guard — only SELLER role can access seller screens
+  useEffect(() => {
+    if (user && user.role !== 'SELLER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      router.replace('/(customer)');
+    }
+  }, [user?.role]);
+
   return (
     <Tabs
       screenOptions={{
