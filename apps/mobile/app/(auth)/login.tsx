@@ -16,7 +16,7 @@ import { useBranding } from '../../src/context/BrandingContext';
 
 export default function LoginScreen() {
   const dispatch = useDispatch<AppDispatch>();
-  const { isLoading, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { isLoading, isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { t } = useLanguage();
   const { appName, appLogo } = useBranding();
@@ -37,6 +37,8 @@ export default function LoginScreen() {
   // Auto-redirect if already logged in (e.g. user pressed back from pin-setup)
   React.useEffect(() => {
     if (isAuthenticated) {
+      if (user?.role === 'RIDER') { router.replace('/(rider)'); return; }
+      if (user?.role === 'SELLER') { router.replace('/(seller)'); return; }
       if (returnTo === 'cart') router.replace('/(customer)/cart');
       else router.replace('/(customer)');
     }
