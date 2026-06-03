@@ -43,6 +43,95 @@ export class RoutesService {
     return { routes, total, page, totalPages: Math.ceil(total / limit) };
   }
 
+  // ── Rider's own routes (auto-filtered by rider userId) ────────────────────
+  async getMyRoutes(riderUserId: string, params: { page?: number; limit?: number; status?: string }) {
+    const { page = 1, limit = 20, status } = params;
+
+    const rider = await this.prisma.rider.findFirst({ where: { userId: riderUserId } });
+    if (!rider) return { routes: [], total: 0, page: 1, totalPages: 0 };
+
+    const where: any = { riderId: rider.id };
+    if (status) where.status = status;
+
+    const [routes, total] = await Promise.all([
+      this.prisma.deliveryRoute.findMany({
+        where, skip: (page - 1) * limit, take: limit,
+        orderBy: { plannedDate: 'desc' },
+        include: {
+          fulfillmentCenter: { select: { name: true, code: true } },
+          zone: { select: { name: true } },
+          _count: { select: { stops: true } },
+        },
+      }),
+      this.prisma.deliveryRoute.count({ where }),
+    ]);
+
+    return { routes, total, page, totalPages: Math.ceil(total / limit) };
+  }
+
+  // ── Rider's assigned packages (from their active routes) ────────────────
+  async getMyPackages(riderUserId: string) {
+    const rider = await this.prisma.rider.findFirst({ where: { userId: riderUserId } });
+    if (!rider) return { packages: [] };
+
+    const activeRoutes = await this.prisma.deliveryRoute.findMany({
+      where: {
+        riderId: rider.id,
+        status: { in: ['ASSIGNED', 'IN_PROGRESS'] },
+      },
+      select: { id: true, routeNumber: true },
+    });
+
+    if (activeRoutes.length === 0) return { packages: [] };
+
+    const stops = await this.prisma.routeStop.findMany({
+      where: {
+        routeId: { in: activeRoutes.map(r => r.id) },
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+      },
+      orderBy: { stopOrder: 'asc' },
+      include: {
+        route: { select: { routeNumber: true } },
+        package: {
+          select: {
+            id: true, trackingNumber: true, barcode: true, status: true,
+            weight: true, specialInstructions: true,
+            shipment: {
+              select: {
+                order: {
+                  select: {
+                    orderNumber: true,
+                    customer: { select: { user: { select: { fullName: true, phone: true } } } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      packages: stops.map(stop => ({
+        stopId: stop.id,
+        stopOrder: stop.stopOrder,
+        stopStatus: stop.status,
+        routeNumber: stop.route?.routeNumber,
+        customerName: stop.customerName,
+        customerPhone: stop.customerPhone,
+        addressLine1: stop.addressLine1,
+        addressLine2: stop.addressLine2,
+        city: stop.city,
+        district: stop.district,
+        lat: stop.lat,
+        lng: stop.lng,
+        deliveryNotes: stop.deliveryNotes,
+        package: stop.package,
+        orderNumber: stop.package?.shipment?.order?.orderNumber,
+      })),
+    };
+  }
+
   async getRoute(id: string) {
     const route = await this.prisma.deliveryRoute.findUnique({
       where: { id },

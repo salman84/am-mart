@@ -242,7 +242,8 @@ export const riderApi = {
 
 // ── Parcel Delivery (Driver) ─────────────────────────────────────────────────
 export const driverRouteApi = {
-  getMyRoutes:         (params?: any) => api.get('/routes', { params }),
+  getMyRoutes:         (params?: any) => api.get('/routes/my', { params }),
+  getMyPackages:       () => api.get('/routes/my/packages'),
   getRoute:            (id: string) => api.get(`/routes/${id}`),
   updateRouteStatus:   (id: string, status: string) => api.post(`/routes/${id}/status`, { status }),
   updateStopStatus:    (stopId: string, status: string) => api.post(`/routes/stops/${stopId}/status`, { status }),

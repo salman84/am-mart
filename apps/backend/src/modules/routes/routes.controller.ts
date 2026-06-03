@@ -31,6 +31,25 @@ export class RoutesController {
     return this.routesService.getAllRoutes({ page, limit, status, centerId, riderId, date });
   }
 
+  @Get('my')
+  @Roles('RIDER')
+  @ApiOperation({ summary: '[Rider] Get my assigned routes' })
+  getMyRoutes(
+    @Req() req: any,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('status') status?: string,
+  ) {
+    return this.routesService.getMyRoutes(req.user.id, { page, limit, status });
+  }
+
+  @Get('my/packages')
+  @Roles('RIDER')
+  @ApiOperation({ summary: '[Rider] Get packages assigned to my active routes' })
+  getMyPackages(@Req() req: any) {
+    return this.routesService.getMyPackages(req.user.id);
+  }
+
   @Get('available-drivers')
   @Roles('ADMIN', 'SUPER_ADMIN', 'DELIVERY_MANAGER', 'WAREHOUSE_MANAGER')
   @ApiOperation({ summary: 'Get available drivers for assignment' })
