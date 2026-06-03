@@ -2582,6 +2582,14 @@ enum NotificationType {
   PROMOTION
   SYSTEM
   SUPPORT
+  // ── Parcel delivery notification types ──
+  PARCEL_STATUS
+  PARCEL_DELIVERY
+  ROUTE_ASSIGNED
+  SHIFT_REMINDER
+  SETTLEMENT
+  RETURN_UPDATE
+  WAREHOUSE
 }
 
 enum TicketCategory {

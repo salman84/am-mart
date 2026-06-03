@@ -314,4 +314,15 @@ export const settlementsApi = {
     api.post(`/settlements/${id}/status`, { status }),
 };
 
+// ── Analytics & Monitoring ────────────────────────────────────────────────────
+export const analyticsApi = {
+  getParcelOverview: () => api.get('/analytics/parcel-overview'),
+  getPackageStatus: () => api.get('/analytics/package-status'),
+  getDriverPerformance: (params?: any) => api.get('/analytics/driver-performance', { params }),
+  getWarehousePerformance: () => api.get('/analytics/warehouse-performance'),
+  getFailedDeliveries: (period?: string) => api.get('/analytics/failed-deliveries', { params: { period } }),
+  getReturnAnalytics: () => api.get('/analytics/returns'),
+  getSettlementSummary: () => api.get('/analytics/settlements'),
+};
+
 export default api;
