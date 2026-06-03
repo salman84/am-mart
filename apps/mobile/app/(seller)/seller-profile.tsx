@@ -4,8 +4,12 @@ import {
   TouchableOpacity, ActivityIndicator, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '../../src/store';
+import { logout } from '../../src/store/slices/authSlice';
 import { sellerApi, uploadApi } from '../../src/services/api';
 import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
 import Toast from 'react-native-toast-message';
@@ -19,11 +23,17 @@ const APPROVAL_COLORS: Record<string, string> = {
 };
 
 export default function SellerProfileScreen() {
+  const dispatch = useDispatch<AppDispatch>();
   const { t } = useLanguage();
   const [profile, setProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    router.replace('/(auth)/welcome');
+  };
 
   const [form, setForm] = useState({
     storeName: '',
@@ -240,6 +250,12 @@ export default function SellerProfileScreen() {
             </>
           )}
         </TouchableOpacity>
+
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
+          <Text style={styles.logoutText}>{t('signOut')}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -298,4 +314,10 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.6 },
   saveBtnText: { color: '#fff', fontSize: FontSize.base, fontWeight: FontWeight.bold },
+  logoutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: `${Colors.danger}30`,
+    height: 54, borderRadius: BorderRadius['2xl'],
+  },
+  logoutText: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.danger },
 });

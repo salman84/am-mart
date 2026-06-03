@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -66,21 +66,17 @@ export default function SellerOrdersScreen() {
       </View>
 
       {/* Tabs */}
-      <FlatList
-        horizontal
-        data={STATUS_TABS}
-        keyExtractor={(s) => s}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabs}
-        renderItem={({ item }) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
+        {STATUS_TABS.map((tab) => (
           <TouchableOpacity
-            style={[styles.tab, selectedTab === item && styles.tabActive]}
-            onPress={() => setSelectedTab(item)}
+            key={tab}
+            style={[styles.tab, selectedTab === tab && styles.tabActive]}
+            onPress={() => setSelectedTab(tab)}
           >
-            <Text style={[styles.tabText, selectedTab === item && styles.tabTextActive]}>{item}</Text>
+            <Text style={[styles.tabText, selectedTab === tab && styles.tabTextActive]}>{tab}</Text>
           </TouchableOpacity>
-        )}
-      />
+        ))}
+      </ScrollView>
 
       {isLoading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>
@@ -155,8 +151,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.base, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.text },
-  tabs: { paddingHorizontal: Spacing.base, paddingVertical: Spacing.sm, gap: 8 },
-  tab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: BorderRadius.full, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surface },
+  tabsScroll: { flexGrow: 0 },
+  tabs: { paddingHorizontal: Spacing.base, paddingVertical: Spacing.sm, gap: 8, flexDirection: 'row', alignItems: 'center' },
+  tab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: BorderRadius.full, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surface },
   tabActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   tabText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, color: Colors.textSecondary },
   tabTextActive: { color: '#fff' },
