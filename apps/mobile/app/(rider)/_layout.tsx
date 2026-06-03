@@ -27,9 +27,11 @@ export default function RiderLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Deliveries', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'bicycle' : 'bicycle-outline'} size={24} color={color} /> }} />
+      <Tabs.Screen name="parcel-routes" options={{ title: 'Routes', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'cube' : 'cube-outline'} size={24} color={color} /> }} />
       <Tabs.Screen name="map" options={{ title: 'Navigate', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} /> }} />
       <Tabs.Screen name="earnings" options={{ title: 'Earnings', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={24} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} /> }} />
+      <Tabs.Screen name="route-detail" options={{ href: null }} />
     </Tabs>
   );
 }

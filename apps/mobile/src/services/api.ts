@@ -232,6 +232,27 @@ export const riderApi = {
   getEarnings:         () => api.get('/delivery/rider/earnings'),
 };
 
+// ── Parcel Delivery (Driver) ─────────────────────────────────────────────────
+export const driverRouteApi = {
+  getMyRoutes:         (params?: any) => api.get('/routes', { params }),
+  getRoute:            (id: string) => api.get(`/routes/${id}`),
+  updateRouteStatus:   (id: string, status: string) => api.post(`/routes/${id}/status`, { status }),
+  updateStopStatus:    (stopId: string, status: string) => api.post(`/routes/stops/${stopId}/status`, { status }),
+  submitDeliveryProof: (data: any) => api.post('/routes/delivery-proof', data),
+  recordFailedDelivery:(data: any) => api.post('/routes/failed-delivery', data),
+  // Shifts
+  getMyShiftAssignments: (params?: any) => api.get('/routes/shift-assignments', { params }),
+  clockIn:             (id: string) => api.post(`/routes/shift-assignments/${id}/status`, { status: 'CLOCKED_IN' }),
+  clockOut:            (id: string) => api.post(`/routes/shift-assignments/${id}/status`, { status: 'CLOCKED_OUT' }),
+};
+
+export const driverPackageApi = {
+  getPackage:          (id: string) => api.get(`/packages/${id}`),
+  trackPackage:        (trackingNumber: string) => api.get(`/packages/track/${trackingNumber}`),
+  addScan:             (id: string, data: any) => api.post(`/packages/${id}/scan`, data),
+  updateStatus:        (id: string, status: string) => api.post(`/packages/${id}/status`, { status }),
+};
+
 export const walletApi = {
   getBalance:     () => api.get('/wallet/balance'),
   getTransactions:(params?: any) => api.get('/wallet/transactions', { params }),
