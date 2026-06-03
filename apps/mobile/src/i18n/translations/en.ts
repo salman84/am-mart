@@ -535,6 +535,9 @@ export default {
   clockedIn: 'Clocked in successfully',
   clockedOut: 'Clocked out successfully',
   noShiftToday: 'No shift scheduled for today',
+  confirmPickup: 'Confirm Pickup',
+  scanOut: 'Scan Out',
+  rating: 'Rating',
 
   // ── Customer Package Tracking ─────────────────────────────────────────────
   trackMyPackage: 'Track Package',

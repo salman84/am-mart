@@ -21,25 +21,45 @@ export default function RiderLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.secondary,
-        tabBarInactiveTintColor: Colors.textSecondary,
+        tabBarActiveTintColor: '#3B82F6',
+        tabBarInactiveTintColor: '#6B7280',
         tabBarLabelStyle: styles.tabLabel,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Deliveries', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'bicycle' : 'bicycle-outline'} size={24} color={color} /> }} />
-      <Tabs.Screen name="parcel-routes" options={{ title: 'Routes', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'cube' : 'cube-outline'} size={24} color={color} /> }} />
-      <Tabs.Screen name="map" options={{ title: 'Navigate', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} /> }} />
-      <Tabs.Screen name="earnings" options={{ title: 'Earnings', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={24} color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} /> }} />
+      {/* ── Visible tabs ── */}
+      <Tabs.Screen name="index" options={{
+        title: 'Dashboard',
+        tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="parcel-routes" options={{
+        title: 'Routes',
+        tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'map' : 'map-outline'} size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="scanner" options={{
+        title: 'Scanner',
+        tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'scan' : 'scan-outline'} size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="earnings" options={{
+        title: 'Earnings',
+        tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="profile" options={{
+        title: 'Profile',
+        tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />,
+      }} />
+
+      {/* ── Hidden screens ── */}
       <Tabs.Screen name="route-detail" options={{ href: null }} />
+      <Tabs.Screen name="map" options={{ href: null }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 64, paddingBottom: 8, paddingTop: 4,
+    height: 60, paddingBottom: 6, paddingTop: 4,
     backgroundColor: '#1F2937', borderTopWidth: 0,
+    elevation: 0, shadowOpacity: 0,
   },
   tabLabel: { fontSize: FontSize.xs, fontWeight: '600' },
 });

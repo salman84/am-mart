@@ -1,62 +1,60 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, FlatList,
-  ActivityIndicator, Switch, Alert, Linking, Modal, TextInput,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  ActivityIndicator, Switch, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../src/store';
-import { riderApi } from '../../src/services/api';
+import { riderApi, driverRouteApi } from '../../src/services/api';
 import * as Location from 'expo-location';
-import { Colors, FontSize, FontWeight, BorderRadius, Spacing, Shadow } from '../../src/theme';
+import { Colors, FontSize, FontWeight, BorderRadius, Spacing } from '../../src/theme';
 import Toast from 'react-native-toast-message';
 import { useLanguage } from '../../src/i18n';
 
-const STATUS_COLORS: Record<string, string> = {
-  ASSIGNED: Colors.info, ACCEPTED: Colors.secondary,
-  HEADING_TO_PICKUP: Colors.warning, PICKED_UP: Colors.secondary,
-  OUT_FOR_DELIVERY: Colors.topup, DELIVERED: Colors.primary,
-};
-
-export default function RiderDeliveriesScreen() {
+export default function RiderDashboardScreen() {
   const user = useSelector((state: RootState) => state.auth.user);
+  const currency = useSelector((state: any) => state.appSettings?.currencySymbol ?? '₩');
   const { t } = useLanguage();
 
-  // NEXT_STATUS labels must use t() — defined inside component
-  const NEXT_STATUS: Record<string, { status: string; label: string }> = {
-    ASSIGNED: { status: 'ACCEPTED', label: t('riderAcceptOrder') },
-    ACCEPTED: { status: 'HEADING_TO_PICKUP', label: t('riderHeadingToPickup') },
-    HEADING_TO_PICKUP: { status: 'PICKED_UP', label: t('riderMarkPickedUp') },
-    PICKED_UP: { status: 'OUT_FOR_DELIVERY', label: t('riderOutForDelivery') },
-    OUT_FOR_DELIVERY: { status: 'DELIVERED', label: t('riderMarkDelivered') },
-  };
-
-  const [assignments, setAssignments] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [otpModal, setOtpModal] = useState<{ visible: boolean; assignmentId: string }>({ visible: false, assignmentId: '' });
-  const [otpInput, setOtpInput] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [earnings, setEarnings] = useState<any>(null);
+  const [todayRoutes, setTodayRoutes] = useState<any[]>([]);
+  const [activeRoute, setActiveRoute] = useState<any>(null);
 
-  const loadAssignments = useCallback(async () => {
+  const loadDashboard = useCallback(async () => {
     try {
-      const res = await riderApi.getAssignments();
-      setAssignments(res.data);
+      const [earningsRes, routesRes] = await Promise.allSettled([
+        riderApi.getEarnings(),
+        driverRouteApi.getMyRoutes({ limit: 10 }),
+      ]);
+
+      if (earningsRes.status === 'fulfilled') setEarnings(earningsRes.value.data);
+
+      if (routesRes.status === 'fulfilled') {
+        const routes = routesRes.value.data.routes || [];
+        setTodayRoutes(routes);
+        const active = routes.find((r: any) => r.status === 'IN_PROGRESS');
+        setActiveRoute(active || null);
+      }
     } finally {
       setIsLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { loadAssignments(); }, [loadAssignments]);
+  useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
   const toggleOnline = async (value: boolean) => {
     let lat, lng;
     if (value) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(t('locationRequired'), t('enableLocation'));
+        Toast.show({ type: 'error', text1: t('locationRequired') || 'Location required' });
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
@@ -66,278 +64,254 @@ export default function RiderDeliveriesScreen() {
     try {
       await riderApi.updateOnlineStatus(value, lat, lng);
       setIsOnline(value);
-      Toast.show({ type: 'success', text1: value ? t('nowOnline') : t('nowOffline') });
+      Toast.show({ type: 'success', text1: value ? (t('nowOnline') || 'Online') : (t('nowOffline') || 'Offline') });
     } catch {
-      Toast.show({ type: 'error', text1: t('failedUpdateStatus') });
+      Toast.show({ type: 'error', text1: t('failedUpdateStatus') || 'Failed' });
     }
   };
 
-  const handleUpdateStatus = async (assignmentId: string, currentStatus: string) => {
-    const next = NEXT_STATUS[currentStatus];
-    if (!next) return;
-
-    if (next.status === 'DELIVERED') {
-      setOtpInput('');
-      setOtpModal({ visible: true, assignmentId });
-      return;
-    }
-
-    setUpdatingId(assignmentId);
-    try {
-      await riderApi.updateDeliveryStatus(assignmentId, next.status);
-      Toast.show({ type: 'success', text1: `Status: ${next.status.replace(/_/g, ' ')}` });
-      loadAssignments();
-    } catch (e: any) {
-      Toast.show({ type: 'error', text1: e.response?.data?.message || t('failedUpdateStatus') });
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleNavigate = (lat?: number, lng?: number) => {
-    if (!lat || !lng) return;
-    const url = `https://maps.google.com/?daddr=${lat},${lng}`;
-    Linking.openURL(url);
-  };
-
-  const handleCallCustomer = (phone: string) => {
-    Linking.openURL(`tel:${phone}`);
-  };
-
-  const renderAssignment = ({ item }: { item: any }) => {
-    const { order } = item;
-    const statusColor = STATUS_COLORS[item.status] || Colors.textSecondary;
-    const nextAction = NEXT_STATUS[item.status];
-    const isUpdating = updatingId === item.id;
-
+  if (isLoading) {
     return (
-      <View style={styles.assignmentCard}>
-        {/* Header */}
-        <View style={styles.cardHeader}>
-          <View>
-            <Text style={styles.orderNumber}>#{order?.orderNumber}</Text>
-            <Text style={styles.itemCount}>{order?.items?.length} item{order?.items?.length !== 1 ? 's' : ''}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
-            <Text style={[styles.statusText, { color: statusColor }]}>{item.status.replace(/_/g, ' ')}</Text>
-          </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.loadingCenter}>
+          <ActivityIndicator size="large" color="#3B82F6" />
         </View>
-
-        {/* Customer Info */}
-        <View style={styles.customerSection}>
-          <View style={styles.personRow}>
-            <View style={styles.personIcon}>
-              <Ionicons name="person-outline" size={16} color={Colors.primary} />
-            </View>
-            <View style={styles.personInfo}>
-              <Text style={styles.personName}>{order?.customer?.user?.fullName}</Text>
-              <Text style={styles.personAddress} numberOfLines={1}>{order?.address?.addressLine1}, {order?.address?.city}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.callButton}
-              onPress={() => handleCallCustomer(order?.customer?.user?.phone)}
-            >
-              <Ionicons name="call" size={16} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Navigate Buttons */}
-        <View style={styles.navigateRow}>
-          {['ACCEPTED', 'HEADING_TO_PICKUP'].includes(item.status) && (
-            <TouchableOpacity
-              style={[styles.navButton, { backgroundColor: Colors.secondary }]}
-              onPress={() => handleNavigate(item.pickupLat, item.pickupLng)}
-            >
-              <Ionicons name="navigate" size={14} color="#fff" />
-              <Text style={styles.navText}>{t('pickupLocation')}</Text>
-            </TouchableOpacity>
-          )}
-          {['PICKED_UP', 'OUT_FOR_DELIVERY'].includes(item.status) && (
-            <TouchableOpacity
-              style={[styles.navButton, { backgroundColor: Colors.primary }]}
-              onPress={() => handleNavigate(item.dropoffLat, item.dropoffLng)}
-            >
-              <Ionicons name="navigate" size={14} color="#fff" />
-              <Text style={styles.navText}>{t('deliveryLocation')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Action Button */}
-        {nextAction && (
-          <TouchableOpacity
-            style={[styles.actionButton, isUpdating && styles.disabled, { backgroundColor: statusColor }]}
-            onPress={() => handleUpdateStatus(item.id, item.status)}
-            disabled={isUpdating}
-          >
-            {isUpdating ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Text style={styles.actionText}>{nextAction.label}</Text>
-                <Ionicons name="arrow-forward" size={16} color="#fff" />
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
+      </SafeAreaView>
     );
-  };
+  }
+
+  const assignedRoutes = todayRoutes.filter((r: any) => r.status === 'ASSIGNED');
+  const completedRoutes = todayRoutes.filter((r: any) => ['COMPLETED', 'PARTIALLY_COMPLETED'].includes(r.status));
 
   return (
-    <>
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>{t('myDeliveries')}</Text>
-          <Text style={styles.headerSubtitle}>Hello, {user?.fullName?.split(' ')[0]}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.greeting}>{t('sellerWelcome') || 'Welcome'}</Text>
+          <Text style={styles.name}>{user?.fullName}</Text>
         </View>
         <View style={styles.onlineToggle}>
-          <Text style={[styles.onlineLabel, { color: isOnline ? Colors.primary : Colors.textSecondary }]}>
-            {isOnline ? t('riderOnline') : t('riderOffline')}
+          <View style={[styles.statusDot, { backgroundColor: isOnline ? '#10B981' : '#6B7280' }]} />
+          <Text style={[styles.onlineLabel, { color: isOnline ? '#10B981' : '#9CA3AF' }]}>
+            {isOnline ? (t('riderOnline') || 'Online') : (t('riderOffline') || 'Offline')}
           </Text>
           <Switch
             value={isOnline}
             onValueChange={toggleOnline}
-            trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-            thumbColor={isOnline ? Colors.primary : '#f4f3f4'}
+            trackColor={{ false: '#374151', true: '#065F46' }}
+            thumbColor={isOnline ? '#10B981' : '#6B7280'}
           />
         </View>
       </View>
 
-      {!isOnline && (
-        <View style={styles.offlineBanner}>
-          <Ionicons name="warning-outline" size={20} color={Colors.warning} />
-          <Text style={styles.offlineText}>{t('riderOfflineBanner')}</Text>
-        </View>
-      )}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); loadDashboard(); }}
+            tintColor="#3B82F6" />
+        }
+      >
+        {/* Active Route Banner */}
+        {activeRoute && (
+          <TouchableOpacity
+            style={styles.activeRouteBanner}
+            onPress={() => router.push({ pathname: '/(rider)/route-detail', params: { routeId: activeRoute.id } })}
+          >
+            <View style={styles.activePulse} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.activeTitle}>{t('routeInProgress') || 'Route In Progress'}</Text>
+              <Text style={styles.activeSubtitle}>
+                {activeRoute.routeNumber} · {activeRoute.completedStops}/{activeRoute.totalStops} {t('parcelStops') || 'stops'}
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward-circle" size={32} color="#fff" />
+          </TouchableOpacity>
+        )}
 
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.secondary} />
-        </View>
-      ) : assignments.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="bicycle-outline" size={72} color={Colors.textLight} />
-          <Text style={styles.emptyTitle}>{t('noActiveDeliveries')}</Text>
-          <Text style={styles.emptySubtitle}>{isOnline ? t('waitingForOrders') : t('goOnlineToReceive')}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={assignments}
-          keyExtractor={(item) => item.id}
-          renderItem={renderAssignment}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          refreshing={false}
-          onRefresh={loadAssignments}
-        />
-      )}
-    </SafeAreaView>
-
-    {/* OTP Modal for delivery confirmation */}
-    <Modal visible={otpModal.visible} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalBox}>
-          <Text style={styles.modalTitle}>{t('deliveryOtp')}</Text>
-          <Text style={styles.modalSubtitle}>{t('deliveryOtpSubtitle')}</Text>
-          <TextInput
-            style={styles.otpInput}
-            value={otpInput}
-            onChangeText={setOtpInput}
-            keyboardType="number-pad"
-            maxLength={6}
-            placeholder="Enter OTP"
-            placeholderTextColor="#9CA3AF"
-          />
-          <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.modalCancel} onPress={() => setOtpModal({ visible: false, assignmentId: '' })}>
-              <Text style={styles.modalCancelText}>{t('cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalConfirm, !otpInput && styles.disabled]}
-              onPress={async () => {
-                if (!otpInput) return;
-                setOtpModal({ visible: false, assignmentId: '' });
-                setUpdatingId(otpModal.assignmentId);
-                try {
-                  await riderApi.updateDeliveryStatus(otpModal.assignmentId, 'DELIVERED', { otp: otpInput });
-                  Toast.show({ type: 'success', text1: t('deliveryConfirmed') });
-                  loadAssignments();
-                } catch (e: any) {
-                  Toast.show({ type: 'error', text1: e.response?.data?.message || t('failedConfirmDelivery') });
-                } finally {
-                  setUpdatingId(null);
-                }
-              }}
-            >
-              <Text style={styles.modalConfirmText}>{t('confirm')}</Text>
-            </TouchableOpacity>
+        {/* Today's Stats */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Ionicons name="cube" size={22} color="#3B82F6" />
+            <Text style={styles.statValue}>{earnings?.todayDeliveries || 0}</Text>
+            <Text style={styles.statLabel}>{t('riderTodayDeliveries') || "Today's Deliveries"}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Ionicons name="cash" size={22} color="#10B981" />
+            <Text style={styles.statValue}>{currency}{(earnings?.todayEarnings || 0).toLocaleString()}</Text>
+            <Text style={styles.statLabel}>{t('riderTodayEarnings') || "Today's Earnings"}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Ionicons name="star" size={22} color="#F59E0B" />
+            <Text style={styles.statValue}>{earnings?.rating?.toFixed(1) || '—'}</Text>
+            <Text style={styles.statLabel}>{t('rating') || 'Rating'}</Text>
           </View>
         </View>
-      </View>
-    </Modal>
-    </>
+
+        {/* Quick Actions */}
+        <Text style={styles.sectionTitle}>{t('quickActions') || 'Quick Actions'}</Text>
+        <View style={styles.actionsGrid}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(rider)/parcel-routes')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#3B82F620' }]}>
+              <Ionicons name="map" size={24} color="#3B82F6" />
+            </View>
+            <Text style={styles.actionLabel}>{t('parcelRoutes') || 'My Routes'}</Text>
+            {assignedRoutes.length > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{assignedRoutes.length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(rider)/scanner')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#8B5CF620' }]}>
+              <Ionicons name="scan" size={24} color="#8B5CF6" />
+            </View>
+            <Text style={styles.actionLabel}>{t('scanPackage') || 'Scan Package'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(rider)/earnings')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#10B98120' }]}>
+              <Ionicons name="wallet" size={24} color="#10B981" />
+            </View>
+            <Text style={styles.actionLabel}>{t('riderEarningsTitle') || 'Earnings'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(rider)/profile')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#F5920B20' }]}>
+              <Ionicons name="person" size={24} color="#F59E0B" />
+            </View>
+            <Text style={styles.actionLabel}>{t('riderProfileTitle') || 'Profile'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Assigned Routes */}
+        {assignedRoutes.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>{t('noRoutesAssigned') ? t('parcelRoutes') : 'Assigned Routes'} ({assignedRoutes.length})</Text>
+            {assignedRoutes.map((route: any) => (
+              <TouchableOpacity
+                key={route.id}
+                style={styles.routeCard}
+                onPress={() => router.push({ pathname: '/(rider)/route-detail', params: { routeId: route.id } })}
+              >
+                <View style={styles.routeHeader}>
+                  <View>
+                    <Text style={styles.routeNumber}>{route.routeNumber}</Text>
+                    <Text style={styles.routeDate}>{new Date(route.plannedDate).toLocaleDateString()}</Text>
+                  </View>
+                  <View style={styles.routeStops}>
+                    <Ionicons name="location" size={14} color="#3B82F6" />
+                    <Text style={styles.routeStopsText}>{route.totalStops} {t('parcelStops') || 'stops'}</Text>
+                  </View>
+                </View>
+                {route.fulfillmentCenter && (
+                  <View style={styles.routeCenterRow}>
+                    <Ionicons name="business-outline" size={12} color="#6B7280" />
+                    <Text style={styles.routeCenterText}>{route.fulfillmentCenter.name}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
+
+        {/* Completed Today */}
+        {completedRoutes.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>{t('routeCompleted') || 'Completed'} ({completedRoutes.length})</Text>
+            {completedRoutes.map((route: any) => (
+              <View key={route.id} style={[styles.routeCard, { borderColor: '#10B98130' }]}>
+                <View style={styles.routeHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                    <Text style={[styles.routeNumber, { color: '#10B981' }]}>{route.routeNumber}</Text>
+                  </View>
+                  <Text style={styles.routeStopsText}>
+                    {route.completedStops}/{route.totalStops}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </>
+        )}
+
+        {/* No routes offline message */}
+        {!isOnline && todayRoutes.length === 0 && (
+          <View style={styles.offlineMessage}>
+            <Ionicons name="wifi-outline" size={48} color="#4B5563" />
+            <Text style={styles.offlineTitle}>{t('riderOffline') || 'Offline'}</Text>
+            <Text style={styles.offlineSubtitle}>{t('riderOfflineBanner') || 'Go online to receive route assignments'}</Text>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#111827' },
+  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.base,
     backgroundColor: '#1F2937', borderBottomWidth: 1, borderBottomColor: '#374151',
   },
-  headerTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: '#F9FAFB' },
-  headerSubtitle: { fontSize: FontSize.sm, color: '#9CA3AF', marginTop: 2 },
-  onlineToggle: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  onlineLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  offlineBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: '#92400E20', padding: Spacing.sm,
-    paddingHorizontal: Spacing.lg, borderBottomWidth: 1, borderBottomColor: '#92400E40',
+  greeting: { fontSize: FontSize.sm, color: '#9CA3AF' },
+  name: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: '#F9FAFB' },
+  onlineToggle: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  onlineLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  content: { padding: Spacing.base, gap: 16, paddingBottom: 40 },
+
+  activeRouteBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#3B82F6', borderRadius: BorderRadius.xl, padding: Spacing.base,
   },
-  offlineText: { fontSize: FontSize.sm, color: Colors.warning },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
-  emptyTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: '#F9FAFB', marginTop: Spacing.base },
-  emptySubtitle: { fontSize: FontSize.base, color: '#9CA3AF', marginTop: Spacing.xs, textAlign: 'center' },
-  listContent: { padding: Spacing.base },
-  assignmentCard: {
-    backgroundColor: '#1F2937', borderRadius: BorderRadius.xl, padding: Spacing.base,
+  activePulse: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff', opacity: 0.8 },
+  activeTitle: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: '#fff' },
+  activeSubtitle: { fontSize: FontSize.sm, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
+
+  statsRow: { flexDirection: 'row', gap: 10 },
+  statCard: {
+    flex: 1, backgroundColor: '#1F2937', borderRadius: BorderRadius.lg,
+    padding: Spacing.sm, alignItems: 'center', gap: 4,
     borderWidth: 1, borderColor: '#374151',
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.base },
-  orderNumber: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: '#F9FAFB' },
-  itemCount: { fontSize: FontSize.sm, color: '#9CA3AF', marginTop: 2 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: BorderRadius.full },
-  statusText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
-  customerSection: { marginBottom: Spacing.base },
-  personRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  personIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  personInfo: { flex: 1 },
-  personName: { fontSize: FontSize.base, fontWeight: FontWeight.semibold, color: '#F9FAFB' },
-  personAddress: { fontSize: FontSize.sm, color: '#9CA3AF', marginTop: 2 },
-  callButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
-  navigateRow: { flexDirection: 'row', gap: 8, marginBottom: Spacing.sm },
-  navButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: BorderRadius.lg },
-  navText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  actionButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 14, borderRadius: BorderRadius['2xl'],
+  statValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: '#F9FAFB' },
+  statLabel: { fontSize: 10, color: '#9CA3AF', textAlign: 'center' },
+
+  sectionTitle: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: '#F9FAFB', marginTop: 4 },
+
+  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  actionCard: {
+    width: '47%', backgroundColor: '#1F2937', borderRadius: BorderRadius.lg,
+    padding: Spacing.base, alignItems: 'center', gap: 8,
+    borderWidth: 1, borderColor: '#374151', position: 'relative',
   },
-  disabled: { opacity: 0.6 },
-  actionText: { color: '#fff', fontSize: FontSize.base, fontWeight: FontWeight.bold },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
-  modalBox: { backgroundColor: '#1F2937', borderRadius: BorderRadius.xl, padding: Spacing.xl, width: '100%' },
-  modalTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: '#F9FAFB', marginBottom: Spacing.xs },
-  modalSubtitle: { fontSize: FontSize.base, color: '#9CA3AF', marginBottom: Spacing.lg },
-  otpInput: { backgroundColor: '#374151', borderRadius: BorderRadius.lg, padding: Spacing.base, fontSize: FontSize.xl, color: '#F9FAFB', textAlign: 'center', letterSpacing: 8, marginBottom: Spacing.lg },
-  modalButtons: { flexDirection: 'row', gap: 12 },
-  modalCancel: { flex: 1, paddingVertical: 14, borderRadius: BorderRadius.xl, borderWidth: 1, borderColor: '#374151', alignItems: 'center' },
-  modalCancelText: { color: '#9CA3AF', fontWeight: FontWeight.semibold },
-  modalConfirm: { flex: 1, paddingVertical: 14, borderRadius: BorderRadius.xl, backgroundColor: Colors.primary, alignItems: 'center' },
-  modalConfirmText: { color: '#fff', fontWeight: FontWeight.bold },
+  actionIcon: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+  actionLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: '#D1D5DB', textAlign: 'center' },
+  badge: {
+    position: 'absolute', top: 8, right: 8,
+    backgroundColor: '#EF4444', borderRadius: 10, minWidth: 20, height: 20,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
+  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+
+  routeCard: {
+    backgroundColor: '#1F2937', borderRadius: BorderRadius.lg, padding: Spacing.base,
+    borderWidth: 1, borderColor: '#374151', gap: 8,
+  },
+  routeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  routeNumber: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: '#F9FAFB' },
+  routeDate: { fontSize: FontSize.xs, color: '#9CA3AF', marginTop: 2 },
+  routeStops: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  routeStopsText: { fontSize: FontSize.sm, color: '#9CA3AF' },
+  routeCenterRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  routeCenterText: { fontSize: FontSize.xs, color: '#6B7280' },
+
+  offlineMessage: { alignItems: 'center', paddingVertical: 40, gap: 8 },
+  offlineTitle: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: '#F9FAFB' },
+  offlineSubtitle: { fontSize: FontSize.sm, color: '#9CA3AF', textAlign: 'center' },
 });

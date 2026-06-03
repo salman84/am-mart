@@ -2204,6 +2204,37 @@ model DeliveryRating {
   @@map("delivery_ratings")
 }
 
+model DeliveryFeedback {
+  id              String   @id @default(uuid())
+  packageId       String
+  orderId         String?
+  customerId      String?
+  riderId         String?
+  feedbackType    FeedbackType @default(DELIVERY)
+  rating          Int?
+  comment         String?
+  isPositive      Boolean?
+  tags            String[]
+  isInternal      Boolean  @default(false)
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([packageId])
+  @@index([riderId])
+  @@index([feedbackType])
+  @@map("delivery_feedback")
+}
+
+enum FeedbackType {
+  DELIVERY
+  PACKAGING
+  DRIVER_BEHAVIOR
+  TIMING
+  CONDITION
+  OTHER
+}
+
 // ── Finance & Settlement ─────────────────────────────────────────────────────
 
 model DeliveryFeeRule {

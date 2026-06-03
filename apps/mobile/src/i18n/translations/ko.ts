@@ -492,6 +492,9 @@ export default {
   clockedIn: '출근 완료',
   clockedOut: '퇴근 완료',
   noShiftToday: '오늘 예정된 근무 없음',
+  confirmPickup: '픽업 확인',
+  scanOut: '스캔 출고',
+  rating: '평점',
 
   trackMyPackage: '택배 추적',
   enterTrackingNumber: '운송장 번호 입력',
