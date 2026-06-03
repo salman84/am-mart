@@ -115,10 +115,21 @@ model Address {
   deliveryLockerCode    String?
   deliveryOtherNote     String?
   gateCode              String?
+  // ── Delivery preferences ──
+  deliveryPreference    DeliveryPreference @default(HAND_TO_CUSTOMER)
+  deliveryInstructions  String?
   customer              Customer @relation(fields: [customerId], references: [id])
   orders                Order[]
 
   @@map("addresses")
+}
+
+enum DeliveryPreference {
+  HAND_TO_CUSTOMER
+  LEAVE_AT_DOOR
+  CALL_BEFORE_ARRIVAL
+  LEAVE_WITH_SECURITY
+  SAFE_PLACE
 }
 
 model Wallet {
@@ -237,6 +248,13 @@ model Rider {
   vehicleModel          String?
   vehicleYear           Int?
   vehicleColor          String?
+  vehicleCategory       VehicleCategory      @default(MOTORCYCLE)
+  insuranceNumber       String?
+  insuranceExpiryDate   DateTime?
+  nationalId            String?
+  driverRank            DriverRank           @default(BRONZE)
+  avgDeliveryTimeMin    Float?
+  deliverySuccessRate   Float?
   partner               DeliveryPartner?     @relation(fields: [partnerId], references: [id])
   documents             DriverDocument[]
   shiftAssignments      DriverShiftAssignment[]
@@ -1640,6 +1658,7 @@ model FulfillmentCenter {
   id                  String   @id @default(uuid())
   name                String
   code                String   @unique
+  country             String   @default("KR")
   address             String
   city                String
   district            String?
@@ -1654,9 +1673,11 @@ model FulfillmentCenter {
   isActive            Boolean  @default(true)
   operatingHoursStart String?
   operatingHoursEnd   String?
+  centerType          FulfillmentCenterType @default(FULFILLMENT_CENTER)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   bins                WarehouseBin[]
+  warehouseZones      WarehouseZone[]
   inventory           WarehouseInventory[]
   incomingTransfers   WarehouseTransfer[]  @relation("TransferDestination")
   outgoingTransfers   WarehouseTransfer[]  @relation("TransferOrigin")
@@ -1666,10 +1687,101 @@ model FulfillmentCenter {
   orders              Order[]
   packages            Package[]
   driverShifts        DriverShift[]
+  hubs                DeliveryHub[]
 
   @@index([code])
   @@index([isActive])
+  @@index([centerType])
   @@map("fulfillment_centers")
+}
+
+// ── Delivery Hub (Intermediate between Warehouse and Driver) ────────────────
+
+model DeliveryHub {
+  id                  String   @id @default(uuid())
+  name                String
+  code                String   @unique
+  fulfillmentCenterId String?
+  country             String   @default("KR")
+  address             String
+  city                String
+  district            String?
+  postalCode          String?
+  lat                 Float?
+  lng                 Float?
+  phone               String?
+  managerUserId       String?
+  capacity            Int      @default(500)
+  currentLoad         Int      @default(0)
+  maxDrivers          Int      @default(20)
+  activeDrivers       Int      @default(0)
+  isActive            Boolean  @default(true)
+  operatingHoursStart String?
+  operatingHoursEnd   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  fulfillmentCenter   FulfillmentCenter? @relation(fields: [fulfillmentCenterId], references: [id])
+
+  @@index([code])
+  @@index([fulfillmentCenterId])
+  @@index([isActive])
+  @@map("delivery_hubs")
+}
+
+// ── Warehouse Zone → Rack hierarchy ─────────────────────────────────────────
+
+model WarehouseZone {
+  id                  String   @id @default(uuid())
+  fulfillmentCenterId String
+  name                String
+  code                String
+  description         String?
+  zoneType            WarehouseZoneType @default(GENERAL)
+  temperatureControl  Boolean  @default(false)
+  isActive            Boolean  @default(true)
+  sortOrder           Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  fulfillmentCenter   FulfillmentCenter @relation(fields: [fulfillmentCenterId], references: [id])
+  racks               WarehouseRack[]
+
+  @@unique([fulfillmentCenterId, code])
+  @@index([fulfillmentCenterId])
+  @@map("warehouse_zones")
+}
+
+model WarehouseRack {
+  id        String   @id @default(uuid())
+  zoneId    String
+  rackCode  String
+  shelves   Int      @default(5)
+  binsPerShelf Int   @default(10)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  zone      WarehouseZone @relation(fields: [zoneId], references: [id])
+
+  @@unique([zoneId, rackCode])
+  @@index([zoneId])
+  @@map("warehouse_racks")
+}
+
+enum FulfillmentCenterType {
+  FULFILLMENT_CENTER
+  DELIVERY_HUB
+  MICRO_FULFILLMENT
+  DARK_WAREHOUSE
+  SORTING_CENTER
+}
+
+enum WarehouseZoneType {
+  GENERAL
+  COLD_STORAGE
+  FRAGILE
+  OVERSIZED
+  HAZARDOUS
+  HIGH_VALUE
+  RETURNS
 }
 
 model WarehouseBin {
@@ -2375,6 +2487,7 @@ enum DriverSettlementStatus {
 enum UserRole {
   CUSTOMER
   SELLER
+  SELLER_STAFF
   RIDER
   ADMIN
   SUPER_ADMIN
@@ -2382,6 +2495,20 @@ enum UserRole {
   WAREHOUSE_STAFF
   DELIVERY_MANAGER
   SUPPORT_AGENT
+}
+
+enum VehicleCategory {
+  MOTORCYCLE
+  CAR
+  VAN
+  TRUCK
+}
+
+enum DriverRank {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
 }
 
 enum UserStatus {

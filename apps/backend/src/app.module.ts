@@ -30,6 +30,7 @@ import { RoutesModule } from './modules/routes/routes.module';
 import { ReturnsModule } from './modules/returns/returns.module';
 import { SettlementModule } from './modules/settlement/settlement.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { HubsModule } from './modules/hubs/hubs.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     ReturnsModule,
     SettlementModule,
     AnalyticsModule,
+    HubsModule,
   ],
 })
 export class AppModule {}

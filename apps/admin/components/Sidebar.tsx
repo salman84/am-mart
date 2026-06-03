@@ -9,7 +9,7 @@ import {
   LogOut, Store, ChevronDown, ChevronRight, Smartphone, BarChart3, Tag,
   Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal, KeyRound, Palette, Globe,
   Warehouse, Box, ArrowLeftRight, ScanLine, Route, Clock, DollarSign, CalendarDays,
-  RotateCcw, Banknote, Activity,
+  RotateCcw, Banknote, Activity, Building2, Layers,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -48,6 +48,8 @@ const navGroups = [
       { href: '/warehouse-bins', icon: Box, label: 'Warehouse Bins' },
       { href: '/warehouse-inventory', icon: Package, label: 'Warehouse Inventory' },
       { href: '/warehouse-transfers', icon: ArrowLeftRight, label: 'Transfers' },
+      { href: '/delivery-hubs', icon: Building2, label: 'Delivery Hubs' },
+      { href: '/warehouse-zones', icon: Layers, label: 'Zones & Racks' },
       { href: '/packages', icon: ScanLine, label: 'Packages & Tracking' },
       { href: '/delivery-routes', icon: Route, label: 'Delivery Routes' },
       { href: '/driver-shifts', icon: CalendarDays, label: 'Driver Shifts' },

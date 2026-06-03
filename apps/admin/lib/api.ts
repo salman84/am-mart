@@ -314,6 +314,25 @@ export const settlementsApi = {
     api.post(`/settlements/${id}/status`, { status }),
 };
 
+// ── Delivery Hubs & Warehouse Zones ───────────────────────────────────────────
+export const hubsApi = {
+  getAll: (params?: any) => api.get('/hubs', { params }),
+  getOne: (id: string) => api.get(`/hubs/${id}`),
+  create: (data: any) => api.post('/hubs', data),
+  update: (id: string, data: any) => api.put(`/hubs/${id}`, data),
+  remove: (id: string) => api.delete(`/hubs/${id}`),
+  // Zones
+  getZones: (centerId: string) => api.get(`/hubs/zones/${centerId}`),
+  createZone: (centerId: string, data: any) => api.post(`/hubs/zones/${centerId}`, data),
+  updateZone: (zoneId: string, data: any) => api.put(`/hubs/zones/item/${zoneId}`, data),
+  deleteZone: (zoneId: string) => api.delete(`/hubs/zones/item/${zoneId}`),
+  // Racks
+  getRacks: (zoneId: string) => api.get(`/hubs/racks/${zoneId}`),
+  createRack: (zoneId: string, data: any) => api.post(`/hubs/racks/${zoneId}`, data),
+  updateRack: (rackId: string, data: any) => api.put(`/hubs/racks/item/${rackId}`, data),
+  deleteRack: (rackId: string) => api.delete(`/hubs/racks/item/${rackId}`),
+};
+
 // ── Analytics & Monitoring ────────────────────────────────────────────────────
 export const analyticsApi = {
   getParcelOverview: () => api.get('/analytics/parcel-overview'),
