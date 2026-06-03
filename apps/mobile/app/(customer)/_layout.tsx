@@ -132,6 +132,9 @@ export default function CustomerLayout() {
       <Tabs.Screen name="terms"           options={{ href: null }} />
       <Tabs.Screen name="wallet"          options={{ href: null }} />
 
+      {/* Parcel tracking */}
+      <Tabs.Screen name="track-package"   options={{ href: null }} />
+
       {/* Directories — always hidden from tab bar, accessed via home screen */}
       <Tabs.Screen name="product"        options={{ href: null }} />
       <Tabs.Screen name="order"          options={{ href: null }} />

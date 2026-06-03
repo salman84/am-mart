@@ -253,6 +253,13 @@ export const driverPackageApi = {
   updateStatus:        (id: string, status: string) => api.post(`/packages/${id}/status`, { status }),
 };
 
+// ── Customer Package Tracking ────────────────────────────────────────────────
+export const customerTrackingApi = {
+  trackPackage:      (trackingNumber: string) => api.get(`/packages/track/${trackingNumber}`),
+  getDeliveryProof:  (packageId: string) => api.get(`/routes/delivery-proof/${packageId}`),
+  getTimeSlots:      () => api.get('/routes/time-slots'),
+};
+
 export const walletApi = {
   getBalance:     () => api.get('/wallet/balance'),
   getTransactions:(params?: any) => api.get('/wallet/transactions', { params }),
