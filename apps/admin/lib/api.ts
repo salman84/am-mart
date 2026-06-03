@@ -333,6 +333,21 @@ export const hubsApi = {
   deleteRack: (rackId: string) => api.delete(`/hubs/racks/item/${rackId}`),
 };
 
+// ── Fulfillment Automation ────────────────────────────────────────────────────
+export const fulfillmentApi = {
+  processOrder: (orderId: string) => api.post(`/fulfillment/process-order/${orderId}`),
+  autoAssignDriver: (routeId: string) => api.post(`/fulfillment/auto-assign-driver/${routeId}`),
+  autoCreateRoute: (centerId: string, plannedDate: string) =>
+    api.post('/fulfillment/auto-create-route', { centerId, plannedDate }),
+  cancelOrder: (orderId: string) => api.post(`/fulfillment/cancel-order/${orderId}`),
+  deliveryComplete: (orderId: string) => api.post(`/fulfillment/delivery-complete/${orderId}`),
+  returnToWarehouse: (orderId: string) => api.post(`/fulfillment/return-to-warehouse/${orderId}`),
+  damagedInventory: (centerId: string, productId: string, quantity: number) =>
+    api.post('/fulfillment/damaged-inventory', { centerId, productId, quantity }),
+  getPipeline: (centerId?: string) => api.get('/fulfillment/pipeline', { params: { centerId } }),
+  recalculateRank: (riderId: string) => api.post(`/fulfillment/recalculate-rank/${riderId}`),
+};
+
 // ── Analytics & Monitoring ────────────────────────────────────────────────────
 export const analyticsApi = {
   getParcelOverview: () => api.get('/analytics/parcel-overview'),

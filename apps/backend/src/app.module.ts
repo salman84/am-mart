@@ -31,6 +31,7 @@ import { ReturnsModule } from './modules/returns/returns.module';
 import { SettlementModule } from './modules/settlement/settlement.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HubsModule } from './modules/hubs/hubs.module';
+import { FulfillmentModule } from './modules/fulfillment/fulfillment.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { HubsModule } from './modules/hubs/hubs.module';
     SettlementModule,
     AnalyticsModule,
     HubsModule,
+    FulfillmentModule,
   ],
 })
 export class AppModule {}
