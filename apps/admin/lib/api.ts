@@ -208,4 +208,48 @@ export const exchangeRatesApi = {
   getCurrencies: () => api.get('/exchange-rates/public/currencies'),
 };
 
+// ── Warehouse & Fulfillment ───────────────────────────────────────────────────
+export const warehouseApi = {
+  // Fulfillment Centers
+  getCenters: (params?: any) => api.get('/warehouse/centers', { params }),
+  getCenter: (id: string) => api.get(`/warehouse/centers/${id}`),
+  createCenter: (data: any) => api.post('/warehouse/centers', data),
+  updateCenter: (id: string, data: any) => api.put(`/warehouse/centers/${id}`, data),
+  deleteCenter: (id: string) => api.delete(`/warehouse/centers/${id}`),
+  getDashboard: (id: string) => api.get(`/warehouse/centers/${id}/dashboard`),
+  // Bins
+  getBins: (centerId: string, params?: any) => api.get(`/warehouse/centers/${centerId}/bins`, { params }),
+  createBin: (centerId: string, data: any) => api.post(`/warehouse/centers/${centerId}/bins`, data),
+  updateBin: (binId: string, data: any) => api.put(`/warehouse/bins/${binId}`, data),
+  deleteBin: (binId: string) => api.delete(`/warehouse/bins/${binId}`),
+  // Inventory
+  getInventory: (centerId: string, params?: any) => api.get(`/warehouse/centers/${centerId}/inventory`, { params }),
+  adjustInventory: (centerId: string, data: any) => api.post(`/warehouse/centers/${centerId}/inventory/adjust`, data),
+  // Transfers
+  getTransfers: (params?: any) => api.get('/warehouse/transfers', { params }),
+  getTransfer: (id: string) => api.get(`/warehouse/transfers/${id}`),
+  createTransfer: (data: any) => api.post('/warehouse/transfers', data),
+  updateTransferStatus: (id: string, status: string, notes?: string) =>
+    api.post(`/warehouse/transfers/${id}/status`, { status, notes }),
+  receiveTransferItems: (id: string, items: any[]) =>
+    api.post(`/warehouse/transfers/${id}/receive`, { items }),
+};
+
+export const packagesApi = {
+  getAll: (params?: any) => api.get('/packages', { params }),
+  getOne: (id: string) => api.get(`/packages/${id}`),
+  track: (trackingNumber: string) => api.get(`/packages/track/${trackingNumber}`),
+  create: (data: any) => api.post('/packages', data),
+  update: (id: string, data: any) => api.put(`/packages/${id}`, data),
+  getPickQueue: (centerId: string) => api.get(`/packages/queue/pick/${centerId}`),
+  pick: (id: string) => api.post(`/packages/${id}/pick`),
+  pack: (id: string, data?: any) => api.post(`/packages/${id}/pack`, data || {}),
+  generateLabel: (id: string) => api.post(`/packages/${id}/label`),
+  sort: (id: string, sortZone: string) => api.post(`/packages/${id}/sort`, { sortZone }),
+  load: (id: string) => api.post(`/packages/${id}/load`),
+  addScan: (id: string, data: any) => api.post(`/packages/${id}/scan`, data),
+  getScans: (id: string) => api.get(`/packages/${id}/scans`),
+  updateStatus: (id: string, status: string) => api.post(`/packages/${id}/status`, { status }),
+};
+
 export default api;

@@ -386,6 +386,7 @@ model Order {
   fulfillmentCenterId String?
   deliveryTimeSlotId  String?
   deliveryInstructions String?
+  shipments           Shipment[]
   deliveryRating      DeliveryRating?
   fulfillmentCenter   FulfillmentCenter? @relation(fields: [fulfillmentCenterId], references: [id])
   deliveryTimeSlot    DeliveryTimeSlot?  @relation(fields: [deliveryTimeSlotId], references: [id])
@@ -1422,6 +1423,7 @@ model Shipment {
   fulfillmentCenterId String?
   totalWeight         Float?
   totalPackages       Int          @default(1)
+  order               Order        @relation(fields: [orderId], references: [id])
   fulfillmentCenter   FulfillmentCenter? @relation(fields: [fulfillmentCenterId], references: [id])
   packages            Package[]
 

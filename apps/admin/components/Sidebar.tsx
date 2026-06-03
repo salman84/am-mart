@@ -8,6 +8,7 @@ import {
   CreditCard, TicketPercent, Image, MessageSquare, Settings,
   LogOut, Store, ChevronDown, ChevronRight, Smartphone, BarChart3, Tag,
   Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal, KeyRound, Palette, Globe,
+  Warehouse, Box, ArrowLeftRight, ScanLine,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -37,6 +38,16 @@ const navGroups = [
       { href: '/categories', icon: Tag, label: 'Categories' },
       { href: '/orders', icon: Package, label: 'Orders' },
       { href: '/reviews', icon: Star, label: 'Reviews' },
+    ],
+  },
+  {
+    label: 'Warehouse & Delivery',
+    items: [
+      { href: '/fulfillment-centers', icon: Warehouse, label: 'Fulfillment Centers' },
+      { href: '/warehouse-bins', icon: Box, label: 'Warehouse Bins' },
+      { href: '/warehouse-inventory', icon: Package, label: 'Warehouse Inventory' },
+      { href: '/warehouse-transfers', icon: ArrowLeftRight, label: 'Transfers' },
+      { href: '/packages', icon: ScanLine, label: 'Packages & Tracking' },
     ],
   },
   {

@@ -24,6 +24,8 @@ import { WalletModule } from './modules/wallet/wallet.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module';
 import { MarketplaceConfigModule } from './modules/marketplace-config/marketplace-config.module';
+import { WarehouseModule } from './modules/warehouse/warehouse.module';
+import { PackagesModule } from './modules/packages/packages.module';
 
 @Module({
   imports: [
@@ -61,6 +63,8 @@ import { MarketplaceConfigModule } from './modules/marketplace-config/marketplac
     ReviewsModule,
     ExchangeRatesModule,
     MarketplaceConfigModule,
+    WarehouseModule,
+    PackagesModule,
   ],
 })
 export class AppModule {}
