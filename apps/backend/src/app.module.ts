@@ -27,6 +27,8 @@ import { MarketplaceConfigModule } from './modules/marketplace-config/marketplac
 import { WarehouseModule } from './modules/warehouse/warehouse.module';
 import { PackagesModule } from './modules/packages/packages.module';
 import { RoutesModule } from './modules/routes/routes.module';
+import { ReturnsModule } from './modules/returns/returns.module';
+import { SettlementModule } from './modules/settlement/settlement.module';
 
 @Module({
   imports: [
@@ -67,6 +69,8 @@ import { RoutesModule } from './modules/routes/routes.module';
     WarehouseModule,
     PackagesModule,
     RoutesModule,
+    ReturnsModule,
+    SettlementModule,
   ],
 })
 export class AppModule {}

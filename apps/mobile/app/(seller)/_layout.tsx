@@ -32,6 +32,8 @@ export default function SellerLayout() {
       <Tabs.Screen name="earnings" options={{ title: 'Earnings', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={24} color={color} /> }} />
       <Tabs.Screen name="seller-profile" options={{ title: 'Profile', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} size={24} color={color} /> }} />
       <Tabs.Screen name="add-product" options={{ href: null }} />
+      <Tabs.Screen name="warehouse-transfers" options={{ href: null }} />
+      <Tabs.Screen name="create-transfer" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -216,6 +216,14 @@ export const sellerApi = {
   getPayouts:        (params?: any) => api.get('/sellers/payouts', { params }),
 };
 
+// ── Seller Warehouse Integration ─────────────────────────────────────────────
+export const sellerWarehouseApi = {
+  getTransfers:     (params?: any) => api.get('/warehouse/transfers', { params }),
+  getTransfer:      (id: string) => api.get(`/warehouse/transfers/${id}`),
+  createTransfer:   (data: any) => api.post('/warehouse/transfers', data),
+  getCenters:       () => api.get('/warehouse/centers', { params: { isActive: 'true', limit: 100 } }),
+};
+
 export const uploadApi = {
   uploadImage: (formData: FormData) =>
     api.post('/upload/image', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),

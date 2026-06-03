@@ -9,6 +9,7 @@ import {
   LogOut, Store, ChevronDown, ChevronRight, Smartphone, BarChart3, Tag,
   Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal, KeyRound, Palette, Globe,
   Warehouse, Box, ArrowLeftRight, ScanLine, Route, Clock, DollarSign, CalendarDays,
+  RotateCcw, Banknote,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -52,6 +53,8 @@ const navGroups = [
       { href: '/driver-shifts', icon: CalendarDays, label: 'Driver Shifts' },
       { href: '/time-slots', icon: Clock, label: 'Time Slots' },
       { href: '/fee-rules', icon: DollarSign, label: 'Fee Rules' },
+      { href: '/returns', icon: RotateCcw, label: 'Returns' },
+      { href: '/settlements', icon: Banknote, label: 'Settlements' },
     ],
   },
   {

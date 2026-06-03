@@ -289,4 +289,29 @@ export const routesApi = {
   deleteFeeRule: (id: string) => api.delete(`/routes/fee-rules/${id}`),
 };
 
+// ── Returns & Reverse Logistics ───────────────────────────────────────────────
+export const returnsApi = {
+  getAll: (params?: any) => api.get('/returns', { params }),
+  getOne: (id: string) => api.get(`/returns/${id}`),
+  updateStatus: (id: string, status: string, adminNotes?: string) =>
+    api.post(`/returns/${id}/status`, { status, adminNotes }),
+  schedulePickup: (id: string, data: any) => api.post(`/returns/${id}/pickup`, data),
+  updatePickupStatus: (pickupId: string, status: string) =>
+    api.post(`/returns/pickups/${pickupId}/status`, { status }),
+  createInspection: (id: string, data: any) => api.post(`/returns/${id}/inspection`, data),
+  getInspection: (id: string) => api.get(`/returns/${id}/inspection`),
+};
+
+// ── Settlement & Finance ──────────────────────────────────────────────────────
+export const settlementsApi = {
+  getAll: (params?: any) => api.get('/settlements', { params }),
+  getStats: () => api.get('/settlements/stats'),
+  getOne: (id: string) => api.get(`/settlements/${id}`),
+  create: (data: any) => api.post('/settlements', data),
+  calculate: (riderId: string, periodStart: string, periodEnd: string) =>
+    api.post('/settlements/calculate', { riderId, periodStart, periodEnd }),
+  updateStatus: (id: string, status: string) =>
+    api.post(`/settlements/${id}/status`, { status }),
+};
+
 export default api;
