@@ -8,7 +8,7 @@ import {
   CreditCard, TicketPercent, Image, MessageSquare, Settings,
   LogOut, Store, ChevronDown, ChevronRight, Smartphone, BarChart3, Tag,
   Database, Plug, Star, MapPin, TrendingUp, SlidersHorizontal, KeyRound, Palette, Globe,
-  Warehouse, Box, ArrowLeftRight, ScanLine,
+  Warehouse, Box, ArrowLeftRight, ScanLine, Route, Clock, DollarSign, CalendarDays,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -48,6 +48,10 @@ const navGroups = [
       { href: '/warehouse-inventory', icon: Package, label: 'Warehouse Inventory' },
       { href: '/warehouse-transfers', icon: ArrowLeftRight, label: 'Transfers' },
       { href: '/packages', icon: ScanLine, label: 'Packages & Tracking' },
+      { href: '/delivery-routes', icon: Route, label: 'Delivery Routes' },
+      { href: '/driver-shifts', icon: CalendarDays, label: 'Driver Shifts' },
+      { href: '/time-slots', icon: Clock, label: 'Time Slots' },
+      { href: '/fee-rules', icon: DollarSign, label: 'Fee Rules' },
     ],
   },
   {

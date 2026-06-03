@@ -26,6 +26,7 @@ import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.mod
 import { MarketplaceConfigModule } from './modules/marketplace-config/marketplace-config.module';
 import { WarehouseModule } from './modules/warehouse/warehouse.module';
 import { PackagesModule } from './modules/packages/packages.module';
+import { RoutesModule } from './modules/routes/routes.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { PackagesModule } from './modules/packages/packages.module';
     MarketplaceConfigModule,
     WarehouseModule,
     PackagesModule,
+    RoutesModule,
   ],
 })
 export class AppModule {}

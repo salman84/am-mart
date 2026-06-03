@@ -252,4 +252,41 @@ export const packagesApi = {
   updateStatus: (id: string, status: string) => api.post(`/packages/${id}/status`, { status }),
 };
 
+// ── Routes & Driver Management ────────────────────────────────────────────────
+export const routesApi = {
+  getAll: (params?: any) => api.get('/routes', { params }),
+  getOne: (id: string) => api.get(`/routes/${id}`),
+  create: (data: any) => api.post('/routes', data),
+  update: (id: string, data: any) => api.put(`/routes/${id}`, data),
+  assignDriver: (id: string, riderId: string) => api.post(`/routes/${id}/assign-driver`, { riderId }),
+  updateStatus: (id: string, status: string) => api.post(`/routes/${id}/status`, { status }),
+  addStop: (routeId: string, data: any) => api.post(`/routes/${routeId}/stops`, data),
+  updateStopStatus: (stopId: string, status: string) => api.post(`/routes/stops/${stopId}/status`, { status }),
+  removeStop: (stopId: string) => api.delete(`/routes/stops/${stopId}`),
+  getAvailableDrivers: () => api.get('/routes/available-drivers'),
+  // Delivery proof & failed
+  getDeliveryProof: (packageId: string) => api.get(`/routes/delivery-proof/${packageId}`),
+  getFailedDeliveries: (params?: any) => api.get('/routes/failed-deliveries', { params }),
+  // Shifts
+  getShifts: (centerId?: string) => api.get('/routes/shifts', { params: { centerId } }),
+  createShift: (data: any) => api.post('/routes/shifts', data),
+  updateShift: (id: string, data: any) => api.put(`/routes/shifts/${id}`, data),
+  deleteShift: (id: string) => api.delete(`/routes/shifts/${id}`),
+  // Shift Assignments
+  getShiftAssignments: (params?: any) => api.get('/routes/shift-assignments', { params }),
+  assignShift: (data: any) => api.post('/routes/shift-assignments', data),
+  updateShiftAssignment: (id: string, status: string) =>
+    api.post(`/routes/shift-assignments/${id}/status`, { status }),
+  // Time Slots
+  getTimeSlots: (zoneId?: string) => api.get('/routes/time-slots', { params: { zoneId } }),
+  createTimeSlot: (data: any) => api.post('/routes/time-slots', data),
+  updateTimeSlot: (id: string, data: any) => api.put(`/routes/time-slots/${id}`, data),
+  deleteTimeSlot: (id: string) => api.delete(`/routes/time-slots/${id}`),
+  // Fee Rules
+  getFeeRules: (zoneId?: string) => api.get('/routes/fee-rules', { params: { zoneId } }),
+  createFeeRule: (data: any) => api.post('/routes/fee-rules', data),
+  updateFeeRule: (id: string, data: any) => api.put(`/routes/fee-rules/${id}`, data),
+  deleteFeeRule: (id: string) => api.delete(`/routes/fee-rules/${id}`),
+};
+
 export default api;
