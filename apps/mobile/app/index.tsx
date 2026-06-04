@@ -25,7 +25,7 @@ export default function Index() {
   const dispatch = useDispatch<AppDispatch>();
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   const { splashLogo, splashBgColor } = useBranding();
-  const { t } = useLanguage();
+  const { t, isFirstRun, loading: langLoading } = useLanguage();
   const [splashDone, setSplashDone] = useState(false);
   const [profileChecked, setProfileChecked] = useState(false);
 
@@ -44,7 +44,10 @@ export default function Index() {
     }
   }, [splashDone, isAuthenticated]);
 
-  if (!splashDone) {
+  // CRITICAL: Wait for language system to load AND first-run picker to complete
+  // before navigating. The FirstRunLanguagePicker in _layout.tsx shows the full-screen
+  // language selector. We must NOT redirect while it's showing.
+  if (!splashDone || langLoading || isFirstRun) {
     // Dynamic splash: logo and bg color from admin settings, fallback to bundled asset
     const bgColor = splashBgColor || '#183522';
     const hasRemoteLogo = splashLogo && (splashLogo.startsWith('https://') || splashLogo.startsWith('data:'));
