@@ -53,11 +53,23 @@ export const loginWithOtp = createAsyncThunk('auth/loginWithOtp', async (data: {
 });
 
 export const logout = createAsyncThunk('auth/logout', async () => {
-  await authApi.logout().catch(() => {});
+  // Always clear local state regardless of API success
+  try { await authApi.logout(); } catch {} // server call optional — don't block logout
   setCachedToken(null);            // clear memory cache
   clearApiCache();                 // clear all response cache on logout
-  await SecureStore.deleteItemAsync('accessToken');
-  await SecureStore.deleteItemAsync('refreshToken');
+  await SecureStore.deleteItemAsync('accessToken').catch(() => {});
+  await SecureStore.deleteItemAsync('refreshToken').catch(() => {});
+  // Clear ALL persisted data so next login or reinstall is truly fresh
+  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+  await AsyncStorage.multiRemove([
+    'persist:ammart-root',     // Redux persisted state
+    '@ammart_language',        // Language preference
+    '@ammart_first_run',       // First-run flag (so language picker shows again)
+    '@ammart_branding_cache',  // Branding cache
+    '@ammart_pin',             // PIN lock
+    '@ammart_pin_enabled',     // PIN enabled flag
+    '@ammart_last_activity',   // PIN activity timestamp
+  ]).catch(() => {});
 });
 
 export const loadProfile = createAsyncThunk('auth/loadProfile', async (_, { rejectWithValue }) => {
@@ -85,8 +97,15 @@ const authSlice = createSlice({
       .addCase(loginWithOtp.pending, (state) => { state.isLoading = true; state.error = null; })
       .addCase(loginWithOtp.fulfilled, (state, action) => { state.isLoading = false; state.user = action.payload; state.isAuthenticated = true; })
       .addCase(loginWithOtp.rejected, (state, action) => { state.isLoading = false; state.error = action.payload as string; })
-      .addCase(logout.fulfilled, (state) => { state.user = null; state.isAuthenticated = false; })
-      .addCase(loadProfile.fulfilled, (state, action) => { state.user = action.payload; state.isAuthenticated = true; });
+      .addCase(logout.fulfilled, (state) => { state.user = null; state.isAuthenticated = false; state.error = null; })
+      .addCase(logout.rejected, (state) => { state.user = null; state.isAuthenticated = false; state.error = null; })
+      .addCase(loadProfile.fulfilled, (state, action) => { state.user = action.payload; state.isAuthenticated = true; })
+      .addCase(loadProfile.rejected, (state) => {
+        // Token is invalid/expired and refresh failed — force clean state
+        state.user = null;
+        state.isAuthenticated = false;
+        state.error = null;
+      });
   },
 });
 

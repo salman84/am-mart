@@ -90,10 +90,13 @@ api.interceptors.response.use(
           // Refresh failed — fall through to force logout
         }
       }
-      // No refresh token OR refresh failed — clear stale tokens silently, stay on screen
+      // No refresh token OR refresh failed — clear ALL stale auth data
       setCachedToken(null);
-      await SecureStore.deleteItemAsync('accessToken');
-      await SecureStore.deleteItemAsync('refreshToken');
+      await SecureStore.deleteItemAsync('accessToken').catch(() => {});
+      await SecureStore.deleteItemAsync('refreshToken').catch(() => {});
+      // Also clear persisted Redux auth so app doesn't think user is logged in
+      const AsyncStorageMod = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorageMod.removeItem('persist:ammart-root').catch(() => {});
     }
     return Promise.reject(error);
   },

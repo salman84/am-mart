@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../src/store';
-import { loadProfile } from '../src/store/slices/authSlice';
+import { loadProfile, logout } from '../src/store/slices/authSlice';
 import { View, Image, StyleSheet, Text, ActivityIndicator } from 'react-native';
 import { useBranding } from '../src/context/BrandingContext';
 import { useLanguage } from '../src/i18n';
+import * as SecureStore from 'expo-secure-store';
 
 /**
  * Dynamic splash screen — 100% controlled from Admin Panel.
@@ -35,6 +36,24 @@ export default function Index() {
   useEffect(() => {
     const timer = setTimeout(() => setSplashDone(true), 2500);
     return () => clearTimeout(timer);
+  }, []);
+
+  // On boot: verify token still exists in SecureStore.
+  // If Redux says authenticated but SecureStore has no token (app was reinstalled),
+  // force logout to clear stale persisted state → shows splash + language picker.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    (async () => {
+      try {
+        const token = await SecureStore.getItemAsync('accessToken');
+        if (!token) {
+          // Token gone (uninstall cleared SecureStore) but Redux still has stale auth
+          dispatch(logout());
+        }
+      } catch {
+        dispatch(logout());
+      }
+    })();
   }, []);
 
   // Re-check profile from server when app reopens (detect status changes)
