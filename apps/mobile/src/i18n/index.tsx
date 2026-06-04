@@ -16,6 +16,7 @@ import React, {
 } from 'react';
 import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 import en from './translations/en';
 import ko from './translations/ko';
@@ -118,24 +119,24 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const [savedLang, firstRunDone] = await Promise.all([
-          AsyncStorage.getItem(LANG_KEY),
-          AsyncStorage.getItem(FIRST_RUN_KEY),
-        ]);
+        // Use SecureStore as the reliable source of truth for "has user set up the app"
+        // SecureStore IS cleared on uninstall (unlike AsyncStorage which can persist on Android)
+        const secureFlag = await SecureStore.getItemAsync('ammart_lang_setup').catch(() => null);
+        const savedLang = await AsyncStorage.getItem(LANG_KEY).catch(() => null);
 
-        if (savedLang && translations[savedLang as Language]) {
-          // User already selected a language before
+        if (secureFlag && savedLang && translations[savedLang as Language]) {
+          // User has completed language setup AND the flag survived in SecureStore
           setLangState(savedLang as Language);
           setIsFirstRun(false);
         } else {
-          // First install — detect device language
+          // Either first install, or reinstall (SecureStore was cleared), or never set up
           const detected = detectDeviceLanguage();
           setLangState(detected);
-          // Show language picker if first run
-          setIsFirstRun(!firstRunDone);
+          setIsFirstRun(true);
         }
       } catch {
         setLangState('en');
+        setIsFirstRun(true);
       } finally {
         setLoading(false);
       }
@@ -149,9 +150,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const completeFirstRun = useCallback(async () => {
     setIsFirstRun(false);
-    await AsyncStorage.setItem(FIRST_RUN_KEY, 'done');
-    // Also persist the current language choice
-    await AsyncStorage.setItem(LANG_KEY, language);
+    // Write to BOTH stores:
+    // - SecureStore = cleared on uninstall (reliable for detecting fresh install)
+    // - AsyncStorage = fast read for the language code
+    await SecureStore.setItemAsync('ammart_lang_setup', 'done').catch(() => {});
+    await AsyncStorage.setItem(FIRST_RUN_KEY, 'done').catch(() => {});
+    await AsyncStorage.setItem(LANG_KEY, language).catch(() => {});
   }, [language]);
 
   const t = useCallback((key: TKey, params?: Record<string, string | number>): string => {

@@ -59,6 +59,7 @@ export const logout = createAsyncThunk('auth/logout', async () => {
   clearApiCache();                 // clear all response cache on logout
   await SecureStore.deleteItemAsync('accessToken').catch(() => {});
   await SecureStore.deleteItemAsync('refreshToken').catch(() => {});
+  await SecureStore.deleteItemAsync('ammart_lang_setup').catch(() => {});
   // Clear ALL persisted data so next login or reinstall is truly fresh
   const AsyncStorage = require('@react-native-async-storage/async-storage').default;
   await AsyncStorage.multiRemove([
