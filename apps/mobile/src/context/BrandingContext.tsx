@@ -30,11 +30,11 @@ const DEFAULT: Branding = {
   appLogo:        '',
   appIconLogo:    '',
   splashLogo:     '',
-  splashBgColor:  '#10B981',
+  splashBgColor:  '',
   iconTopup:      '',
   iconSimCards:   '',
   iconRateInquiry:'',
-  currency:       '₩',
+  currency:       '',
   loaded:         false,
   reload:         () => {},
 };
@@ -47,11 +47,11 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     appLogo:        '',
     appIconLogo:    '',
     splashLogo:     '',
-    splashBgColor:  '#10B981',
+    splashBgColor:  '',
     iconTopup:      '',
     iconSimCards:   '',
     iconRateInquiry:'',
-    currency:       '₩',
+    currency:       '',
     loaded:         false,
   });
   const retryCount = React.useRef(0);
@@ -62,11 +62,11 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     appLogo:        d.APP_LOGO         || '',
     appIconLogo:    d.APP_ICON_LOGO    || '',
     splashLogo:     d.SPLASH_LOGO      || '',
-    splashBgColor:  d.SPLASH_BG_COLOR  || '#10B981',
+    splashBgColor:  d.SPLASH_BG_COLOR  || '',
     iconTopup:      d.ICON_TOPUP       || '',
     iconSimCards:   d.ICON_SIM_CARDS   || '',
     iconRateInquiry:d.ICON_RATE_INQUIRY || '',
-    currency:       d.CURRENCY_SYMBOL  || d.CURRENCY || '₩',
+    currency:       d.CURRENCY_SYMBOL  || d.CURRENCY || '',
     loaded:         true,
   }), []);
 

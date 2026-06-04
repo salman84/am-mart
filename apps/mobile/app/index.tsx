@@ -3,23 +3,26 @@ import { Redirect } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../src/store';
 import { loadProfile } from '../src/store/slices/authSlice';
-import { View, Image, StyleSheet, Text } from 'react-native';
+import { View, Image, StyleSheet, Text, ActivityIndicator } from 'react-native';
 import { useBranding } from '../src/context/BrandingContext';
 import { useLanguage } from '../src/i18n';
 
-const LOCAL_LOGO = require('../assets/splash-logo.png');
-
 /**
- * Dynamic splash screen — logo and background color come from admin settings.
+ * Dynamic splash screen — 100% controlled from Admin Panel.
+ *
+ * Admin settings used:
+ *   SPLASH_LOGO     → Logo image URL shown on splash
+ *   SPLASH_BG_COLOR → Background color of splash screen
+ *
+ * NO hardcoded logo or color. Everything comes from the admin panel
+ * via BrandingContext (cached in AsyncStorage for instant display).
  *
  * Flow:
- *  1. Show immediately with cached branding (from AsyncStorage — instant, no API).
+ *  1. Show splash with cached branding (from AsyncStorage — instant, no API).
  *  2. BrandingContext loads fresh data from API in parallel.
- *  3. If authenticated, refresh profile from server (re-check status).
- *  4. After splash + profile check → navigate to the correct screen.
- *
- * Admin changes to SPLASH_LOGO and SPLASH_BG_COLOR take effect on the NEXT
- * app launch (the cache is written after every API fetch).
+ *  3. Wait for language system (first-run picker must complete first).
+ *  4. If authenticated, refresh profile from server.
+ *  5. After all checks → navigate to the correct screen.
  */
 export default function Index() {
   const dispatch = useDispatch<AppDispatch>();
@@ -44,28 +47,22 @@ export default function Index() {
     }
   }, [splashDone, isAuthenticated]);
 
-  // CRITICAL: Wait for language system to load AND first-run picker to complete
-  // before navigating. The FirstRunLanguagePicker in _layout.tsx shows the full-screen
-  // language selector. We must NOT redirect while it's showing.
+  // Wait for splash timer + language system + first-run picker
   if (!splashDone || langLoading || isFirstRun) {
-    // Dynamic splash: logo and bg color from admin settings, fallback to bundled asset
-    const bgColor = splashBgColor || '#183522';
-    const hasRemoteLogo = splashLogo && (splashLogo.startsWith('https://') || splashLogo.startsWith('data:'));
+    // All values from admin panel via BrandingContext — no hardcoded fallback
+    const bgColor = splashBgColor || 'transparent';
+    const hasLogo = splashLogo && (splashLogo.startsWith('https://') || splashLogo.startsWith('http://') || splashLogo.startsWith('data:'));
 
     return (
       <View style={[styles.splash, { backgroundColor: bgColor }]}>
-        {hasRemoteLogo ? (
+        {hasLogo ? (
           <Image
             source={{ uri: splashLogo }}
             style={styles.logo}
             resizeMode="contain"
           />
         ) : (
-          <Image
-            source={LOCAL_LOGO}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <ActivityIndicator size="large" color="rgba(255,255,255,0.6)" />
         )}
       </View>
     );
@@ -73,25 +70,25 @@ export default function Index() {
 
   // Show preparing screen while re-checking profile
   if (isAuthenticated && !profileChecked) {
-    const bgColor = splashBgColor || '#183522';
+    const bgColor = splashBgColor || 'transparent';
+    const hasLogo = splashLogo && (splashLogo.startsWith('https://') || splashLogo.startsWith('http://'));
+
     return (
       <View style={[styles.splash, { backgroundColor: bgColor }]}>
-        <Image
-          source={splashLogo?.startsWith('https://') ? { uri: splashLogo } : LOCAL_LOGO}
-          style={styles.logoSmall}
-          resizeMode="contain"
-        />
+        {hasLogo && (
+          <Image
+            source={{ uri: splashLogo }}
+            style={styles.logoSmall}
+            resizeMode="contain"
+          />
+        )}
         <Text style={styles.preparingText}>{t('preparingAccount')}</Text>
-        <View style={styles.dots}>
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
-        </View>
+        <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
       </View>
     );
   }
 
-  // Check for suspended status (admin may have changed while user was offline)
+  // Check for suspended status
   if (isAuthenticated && user?.status === 'SUSPENDED') {
     return <Redirect href={{ pathname: '/(auth)/account-status', params: { status: 'suspended' } }} />;
   }
@@ -121,18 +118,5 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '600',
     marginBottom: 16,
-  },
-  dots: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
-  dotActive: {
-    backgroundColor: 'rgba(255,255,255,0.8)',
   },
 });
